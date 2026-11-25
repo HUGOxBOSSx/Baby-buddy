@@ -17,8 +17,8 @@ Baby Buddy MX acompaña a familias con niñas y niños de 0 a 6 años en México
 
 | Hito | Alcance | Estado |
 |---|---|---|
-| 1 | Monorepo, diseño, navegación, avisos, privacidad local, CI y documentación | En validación |
-| 2 | Motor de ropa y clima de −5 °C a 50 °C, interfaz móvil y calculadora web pública | Pendiente |
+| 1 | Monorepo, diseño, navegación, avisos, privacidad local, CI y documentación | Completado |
+| 2 | Motor de ropa y clima de −5 °C a 50 °C, interfaz móvil y calculadora web pública | Completado |
 | 3 | Buscador de guías, biblioteca de calma, problemas y soluciones, semáforo de cuatro niveles | Pendiente |
 | 4 | Cuentas, perfiles, registro diario, funcionamiento sin conexión, sincronización y recordatorios | Pendiente |
 | 5 | Salud México: fiebre, medicamentos, inmunizaciones, crecimiento y resumen para consulta | Pendiente |

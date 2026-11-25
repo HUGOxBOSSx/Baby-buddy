@@ -95,7 +95,7 @@ packages/content/src/
   reviewed_at con fecha válida y reviewed_by no vacío.
 - Campos de copy en español con sufijo Mx (titleMx, summaryMx, guidanceMx, headlineMx, ...).
 - Al añadir contenido, validar con assertValidClinicalMetadata y validateSpanishClinicalCopy.
-- Fuera de alcance: motores de clima o TOG, cartilla de vacunación con z-scores, y RAG en vivo.
+- Fuera de alcance actual: cartilla de vacunación con z-scores, y RAG en vivo.
 
 ## 9. Convenciones de código
 - TypeScript strict; sin any; props e interfaces readonly; importar tipos con `import type`.
@@ -141,6 +141,7 @@ E2E: node e2e/run.mjs --tier=1|2|3|4|all (con E2E_CORE_ONLY=1 cubre solo package
 | Etapas y edades | packages/core/src/domain/stages.ts |
 | Métricas y unidades | packages/core/src/domain/metrics.ts |
 | Perfil del bebé | packages/core/src/domain/profile.ts |
+| Motor de ropa y clima | packages/core/src/domain/clothingEngine.ts |
 | Colores y modo noche | packages/core/src/theme/tokens.ts |
 | Contraste WCAG | packages/core/src/theme/contrast.ts |
 | Copy y guardrails | packages/core/src/compliance/guardrails.ts, disclaimers.ts |

@@ -7,6 +7,7 @@ import {
 import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { AccountDeletionSheet } from '../../components/AccountDeletionSheet';
+import { ChildProfileEditor } from '../../components/ChildProfileEditor';
 import { StatusBadge } from '../../components/StatusBadge';
 import { useThemeContext } from '../../components/ThemeProvider';
 import { TriageDisclaimerBanner } from '../../components/TriageDisclaimerBanner';
@@ -24,6 +25,8 @@ export default function SaludScreen() {
     childProfile,
     seedDemoData,
     iconsLoaded,
+    themeSchedule,
+    setThemeSchedule,
   } = useThemeContext();
   const [deletionSheetVisible, setDeletionSheetVisible] = useState(false);
   const [seeding, setSeeding] = useState(false);
@@ -67,6 +70,122 @@ export default function SaludScreen() {
         </View>
 
       <TriageDisclaimerBanner />
+
+      <ChildProfileEditor />
+
+      <View
+        className="rounded-2xl border p-4 gap-3"
+        style={{
+          backgroundColor: palette.bgCard,
+          borderColor: palette.borderInteractive,
+        }}
+      >
+        <Text className="text-lg font-bold" style={{ color: palette.textPrimary }}>
+          Horario automático de Modo 3:00 AM
+        </Text>
+        <Text className="text-xs" style={{ color: palette.textSecondary }}>
+          Por defecto se activa de {String(themeSchedule.nightStartHour).padStart(2, '0')}
+          :00 a {String(themeSchedule.nightEndHour).padStart(2, '0')}:00 h.
+        </Text>
+        <View className="flex-row gap-2">
+          <Pressable
+            onPress={() => setThemeSchedule({ ...themeSchedule, mode: 'auto' })}
+            className="flex-1 rounded-xl border px-3 py-2 items-center justify-center"
+            style={{
+              minHeight: MIN_TOUCH_TARGET_PX,
+              backgroundColor:
+                themeSchedule.mode === 'auto'
+                  ? palette.brandPrimary
+                  : palette.bgElevated,
+              borderColor:
+                themeSchedule.mode === 'auto'
+                  ? palette.brandPrimary
+                  : palette.borderInteractive,
+            }}
+          >
+            <Text
+              className="text-xs font-bold"
+              style={{
+                color:
+                  themeSchedule.mode === 'auto'
+                    ? palette.onBrandPrimary
+                    : palette.textPrimary,
+              }}
+            >
+              Automático
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() =>
+              setThemeSchedule({ ...themeSchedule, mode: 'manual' })
+            }
+            className="flex-1 rounded-xl border px-3 py-2 items-center justify-center"
+            style={{
+              minHeight: MIN_TOUCH_TARGET_PX,
+              backgroundColor:
+                themeSchedule.mode === 'manual'
+                  ? palette.brandPrimary
+                  : palette.bgElevated,
+              borderColor:
+                themeSchedule.mode === 'manual'
+                  ? palette.brandPrimary
+                  : palette.borderInteractive,
+            }}
+          >
+            <Text
+              className="text-xs font-bold"
+              style={{
+                color:
+                  themeSchedule.mode === 'manual'
+                    ? palette.onBrandPrimary
+                    : palette.textPrimary,
+              }}
+            >
+              Manual
+            </Text>
+          </Pressable>
+        </View>
+        <View className="flex-row gap-2">
+          <Pressable
+            onPress={() =>
+              setThemeSchedule({
+                ...themeSchedule,
+                mode: 'auto',
+                nightStartHour: (themeSchedule.nightStartHour + 1) % 24,
+              })
+            }
+            className="flex-1 rounded-xl border px-3 py-2 items-center justify-center"
+            style={{
+              minHeight: MIN_TOUCH_TARGET_PX,
+              backgroundColor: palette.bgElevated,
+              borderColor: palette.borderInteractive,
+            }}
+          >
+            <Text className="text-xs font-bold" style={{ color: palette.textPrimary }}>
+              Inicio: {String(themeSchedule.nightStartHour).padStart(2, '0')}:00
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() =>
+              setThemeSchedule({
+                ...themeSchedule,
+                mode: 'auto',
+                nightEndHour: (themeSchedule.nightEndHour + 1) % 24,
+              })
+            }
+            className="flex-1 rounded-xl border px-3 py-2 items-center justify-center"
+            style={{
+              minHeight: MIN_TOUCH_TARGET_PX,
+              backgroundColor: palette.bgElevated,
+              borderColor: palette.borderInteractive,
+            }}
+          >
+            <Text className="text-xs font-bold" style={{ color: palette.textPrimary }}>
+              Fin: {String(themeSchedule.nightEndHour).padStart(2, '0')}:00
+            </Text>
+          </Pressable>
+        </View>
+      </View>
 
       <View
         className="rounded-2xl border p-4 gap-3"

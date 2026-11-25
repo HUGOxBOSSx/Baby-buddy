@@ -1,6 +1,7 @@
-import { DISCLAIMERS_MX } from '@baby-buddy/core';
+import { DISCLAIMERS_MX, MIN_TOUCH_TARGET_PX } from '@baby-buddy/core';
 import type { ClinicalMetadata } from '@baby-buddy/content';
-import { Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, Text, View } from 'react-native';
 import { useThemeContext } from './ThemeProvider';
 
 export interface GuideDisclaimerHeaderProps {
@@ -12,64 +13,56 @@ export function GuideDisclaimerHeader({
 }: GuideDisclaimerHeaderProps) {
   const { palette } = useThemeContext();
   const disclaimer = DISCLAIMERS_MX.guide_header;
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <View
-      className="rounded-2xl border p-4 gap-3"
+      className="rounded-2xl border p-3 gap-2"
       style={{
         backgroundColor: palette.brandSurface,
         borderColor: palette.brandPrimary,
       }}
       accessibilityRole="text"
     >
-      <View className="gap-1">
-        <Text
-          className="text-xs font-bold uppercase tracking-wide"
-          style={{ color: palette.brandText }}
-        >
-          Orientación educativa · Nivel 2
-        </Text>
-        <Text
-          className="text-base font-bold"
-          style={{ color: palette.textPrimary }}
-        >
-          {disclaimer.titleMx}
-        </Text>
-        <Text className="text-sm" style={{ color: palette.textSecondary }}>
-          {disclaimer.bodyMx}
-        </Text>
-        <Text
-          className="text-sm font-semibold"
-          style={{ color: palette.alertRedText }}
-        >
+      <Text className="text-xs font-semibold" style={{ color: palette.textSecondary }}>
+        {disclaimer.bodyMx}{' '}
+        <Text className="font-bold" style={{ color: palette.alertRedText }}>
           {disclaimer.emergencyActionLabelMx}
         </Text>
-      </View>
+      </Text>
 
-      <View
-        className="rounded-xl border p-3 gap-1"
+      <Pressable
+        onPress={() => setExpanded((v) => !v)}
+        className="rounded-xl border px-3 py-2 flex-row items-center justify-between"
         style={{
+          minHeight: MIN_TOUCH_TARGET_PX,
           backgroundColor: palette.bgCard,
           borderColor: palette.borderInteractive,
         }}
       >
-        <Text
-          className="text-xs font-bold"
-          style={{ color: palette.textPrimary }}
+        <Text className="text-xs font-bold" style={{ color: palette.textMuted }}>
+          Fuentes y revisión editorial ({metadata.version})
+        </Text>
+        <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
+          {expanded ? 'Ocultar ▴' : 'Ver ▾'}
+        </Text>
+      </Pressable>
+
+      {expanded ? (
+        <View
+          className="rounded-xl border p-3 gap-1"
+          style={{
+            backgroundColor: palette.bgCard,
+            borderColor: palette.borderInteractive,
+          }}
         >
-          Metadatos clínicos visibles
-        </Text>
-        <Text className="text-xs" style={{ color: palette.textSecondary }}>
-          Versión: {metadata.version} · Corte editorial: {metadata.reviewed_at}
-        </Text>
-        <Text className="text-xs" style={{ color: palette.textSecondary }}>
-          Estado de revisión: {metadata.reviewed_by}
-        </Text>
-        <View className="pt-1 gap-1">
-          <Text
-            className="text-xs font-semibold"
-            style={{ color: palette.brandText }}
-          >
+          <Text className="text-xs" style={{ color: palette.textSecondary }}>
+            Versión: {metadata.version} · Corte editorial: {metadata.reviewed_at}
+          </Text>
+          <Text className="text-xs" style={{ color: palette.textSecondary }}>
+            Estado de revisión: {metadata.reviewed_by}
+          </Text>
+          <Text className="text-xs font-semibold pt-1" style={{ color: palette.brandText }}>
             Fuentes consultadas ({metadata.sources.length}):
           </Text>
           {metadata.sources.map((source) => (
@@ -82,7 +75,7 @@ export function GuideDisclaimerHeader({
             </Text>
           ))}
         </View>
-      </View>
+      ) : null}
     </View>
   );
 }

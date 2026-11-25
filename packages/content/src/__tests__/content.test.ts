@@ -6,6 +6,7 @@ import {
 } from '@baby-buddy/core';
 import {
   assertValidClinicalMetadata,
+  CLOTHING_ENGINE_METADATA,
   createClinicalMetadata,
   M1_CLOTHING_SCAFFOLDS,
   M1_GUIDE_SCAFFOLDS,
@@ -66,6 +67,17 @@ describe('@baby-buddy/content M1 scaffolds & clinical metadata', () => {
       expect(check.hasImperialUnits).toBe(false);
       expect(check.diagnosticViolations).toEqual([]);
     }
+  });
+
+  it('validates CLOTHING_ENGINE_METADATA and updated 911 respiratory red-flag copy', () => {
+    expect(() => assertValidClinicalMetadata(CLOTHING_ENGINE_METADATA)).not.toThrow();
+    const newbornGuide = M1_GUIDE_SCAFFOLDS.find(
+      (g) => g.id === 'm1-fiebre-orientacion',
+    );
+    expect(newbornGuide).toBeDefined();
+    expect(newbornGuide?.redFlagsMx.join(' ')).toContain(
+      'Dificultad respiratoria grave',
+    );
   });
 
   it('rejects invalid ClinicalMetadata and impossible calendar dates in assertValidClinicalMetadata', () => {

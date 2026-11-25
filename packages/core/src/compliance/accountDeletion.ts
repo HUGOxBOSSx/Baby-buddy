@@ -5,6 +5,7 @@ export const LOCAL_STORAGE_PREFIX = 'baby_buddy_mx:' as const;
 export const LOCAL_STORAGE_KEYS = {
   preferences: 'baby_buddy_mx:preferences',
   themeMode: 'baby_buddy_mx:theme_mode',
+  themeSchedule: 'baby_buddy_mx:theme_schedule',
   activeStageId: 'baby_buddy_mx:active_stage_id',
   onboardingAcceptedAt: 'baby_buddy_mx:onboarding_accepted_at',
   childProfile: 'baby_buddy_mx:child_profile',
@@ -128,6 +129,7 @@ export class LocalAccountLifecycleAdapter implements AccountDataPort {
         nicknameMx: 'Bebé Demo',
         ageMonths: 2,
         stageId: '0-3m',
+        sex: 'niña',
         createdAtIso: nowIso,
         updatedAtIso: nowIso,
       }),

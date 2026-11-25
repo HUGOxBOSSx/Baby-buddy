@@ -1,6 +1,14 @@
 import { createClinicalMetadata, M1_CLINICAL_SOURCES } from '../disclaimers';
 import type { ClothingOrientationScaffold } from '../schema';
 
+export const CLOTHING_ENGINE_METADATA = createClinicalMetadata({
+  sources: [
+    M1_CLINICAL_SOURCES.aapSafeSleep,
+    M1_CLINICAL_SOURCES.nom031,
+    M1_CLINICAL_SOURCES.whoChildCare,
+  ],
+});
+
 export const M1_CLOTHING_SCAFFOLDS: readonly ClothingOrientationScaffold[] = [
   {
     id: 'm1-clima-templado-0-3m',

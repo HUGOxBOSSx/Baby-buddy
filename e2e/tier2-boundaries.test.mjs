@@ -455,19 +455,13 @@ test('T2-F06-02: packages/content contains minimal M1 scaffold (<=10 guides/card
   assert.ok(content.M1_CLOTHING_SCAFFOLDS.length >= 1 && content.M1_CLOTHING_SCAFFOLDS.length <= 10);
 });
 
-test('T2-F06-03: Zero M2 dynamic TOG/weather calculation engines in packages/core or packages/content', async () => {
+test('T2-F06-03: Hito 2 clothing engine is 100% offline with zero live weather APIs in packages/*', async () => {
   const core = await importCore();
-  const content = await importContent();
-  const exportNames = [...Object.keys(core), ...Object.keys(content)];
-  for (const name of exportNames) {
-    assert.doesNotMatch(name, /tog|weather|forecast/i, `Unexpected M2 export "${name}"`);
-  }
+  assert.equal(typeof core.recommendClothing, 'function');
   const files = walkFiles(path.join(ROOT_DIR, 'packages'));
   for (const f of files) {
-    const leaks = findM2ToM7Leaks(readTextSafe(f.absPath), f.relPath).filter(
-      (l) => l.milestone === 'M2_weather_tog',
-    );
-    assert.deepEqual(leaks, [], `M2 leak in ${f.relPath}`);
+    const raw = readTextSafe(f.absPath);
+    assert.doesNotMatch(raw, /openweathermap|weatherForecastApi/i, `Live weather API leak in ${f.relPath}`);
   }
 });
 

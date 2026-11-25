@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   DEFAULT_APP_PREFERENCES,
+  DEFAULT_THEME_SCHEDULE,
   ETHICAL_GUARDRAILS,
   LOCAL_STORAGE_KEYS,
   LocalAccountLifecycleAdapter,
@@ -8,12 +9,17 @@ import {
   OfflineGeminiAssistantStub,
   OfflineSupabasePortStub,
   assertEthicalComplianceConfig,
+  createChildProfileSummary,
   isStageId,
+  isValidHour,
   loadOfflineEnvConfig,
+  resolveLiveChildProfile,
   type ChildProfileSummary,
+  type CreateChildProfileInput,
   type KeyValueStoragePort,
   type StageId,
   type ThemeMode,
+  type ThemeScheduleConfig,
 } from '@baby-buddy/core';
 
 /**
@@ -59,6 +65,59 @@ export async function savePersistedThemeMode(mode: ThemeMode): Promise<void> {
   await mobileStorage.setItem(LOCAL_STORAGE_KEYS.themeMode, mode);
 }
 
+export async function loadPersistedThemeSchedule(): Promise<ThemeScheduleConfig> {
+  const raw = await mobileStorage.getItem(LOCAL_STORAGE_KEYS.themeSchedule);
+  if (!raw || raw.trim().length === 0) {
+    return DEFAULT_THEME_SCHEDULE;
+  }
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== 'object' || parsed === null) {
+      return DEFAULT_THEME_SCHEDULE;
+    }
+    const candidate = parsed as Record<string, unknown>;
+    const mode = candidate.mode === 'manual' ? 'manual' : 'auto';
+    const nightStartHour =
+      typeof candidate.nightStartHour === 'number' &&
+      isValidHour(candidate.nightStartHour)
+        ? candidate.nightStartHour
+        : DEFAULT_THEME_SCHEDULE.nightStartHour;
+    const nightEndHour =
+      typeof candidate.nightEndHour === 'number' &&
+      isValidHour(candidate.nightEndHour)
+        ? candidate.nightEndHour
+        : DEFAULT_THEME_SCHEDULE.nightEndHour;
+    return { mode, nightStartHour, nightEndHour };
+  } catch {
+    return DEFAULT_THEME_SCHEDULE;
+  }
+}
+
+export async function savePersistedThemeSchedule(
+  schedule: ThemeScheduleConfig,
+): Promise<void> {
+  await mobileStorage.setItem(
+    LOCAL_STORAGE_KEYS.themeSchedule,
+    JSON.stringify(schedule),
+  );
+}
+
+export async function savePersistedChildProfile(
+  input: Omit<CreateChildProfileInput, 'id'>,
+  existingId?: string,
+): Promise<ChildProfileSummary> {
+  const profile = createChildProfileSummary({
+    ...input,
+    id: existingId ?? 'bebe-local-01',
+  });
+  await mobileStorage.setItem(
+    LOCAL_STORAGE_KEYS.childProfile,
+    JSON.stringify(profile),
+  );
+  await mobileStorage.setItem(LOCAL_STORAGE_KEYS.activeStageId, profile.stageId);
+  return profile;
+}
+
 export async function loadPersistedStageId(): Promise<StageId> {
   const raw = await mobileStorage.getItem(LOCAL_STORAGE_KEYS.activeStageId);
   if (raw !== null && isStageId(raw)) {
@@ -92,7 +151,7 @@ export async function loadPersistedChildProfile(): Promise<ChildProfileSummary |
       typeof parsed.stageId === 'string' &&
       isStageId(parsed.stageId)
     ) {
-      return parsed as ChildProfileSummary;
+      return resolveLiveChildProfile(parsed as ChildProfileSummary);
     }
     return null;
   } catch {
