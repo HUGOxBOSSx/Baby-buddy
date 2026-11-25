@@ -8,8 +8,10 @@ import {
   getThemePalette,
   resolveEffectiveThemeMode,
   type AccountDeletionResult,
+  type ActiveFeedTimer,
   type ChildProfileSummary,
   type CreateChildProfileInput,
+  type DailyLogEntry,
   type StageId,
   type StoredSnapshotSummary,
   type ThemeMode,
@@ -27,11 +29,15 @@ import {
 } from 'react';
 import {
   accountLifecycleAdapter,
+  loadPersistedActiveFeedTimer,
   loadPersistedChildProfile,
+  loadPersistedDailyLogs,
   loadPersistedStageId,
   loadPersistedThemeMode,
   loadPersistedThemeSchedule,
+  savePersistedActiveFeedTimer,
   savePersistedChildProfile,
+  savePersistedDailyLogs,
   savePersistedStageId,
   savePersistedThemeMode,
   savePersistedThemeSchedule,
@@ -68,6 +74,14 @@ export interface ThemeContextValue {
   readonly childProfile: ChildProfileSummary | null;
   readonly lastDeletionResult: AccountDeletionResult | null;
   readonly clearLastDeletionResult: () => void;
+  readonly dailyLogs: readonly DailyLogEntry[];
+  readonly activeFeedTimer: ActiveFeedTimer | null;
+  readonly addDailyLogEntry: (entry: DailyLogEntry) => void;
+  readonly deleteDailyLogEntry: (id: string) => void;
+  readonly startFeedTimer: (side: 'breast_left' | 'breast_right') => void;
+  readonly togglePauseFeedTimer: () => void;
+  readonly saveActiveFeedTimer: () => void;
+  readonly cancelActiveFeedTimer: () => void;
   readonly statusAnnouncement: string;
   readonly hydrated: boolean;
   readonly iconsLoaded: boolean;
@@ -93,6 +107,9 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
   );
   const [lastDeletionResult, setLastDeletionResult] =
     useState<AccountDeletionResult | null>(null);
+  const [dailyLogs, setDailyLogs] = useState<readonly DailyLogEntry[]>([]);
+  const [activeFeedTimer, setActiveFeedTimer] =
+    useState<ActiveFeedTimer | null>(null);
   const [statusAnnouncement, setStatusAnnouncement] = useState('');
   const [hydrated, setHydrated] = useState(false);
   const [iconsLoaded, setIconsLoaded] = useState(false);
@@ -263,6 +280,79 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
     setLastDeletionResult(null);
   }, []);
 
+  const addDailyLogEntry = useCallback((entry: DailyLogEntry) => {
+    setDailyLogs((prev) => {
+      const next = [entry, ...prev];
+      void savePersistedDailyLogs(next);
+      return next;
+    });
+    setStatusAnnouncement(
+      entry.kind === 'feed' ? 'Toma registrada.' : 'Pañal registrado.',
+    );
+  }, []);
+
+  const deleteDailyLogEntry = useCallback((id: string) => {
+    setDailyLogs((prev) => {
+      const next = prev.filter((e) => e.id !== id);
+      void savePersistedDailyLogs(next);
+      return next;
+    });
+    setStatusAnnouncement('Registro eliminado.');
+  }, []);
+
+  const startFeedTimer = useCallback((side: 'breast_left' | 'breast_right') => {
+    const timer: ActiveFeedTimer = {
+      side,
+      startedAtMs: Date.now(),
+      accumulatedSec: 0,
+      paused: false,
+    };
+    setActiveFeedTimer(timer);
+    void savePersistedActiveFeedTimer(timer);
+  }, []);
+
+  const togglePauseFeedTimer = useCallback(() => {
+    setActiveFeedTimer((current) => {
+      if (!current) return null;
+      const nowMs = Date.now();
+      const next: ActiveFeedTimer = current.paused
+        ? { ...current, startedAtMs: nowMs, paused: false }
+        : {
+            ...current,
+            accumulatedSec:
+              current.accumulatedSec +
+              Math.max(0, Math.floor((nowMs - current.startedAtMs) / 1000)),
+            paused: true,
+          };
+      void savePersistedActiveFeedTimer(next);
+      return next;
+    });
+  }, []);
+
+  const saveActiveFeedTimer = useCallback(() => {
+    if (!activeFeedTimer) return;
+    const nowMs = Date.now();
+    const durationSec = activeFeedTimer.paused
+      ? activeFeedTimer.accumulatedSec
+      : activeFeedTimer.accumulatedSec +
+        Math.max(0, Math.floor((nowMs - activeFeedTimer.startedAtMs) / 1000));
+    const entry: DailyLogEntry = {
+      id: `feed-${nowMs}`,
+      kind: 'feed',
+      timestampIso: new Date(nowMs).toISOString(),
+      feedType: activeFeedTimer.side,
+      durationSec: Math.max(1, durationSec),
+    };
+    setActiveFeedTimer(null);
+    void savePersistedActiveFeedTimer(null);
+    addDailyLogEntry(entry);
+  }, [activeFeedTimer, addDailyLogEntry]);
+
+  const cancelActiveFeedTimer = useCallback(() => {
+    setActiveFeedTimer(null);
+    void savePersistedActiveFeedTimer(null);
+  }, []);
+
   const palette = useMemo(() => getThemePalette(mode), [mode]);
 
   const value = useMemo<ThemeContextValue>(
@@ -284,6 +374,14 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       childProfile,
       lastDeletionResult,
       clearLastDeletionResult,
+      dailyLogs,
+      activeFeedTimer,
+      addDailyLogEntry,
+      deleteDailyLogEntry,
+      startFeedTimer,
+      togglePauseFeedTimer,
+      saveActiveFeedTimer,
+      cancelActiveFeedTimer,
       statusAnnouncement,
       hydrated,
       iconsLoaded,
@@ -306,6 +404,14 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       childProfile,
       lastDeletionResult,
       clearLastDeletionResult,
+      dailyLogs,
+      activeFeedTimer,
+      addDailyLogEntry,
+      deleteDailyLogEntry,
+      startFeedTimer,
+      togglePauseFeedTimer,
+      saveActiveFeedTimer,
+      cancelActiveFeedTimer,
       statusAnnouncement,
       hydrated,
       iconsLoaded,

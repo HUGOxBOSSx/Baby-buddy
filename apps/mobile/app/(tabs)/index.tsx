@@ -7,6 +7,7 @@ import {
 import { STAGE_OVERVIEWS } from '@baby-buddy/content';
 import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
+import { DailyLogPanel } from '../../components/DailyLogPanel';
 import { StageSelector } from '../../components/StageSelector';
 import { StatusBadge } from '../../components/StatusBadge';
 import { useThemeContext } from '../../components/ThemeProvider';
@@ -46,9 +47,11 @@ export default function HoyScreen() {
             className="text-2xl font-bold"
             style={{ color: palette.textPrimary }}
           >
-            Resumen diario
+            Registro diario
           </Text>
         </View>
+
+        <DailyLogPanel />
 
         {childProfile ? (
           <View

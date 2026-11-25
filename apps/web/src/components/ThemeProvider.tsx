@@ -10,8 +10,10 @@ import {
 } from 'react';
 import type {
   AccountDeletionResult,
+  ActiveFeedTimer,
   ChildProfileSummary,
   CreateChildProfileInput,
+  DailyLogEntry,
   StageId,
   StoredSnapshotSummary,
   ThemeMode,
@@ -19,17 +21,23 @@ import type {
 } from '@baby-buddy/core';
 import {
   acceptStoredOnboarding,
+  addStoredDailyLogEntry,
   applyThemeToDocument,
+  cancelStoredActiveFeedTimer,
   deleteStoredAccountAndData,
+  deleteStoredDailyLogEntry,
   getLocalAppSnapshot,
   getServerAppSnapshot,
   notifyLocalStoreChange,
+  saveStoredActiveFeedTimer,
   saveStoredChildProfile,
   seedStoredDemoData,
   setStoredActiveStageId,
   setStoredThemeMode,
   setStoredThemeSchedule,
+  startStoredFeedTimer,
   subscribeLocalStore,
+  togglePauseStoredFeedTimer,
   toggleStoredThemeMode,
 } from '@/lib/localAdapter';
 
@@ -39,6 +47,8 @@ export interface AppStateContextValue {
   readonly activeStageId: StageId;
   readonly onboardingAccepted: boolean;
   readonly childProfile: ChildProfileSummary | null;
+  readonly dailyLogs: readonly DailyLogEntry[];
+  readonly activeFeedTimer: ActiveFeedTimer | null;
   readonly snapshotSummary: StoredSnapshotSummary;
   readonly statusMessage: string;
   readonly lastDeletionResult: AccountDeletionResult | null;
@@ -54,6 +64,12 @@ export interface AppStateContextValue {
   readonly deleteAccountAndData: (
     reason?: string,
   ) => Promise<AccountDeletionResult>;
+  readonly addDailyLogEntry: (entry: DailyLogEntry) => void;
+  readonly deleteDailyLogEntry: (id: string) => void;
+  readonly startFeedTimer: (side: 'breast_left' | 'breast_right') => void;
+  readonly togglePauseFeedTimer: () => void;
+  readonly saveActiveFeedTimer: () => void;
+  readonly cancelActiveFeedTimer: () => void;
 }
 
 const AppStateContext = createContext<AppStateContextValue | null>(null);
@@ -86,6 +102,8 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       activeStageId: snapshot.activeStageId,
       onboardingAccepted: snapshot.onboardingAccepted,
       childProfile: snapshot.childProfile,
+      dailyLogs: snapshot.dailyLogs,
+      activeFeedTimer: snapshot.activeFeedTimer,
       snapshotSummary: snapshot.snapshotSummary,
       statusMessage: snapshot.statusMessage,
       lastDeletionResult: snapshot.lastDeletionResult,
@@ -97,6 +115,12 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       acceptOnboardingDisclaimer: acceptStoredOnboarding,
       seedDemoData: seedStoredDemoData,
       deleteAccountAndData: deleteStoredAccountAndData,
+      addDailyLogEntry: addStoredDailyLogEntry,
+      deleteDailyLogEntry: deleteStoredDailyLogEntry,
+      startFeedTimer: startStoredFeedTimer,
+      togglePauseFeedTimer: togglePauseStoredFeedTimer,
+      saveActiveFeedTimer: saveStoredActiveFeedTimer,
+      cancelActiveFeedTimer: cancelStoredActiveFeedTimer,
     }),
     [snapshot],
   );

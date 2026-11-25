@@ -7,6 +7,7 @@ import {
 } from '@baby-buddy/core';
 import { STAGE_OVERVIEWS } from '@baby-buddy/content';
 import { ClinicalMetadataBlock } from '@/components/ClinicalMetadataBlock';
+import { DailyLogPanel } from '@/components/DailyLogPanel';
 import {
   BookOpenIcon,
   HeartPulseIcon,
@@ -30,9 +31,11 @@ export function HoyView() {
           Hoy · {themeMode === 'night_3am' ? 'Modo 3:00 AM activo' : 'Modo Día Calma'}
         </p>
         <h1 className="text-2xl font-bold text-ink-primary sm:text-3xl">
-          Resumen diario
+          Registro diario
         </h1>
       </header>
+
+      <DailyLogPanel />
 
       {childProfile ? (
         <section

@@ -9,12 +9,16 @@ import {
   createChildProfileSummary,
   isStageId,
   isValidHour,
+  parseActiveFeedTimer,
+  parseDailyLogEntries,
   resolveEffectiveThemeMode,
   resolveLiveChildProfile,
   type AccountDeletionResult,
+  type ActiveFeedTimer,
   type ChildProfileSummary,
   type ChildSex,
   type CreateChildProfileInput,
+  type DailyLogEntry,
   type KeyValueStoragePort,
   type StageId,
   type StoredSnapshotSummary,
@@ -109,6 +113,8 @@ export interface LocalAppSnapshot {
   readonly activeStageId: StageId;
   readonly onboardingAccepted: boolean;
   readonly childProfile: ChildProfileSummary | null;
+  readonly dailyLogs: readonly DailyLogEntry[];
+  readonly activeFeedTimer: ActiveFeedTimer | null;
   readonly snapshotSummary: StoredSnapshotSummary;
   readonly statusMessage: string;
   readonly lastDeletionResult: AccountDeletionResult | null;
@@ -120,6 +126,8 @@ export const SERVER_APP_SNAPSHOT: LocalAppSnapshot = {
   activeStageId: DEFAULT_APP_PREFERENCES.activeStageId,
   onboardingAccepted: false,
   childProfile: null,
+  dailyLogs: [],
+  activeFeedTimer: null,
   snapshotSummary: {
     hasActiveProfile: false,
     onboardingAccepted: false,
@@ -275,6 +283,10 @@ export function getLocalAppSnapshot(): LocalAppSnapshot {
   const rawOnboarding = browserStorage.getItemSync(
     LOCAL_STORAGE_KEYS.onboardingAcceptedAt,
   );
+  const rawDailyLogs = browserStorage.getItemSync(LOCAL_STORAGE_KEYS.dailyLogs);
+  const rawActiveTimer = browserStorage.getItemSync(
+    LOCAL_STORAGE_KEYS.activeFeedTimer,
+  );
   const rawProfile = browserStorage.getItemSync(
     LOCAL_STORAGE_KEYS.childProfile,
   );
@@ -327,6 +339,8 @@ export function getLocalAppSnapshot(): LocalAppSnapshot {
     activeStageId,
     onboardingAccepted,
     childProfile,
+    dailyLogs: parseDailyLogEntries(rawDailyLogs),
+    activeFeedTimer: parseActiveFeedTimer(rawActiveTimer),
     snapshotSummary: {
       hasActiveProfile: rawProfile !== null && rawProfile.trim().length > 0,
       onboardingAccepted,
@@ -437,4 +451,81 @@ export async function deleteStoredAccountAndData(
   applyThemeToDocument('day', false);
   notifyLocalStoreChange();
   return result;
+}
+
+export function addStoredDailyLogEntry(entry: DailyLogEntry): void {
+  const current = getLocalAppSnapshot().dailyLogs;
+  const next = [entry, ...current];
+  browserStorage.setItemSync(LOCAL_STORAGE_KEYS.dailyLogs, JSON.stringify(next));
+  transientStatusMessage =
+    entry.kind === 'feed' ? 'Toma registrada.' : 'Pañal registrado.';
+  notifyLocalStoreChange();
+}
+
+export function deleteStoredDailyLogEntry(id: string): void {
+  const current = getLocalAppSnapshot().dailyLogs;
+  const next = current.filter((e) => e.id !== id);
+  browserStorage.setItemSync(LOCAL_STORAGE_KEYS.dailyLogs, JSON.stringify(next));
+  transientStatusMessage = 'Registro eliminado.';
+  notifyLocalStoreChange();
+}
+
+export function startStoredFeedTimer(
+  side: 'breast_left' | 'breast_right',
+): void {
+  const timer: ActiveFeedTimer = {
+    side,
+    startedAtMs: Date.now(),
+    accumulatedSec: 0,
+    paused: false,
+  };
+  browserStorage.setItemSync(
+    LOCAL_STORAGE_KEYS.activeFeedTimer,
+    JSON.stringify(timer),
+  );
+  notifyLocalStoreChange();
+}
+
+export function togglePauseStoredFeedTimer(): void {
+  const current = getLocalAppSnapshot().activeFeedTimer;
+  if (!current) return;
+  const nowMs = Date.now();
+  const next: ActiveFeedTimer = current.paused
+    ? { ...current, startedAtMs: nowMs, paused: false }
+    : {
+        ...current,
+        accumulatedSec:
+          current.accumulatedSec +
+          Math.max(0, Math.floor((nowMs - current.startedAtMs) / 1000)),
+        paused: true,
+      };
+  browserStorage.setItemSync(
+    LOCAL_STORAGE_KEYS.activeFeedTimer,
+    JSON.stringify(next),
+  );
+  notifyLocalStoreChange();
+}
+
+export function saveStoredActiveFeedTimer(): void {
+  const current = getLocalAppSnapshot().activeFeedTimer;
+  if (!current) return;
+  const nowMs = Date.now();
+  const durationSec = current.paused
+    ? current.accumulatedSec
+    : current.accumulatedSec +
+      Math.max(0, Math.floor((nowMs - current.startedAtMs) / 1000));
+  const entry: DailyLogEntry = {
+    id: `feed-${nowMs}`,
+    kind: 'feed',
+    timestampIso: new Date(nowMs).toISOString(),
+    feedType: current.side,
+    durationSec: Math.max(1, durationSec),
+  };
+  browserStorage.removeItemSync(LOCAL_STORAGE_KEYS.activeFeedTimer);
+  addStoredDailyLogEntry(entry);
+}
+
+export function cancelStoredActiveFeedTimer(): void {
+  browserStorage.removeItemSync(LOCAL_STORAGE_KEYS.activeFeedTimer);
+  notifyLocalStoreChange();
 }

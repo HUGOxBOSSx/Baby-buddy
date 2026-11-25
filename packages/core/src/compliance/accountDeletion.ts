@@ -10,6 +10,8 @@ export const LOCAL_STORAGE_KEYS = {
   onboardingAcceptedAt: 'baby_buddy_mx:onboarding_accepted_at',
   childProfile: 'baby_buddy_mx:child_profile',
   demoNotes: 'baby_buddy_mx:demo_notes',
+  dailyLogs: 'baby_buddy_mx:daily_logs',
+  activeFeedTimer: 'baby_buddy_mx:active_feed_timer',
 } as const;
 
 export interface AccountDeletionRequest {
