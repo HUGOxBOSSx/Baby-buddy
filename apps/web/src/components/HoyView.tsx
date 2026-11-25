@@ -8,6 +8,7 @@ import {
 import { STAGE_OVERVIEWS } from '@baby-buddy/content';
 import { ClinicalMetadataBlock } from '@/components/ClinicalMetadataBlock';
 import { DailyLogPanel } from '@/components/DailyLogPanel';
+import { MascotAvatar } from '@/components/MascotAvatar';
 import {
   BookOpenIcon,
   HeartPulseIcon,
@@ -26,13 +27,16 @@ export function HoyView() {
 
   return (
     <div className="space-y-6">
-      <header className="space-y-1">
-        <p className="text-xs font-semibold uppercase tracking-wide text-brand-text">
-          Hoy · {themeMode === 'night_3am' ? 'Modo 3:00 AM activo' : 'Modo Día Calma'}
-        </p>
-        <h1 className="text-2xl font-bold text-ink-primary sm:text-3xl">
-          Registro diario
-        </h1>
+      <header className="flex items-center gap-3">
+        <MascotAvatar variant="home" size="lg" />
+        <div className="space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-wide text-brand-text">
+            Hoy · {themeMode === 'night_3am' ? 'Modo 3:00 AM activo' : 'Modo Día Calma'}
+          </p>
+          <h1 className="text-2xl font-bold text-ink-primary sm:text-3xl">
+            Registro diario
+          </h1>
+        </div>
       </header>
 
       <DailyLogPanel />

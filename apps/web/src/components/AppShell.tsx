@@ -17,6 +17,7 @@ import {
   ShirtIcon,
   SunIcon,
 } from '@/components/Icons';
+import { MascotAvatar } from '@/components/MascotAvatar';
 import { OnboardingGate } from '@/components/OnboardingGate';
 import { useAppState } from '@/components/ThemeProvider';
 
@@ -82,13 +83,16 @@ export function AppShell({ children }: { readonly children: ReactNode }) {
 
         <header className="border-b border-border-interactive bg-bg-card px-4 py-3">
           <div className="mx-auto flex max-w-4xl items-center justify-between gap-3">
-            <div>
-              <p className="text-base font-bold text-ink-primary">
-                Baby Buddy MX
-              </p>
-              <p className="text-xs text-ink-secondary">
-                Tu compañero de 0 a 6 años
-              </p>
+            <div className="flex items-center gap-2.5">
+              <MascotAvatar variant="home" size="sm" />
+              <div>
+                <p className="text-base font-bold text-ink-primary">
+                  Baby Buddy MX
+                </p>
+                <p className="text-xs text-ink-secondary">
+                  Tu compañero de 0 a 6 años
+                </p>
+              </div>
             </div>
 
             <button

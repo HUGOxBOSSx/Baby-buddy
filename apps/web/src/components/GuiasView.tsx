@@ -13,6 +13,7 @@ import {
   searchClinicalGuides,
   type ClinicalGuideEntry,
 } from '@baby-buddy/content';
+import { MascotAvatar } from '@/components/MascotAvatar';
 import { PoopColorChart } from '@/components/PoopColorChart';
 import { StageSelector } from '@/components/StageSelector';
 import { useAppState } from '@/components/ThemeProvider';
@@ -107,22 +108,25 @@ export function GuiasView() {
 
   return (
     <div className="space-y-6">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-brand-text">
-          Buscador 3:00 AM · Orientación por síntomas y etapa
-        </p>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-2xl font-bold text-ink-primary sm:text-3xl">
-            ¿Es normal?
-          </h1>
-          {childProfile ? (
-            <Link
-              href="/salud#perfil-bebe"
-              className="inline-flex min-h-12 items-center rounded-xl border border-border-interactive bg-bg-elevated px-4 py-2 text-xs font-bold text-brand-text hover:bg-brand-surface"
-            >
-              Cambiar datos del bebé
-            </Link>
-          ) : null}
+      <header className="flex items-center gap-3">
+        <MascotAvatar variant="es_normal" size="md" />
+        <div className="flex-1 space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-wide text-brand-text">
+            Buscador 3:00 AM · Orientación por síntomas y etapa
+          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h1 className="text-2xl font-bold text-ink-primary sm:text-3xl">
+              ¿Es normal?
+            </h1>
+            {childProfile ? (
+              <Link
+                href="/salud#perfil-bebe"
+                className="inline-flex min-h-12 items-center rounded-xl border border-border-interactive bg-bg-elevated px-4 py-2 text-xs font-bold text-brand-text hover:bg-brand-surface"
+              >
+                Cambiar datos del bebé
+              </Link>
+            ) : null}
+          </div>
         </div>
       </header>
 
