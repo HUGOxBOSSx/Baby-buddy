@@ -7,6 +7,7 @@ import {
 import { Tabs } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MascotAvatar } from '../../components/MascotAvatar';
 import { useThemeContext } from '../../components/ThemeProvider';
 
 function HeaderModeToggle() {
@@ -78,6 +79,11 @@ export default function TabsLayout() {
               </Text>
             )
           : undefined,
+        headerLeft: () => (
+          <View className="ml-3">
+            <MascotAvatar variant="home" size="sm" />
+          </View>
+        ),
         headerRight: () => <HeaderModeToggle />,
         tabBarActiveTintColor: palette.brandText,
         tabBarInactiveTintColor: palette.textMuted,

@@ -13,9 +13,13 @@ import {
   isStageId,
   isValidHour,
   loadOfflineEnvConfig,
+  parseActiveFeedTimer,
+  parseDailyLogEntries,
   resolveLiveChildProfile,
+  type ActiveFeedTimer,
   type ChildProfileSummary,
   type CreateChildProfileInput,
+  type DailyLogEntry,
   type KeyValueStoragePort,
   type StageId,
   type ThemeMode,
@@ -169,6 +173,40 @@ export const offlineServiceStubs = {
   gemini: offlineGeminiStub,
   vercel: offlineDeploymentStub,
 } as const;
+
+export async function loadPersistedDailyLogs(): Promise<
+  readonly DailyLogEntry[]
+> {
+  const raw = await mobileStorage.getItem(LOCAL_STORAGE_KEYS.dailyLogs);
+  return parseDailyLogEntries(raw);
+}
+
+export async function savePersistedDailyLogs(
+  entries: readonly DailyLogEntry[],
+): Promise<void> {
+  await mobileStorage.setItem(
+    LOCAL_STORAGE_KEYS.dailyLogs,
+    JSON.stringify(entries),
+  );
+}
+
+export async function loadPersistedActiveFeedTimer(): Promise<ActiveFeedTimer | null> {
+  const raw = await mobileStorage.getItem(LOCAL_STORAGE_KEYS.activeFeedTimer);
+  return parseActiveFeedTimer(raw);
+}
+
+export async function savePersistedActiveFeedTimer(
+  timer: ActiveFeedTimer | null,
+): Promise<void> {
+  if (timer === null) {
+    await mobileStorage.removeItem(LOCAL_STORAGE_KEYS.activeFeedTimer);
+    return;
+  }
+  await mobileStorage.setItem(
+    LOCAL_STORAGE_KEYS.activeFeedTimer,
+    JSON.stringify(timer),
+  );
+}
 
 export function verifyEthicalCompliance(): void {
   assertEthicalComplianceConfig(ETHICAL_GUARDRAILS);
