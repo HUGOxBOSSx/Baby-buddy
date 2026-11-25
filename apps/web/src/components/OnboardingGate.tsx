@@ -5,9 +5,11 @@ import { DISCLAIMERS_MX, ETHICAL_GUARDRAILS } from '@baby-buddy/core';
 import { PhoneCallIcon, ShieldCheckIcon } from '@/components/Icons';
 import { StatusBadge } from '@/components/StatusBadge';
 import { useAppState } from '@/components/ThemeProvider';
+import { accountLifecycleAdapter } from '@/lib/localAdapter';
 
 export function OnboardingGate() {
-  const { acceptOnboarding, seedDemoData, lastDeletionResult } = useAppState();
+  const { acceptOnboardingDisclaimer, seedDemoData, lastDeletionResult } =
+    useAppState();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const disclaimer = DISCLAIMERS_MX.onboarding_gate;
@@ -16,7 +18,12 @@ export function OnboardingGate() {
     setIsSubmitting(true);
     setErrorMessage(null);
     try {
-      await acceptOnboarding();
+      await acceptOnboardingDisclaimer();
+      const storedAcceptance =
+        await accountLifecycleAdapter.hasAcceptedOnboardingDisclaimer();
+      if (!storedAcceptance) {
+        throw new Error('No se confirmó la aceptación en el almacenamiento.');
+      }
     } catch {
       setErrorMessage(
         'No se pudo guardar la confirmación en este dispositivo. Intenta de nuevo.',
@@ -52,7 +59,7 @@ export function OnboardingGate() {
           aria-live="polite"
           className="rounded-xl border border-brand-primary bg-brand-surface p-4 text-sm font-medium text-brand-text"
         >
-          Cuenta y datos locales eliminados ({lastDeletionResult.deletedKeysCount}{' '}
+          Datos locales eliminados ({lastDeletionResult.deletedKeysCount}{' '}
           registros borrados de este dispositivo). Puedes comenzar de nuevo cuando
           lo desees.
         </div>

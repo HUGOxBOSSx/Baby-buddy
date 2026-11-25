@@ -3,6 +3,7 @@ import type { KeyValueStoragePort } from '../adapters/storage';
 export const LOCAL_STORAGE_PREFIX = 'baby_buddy_mx:' as const;
 
 export const LOCAL_STORAGE_KEYS = {
+  preferences: 'baby_buddy_mx:preferences',
   themeMode: 'baby_buddy_mx:theme_mode',
   activeStageId: 'baby_buddy_mx:active_stage_id',
   onboardingAcceptedAt: 'baby_buddy_mx:onboarding_accepted_at',
@@ -146,7 +147,10 @@ export class LocalAccountLifecycleAdapter implements AccountDataPort {
   async getStoredSnapshotSummary(): Promise<StoredSnapshotSummary> {
     const allKeys = await this.storage.keys();
     const ownedKeys = allKeys
-      .filter((k) => k.startsWith(LOCAL_STORAGE_PREFIX))
+      .filter(
+        (key): key is string =>
+          typeof key === 'string' && key.startsWith(LOCAL_STORAGE_PREFIX),
+      )
       .sort();
     const profileValue = await this.storage.getItem(
       LOCAL_STORAGE_KEYS.childProfile,
@@ -173,8 +177,9 @@ export class LocalAccountLifecycleAdapter implements AccountDataPort {
 
     const runDeletion = async (): Promise<AccountDeletionResult> => {
       const allKeys = await this.storage.keys();
-      const ownedKeys = allKeys.filter((k) =>
-        k.startsWith(LOCAL_STORAGE_PREFIX),
+      const ownedKeys = allKeys.filter(
+        (key): key is string =>
+          typeof key === 'string' && key.startsWith(LOCAL_STORAGE_PREFIX),
       );
 
       for (const key of ownedKeys) {

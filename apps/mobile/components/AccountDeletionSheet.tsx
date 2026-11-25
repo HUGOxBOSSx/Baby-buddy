@@ -1,6 +1,5 @@
 import Feather from '@expo/vector-icons/Feather';
 import {
-  LOCAL_STORAGE_PREFIX,
   MIN_TOUCH_TARGET_PX,
 } from '@baby-buddy/core';
 import { useState } from 'react';
@@ -10,11 +9,13 @@ import { useThemeContext } from './ThemeProvider';
 export interface AccountDeletionSheetProps {
   readonly visible: boolean;
   readonly onClose: () => void;
+  readonly onDeleted?: () => void;
 }
 
 export function AccountDeletionSheet({
   visible,
   onClose,
+  onDeleted,
 }: AccountDeletionSheetProps) {
   const { palette, snapshotSummary, deleteAccountAndData, iconsLoaded } =
     useThemeContext();
@@ -27,6 +28,7 @@ export function AccountDeletionSheet({
     setDeleting(true);
     try {
       await deleteAccountAndData('Solicitud del usuario desde Salud');
+      onDeleted?.();
       onClose();
     } finally {
       setDeleting(false);
@@ -66,7 +68,7 @@ export function AccountDeletionSheet({
                 className="text-lg font-bold flex-1"
                 style={{ color: palette.textPrimary }}
               >
-                Eliminar cuenta y datos locales
+                Eliminar datos de este dispositivo
               </Text>
             </View>
             <Pressable
@@ -96,9 +98,10 @@ export function AccountDeletionSheet({
           </View>
 
           <Text className="text-sm" style={{ color: palette.textSecondary }}>
-            Esta acción cumple con Apple 5.1.1(v) y borrará de forma inmediata
-            todos tus datos almacenados localmente bajo el prefijo{' '}
-            {LOCAL_STORAGE_PREFIX}*.
+            Esta acción borra de forma inmediata todos los datos de Baby Buddy MX
+            guardados en este dispositivo. En esta versión no existe una cuenta
+            remota ni se envía información a servidores. Los datos de otras
+            aplicaciones no se modifican.
           </Text>
 
           <View
@@ -145,19 +148,19 @@ export function AccountDeletionSheet({
                 opacity: deleting ? 0.75 : 1,
               }}
               accessibilityRole="button"
-              accessibilityLabel="Confirmar eliminación definitiva de cuenta y datos locales"
+              accessibilityLabel="Confirmar eliminación definitiva de datos locales"
               accessibilityState={{ disabled: deleting }}
             >
               {iconsLoaded ? (
                 <Feather
                   name="trash-2"
                   size={18}
-                  color={palette.onAlertRedText}
+                  color={palette.onAlertRedButton}
                 />
               ) : null}
               <Text
                 className="text-sm font-bold"
-                style={{ color: palette.onAlertRedText }}
+                style={{ color: palette.onAlertRedButton }}
               >
                 {deleting
                   ? 'Eliminando datos locales...'

@@ -132,7 +132,7 @@ export default function HoyScreen() {
           </View>
 
           <Text className="text-xs" style={{ color: palette.textMuted }}>
-            Versión {overview.metadata.version} · Revisado{' '}
+            Versión {overview.metadata.version} · Corte editorial{' '}
             {overview.metadata.reviewed_at}
           </Text>
         </View>
@@ -269,11 +269,11 @@ export default function HoyScreen() {
             accessibilityLabel="Ir a Salud y urgencias 911"
           >
             {iconsLoaded ? (
-              <Feather name="heart" size={16} color={palette.onAlertRedText} />
+              <Feather name="heart" size={16} color={palette.onAlertRedButton} />
             ) : null}
             <Text
               className="text-xs font-bold"
-              style={{ color: palette.onAlertRedText }}
+              style={{ color: palette.onAlertRedButton }}
             >
               Salud · 911
             </Text>

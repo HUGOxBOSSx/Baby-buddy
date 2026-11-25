@@ -60,10 +60,10 @@ export function GuideDisclaimerHeader({
           Metadatos clínicos visibles
         </Text>
         <Text className="text-xs" style={{ color: palette.textSecondary }}>
-          Versión: {metadata.version} · Revisado: {metadata.reviewed_at}
+          Versión: {metadata.version} · Corte editorial: {metadata.reviewed_at}
         </Text>
         <Text className="text-xs" style={{ color: palette.textSecondary }}>
-          Revisión: {metadata.reviewed_by}
+          Estado de revisión: {metadata.reviewed_by}
         </Text>
         <View className="pt-1 gap-1">
           <Text

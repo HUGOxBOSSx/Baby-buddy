@@ -47,7 +47,7 @@ export function AccountDeletionDialog() {
         className="inline-flex min-h-12 min-w-12 items-center justify-center gap-2 rounded-xl bg-alert-text px-5 py-3 text-sm font-bold text-alert-on transition-opacity hover:opacity-95"
       >
         <TrashIcon className="h-5 w-5 shrink-0" />
-        <span>Eliminar cuenta y datos locales</span>
+        <span>Eliminar datos de este dispositivo</span>
       </button>
 
       <dialog
@@ -61,15 +61,16 @@ export function AccountDeletionDialog() {
               Confirmación permanente en este dispositivo
             </p>
             <h2 id={titleId} className="text-xl font-bold text-ink-primary">
-              Eliminar cuenta y datos locales
+              Eliminar datos de este dispositivo
             </h2>
           </div>
 
           <p className="text-sm text-ink-secondary">
-            Esta acción borrará de forma inmediata tus datos locales de Baby
-            Buddy MX (preferencias de tema, etapa activa, perfil de ejemplo y
-            aceptación del aviso inicial). Otros datos externos del navegador no
-            se modifican.
+            Esta acción borra de forma inmediata los datos de Baby Buddy MX
+            guardados en este navegador (preferencias, etapa activa, perfil de
+            ejemplo y aceptación del aviso inicial). En esta versión no existe
+            una cuenta remota ni se envía información a servidores. Otros datos
+            del navegador no se modifican.
           </p>
 
           <div className="rounded-xl border border-border-interactive bg-bg-elevated p-4 text-sm space-y-2">

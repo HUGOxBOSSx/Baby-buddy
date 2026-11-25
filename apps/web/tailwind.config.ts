@@ -32,7 +32,8 @@ const config: Config = {
           red: 'var(--alert-red)',
           text: 'var(--alert-red-text)',
           surface: 'var(--alert-red-surface)',
-          on: 'var(--on-alert-red-text)',
+          on: 'var(--on-alert-red-button)',
+          'on-surface': 'var(--on-alert-red-text)',
         },
         border: {
           interactive: 'var(--border-interactive)',

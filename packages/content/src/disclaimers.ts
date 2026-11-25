@@ -1,9 +1,9 @@
 import type { ClinicalMetadata, ClinicalSource } from './schema';
 
-export const DEFAULT_M1_METADATA_VERSION = '1.0.0-m1';
+export const DEFAULT_M1_METADATA_VERSION = '1.0.0-m1-borrador';
 export const DEFAULT_M1_REVIEWED_AT = '2026-11-24';
 export const DEFAULT_M1_REVIEWED_BY =
-  'Comité Editorial Pediátrico MX (Borrador M1)';
+  'Contenido editorial en borrador; revisión pediátrica pendiente';
 
 export const M1_CLINICAL_SOURCES = {
   nom031: {

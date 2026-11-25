@@ -32,6 +32,7 @@ Nunca al revés, y core no importa React ni Next.
 - Expo ~55.0.32 · React Native 0.83.10 · expo-router ~55.0.18 · expo-status-bar ~55.0.6
 - NativeWind ~4.2.5 · react-native-css-interop ~0.2.5 · reanimated 4.2.1 · worklets 0.7.4
 - react-native-safe-area-context ~5.6.2 · react-native-screens ~4.23.0 · react-native-web ~0.21.0
+- @react-native-async-storage/async-storage 2.2.0 (persistencia móvil del Hito 1)
 - Tailwind CSS 3.4.17 en AMBAS apps (v4 prohibido) · Vitest en packages · Node 24
 
 ## 3. Estructura de carpetas
@@ -71,6 +72,9 @@ packages/content/src/
 
 ## 6. Persistencia
 - Toda escritura pasa por KeyValueStoragePort (getItem, setItem, removeItem, keys).
+- Web: apps/web/src/lib/localAdapter.ts usa localStorage del navegador.
+- Móvil: apps/mobile/lib/localAdapter.ts usa @react-native-async-storage/async-storage 2.2.0,
+  que persiste en Android, iOS y web móvil. No sustituirlo por memoria para preferencias.
 - Claves SIEMPRE con el prefijo LOCAL_STORAGE_PREFIX; el borrado usa LocalAccountLifecycleAdapter
   y debe ser idempotente y preservar las claves externas al namespace.
 - Nunca guardar secretos ni datos sensibles, y nunca hacer red: los puertos de servicios
@@ -144,6 +148,7 @@ E2E: node e2e/run.mjs --tier=1|2|3|4|all (con E2E_CORE_ONLY=1 cubre solo package
 | Storage y puertos | packages/core/src/adapters/storage.ts, services.ts, env.ts |
 | Estado web | apps/web/src/lib/localAdapter.ts, src/components/ThemeProvider.tsx |
 | Estado móvil | apps/mobile/lib/localAdapter.ts, components/ThemeProvider.tsx |
+| Persistencia móvil | apps/mobile/lib/localAdapter.ts (`@react-native-async-storage/async-storage`) |
 | Contenido M1 | packages/content/src/scaffold/guides.ts, stages.ts, clothing.ts |
 | Reglas de aceptación | e2e/tier1-features.test.mjs, tier2-boundaries.test.mjs |
 

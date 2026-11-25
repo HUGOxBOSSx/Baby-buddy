@@ -39,7 +39,7 @@ export interface AppStateContextValue {
   readonly toggleTheme: () => void;
   readonly setThemeMode: (mode: ThemeMode) => void;
   readonly setActiveStageId: (stageId: StageId) => void;
-  readonly acceptOnboarding: () => Promise<void>;
+  readonly acceptOnboardingDisclaimer: () => Promise<void>;
   readonly seedDemoData: () => Promise<void>;
   readonly deleteAccountAndData: (
     reason?: string,
@@ -71,7 +71,7 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       toggleTheme: toggleStoredThemeMode,
       setThemeMode: setStoredThemeMode,
       setActiveStageId: setStoredActiveStageId,
-      acceptOnboarding: acceptStoredOnboarding,
+      acceptOnboardingDisclaimer: acceptStoredOnboarding,
       seedDemoData: seedStoredDemoData,
       deleteAccountAndData: deleteStoredAccountAndData,
     }),
@@ -81,7 +81,7 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
   return (
     <AppStateContext.Provider value={value}>
       {children}
-      <div role="status" aria-live="polite" className="sr-only">
+      <div role="status" aria-live="polite" className="sr-only" data-persistence="localStorage">
         {snapshot.statusMessage}
       </div>
     </AppStateContext.Provider>

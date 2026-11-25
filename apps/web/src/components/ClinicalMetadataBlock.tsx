@@ -15,11 +15,11 @@ export function ClinicalMetadataBlock({
           {metadata.version}
         </span>
         <span>
-          <strong className="text-ink-primary">Revisado:</strong>{' '}
+          <strong className="text-ink-primary">Corte editorial:</strong>{' '}
           {metadata.reviewed_at}
         </span>
         <span>
-          <strong className="text-ink-primary">Revisado por:</strong>{' '}
+          <strong className="text-ink-primary">Estado de revisión:</strong>{' '}
           {metadata.reviewed_by}
         </span>
       </div>

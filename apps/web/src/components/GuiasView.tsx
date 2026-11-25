@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { STAGE_SPECS, type StageId } from '@baby-buddy/core';
 import { M1_GUIDE_SCAFFOLDS } from '@baby-buddy/content';
 import { ClinicalMetadataBlock } from '@/components/ClinicalMetadataBlock';
-import { GuideDisclaimerHeader } from '@/components/GuideDisclaimerHeader';
 import { StageSelector } from '@/components/StageSelector';
 import { StatusBadge } from '@/components/StatusBadge';
 
@@ -26,8 +25,6 @@ export function GuiasView() {
           Guías educativas por etapa
         </h1>
       </header>
-
-      <GuideDisclaimerHeader />
 
       <section aria-labelledby="filtro-guias-titulo" className="space-y-3">
         <h2

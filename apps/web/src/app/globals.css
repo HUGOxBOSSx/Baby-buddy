@@ -22,7 +22,8 @@
   --alert-red: #D64545;
   --alert-red-text: #B42D2D;
   --alert-red-surface: #FDECEC;
-  --on-alert-red-text: #FFFFFF;
+  --on-alert-red-text: #1F2421;
+  --on-alert-red-button: #FFFFFF;
   --border-interactive: #737A75;
   --focus-ring: #2B5B4E;
 }
@@ -47,7 +48,8 @@
   --alert-red: #F07575;
   --alert-red-text: #F07575;
   --alert-red-surface: #471D1D;
-  --on-alert-red-text: #121110;
+  --on-alert-red-text: #F3EDE2;
+  --on-alert-red-button: #121110;
   --border-interactive: #756D65;
   --focus-ring: #F2B872;
 }

@@ -24,6 +24,7 @@ export interface ThemePalette {
   readonly alertRedText: string;
   readonly alertRedSurface: string;
   readonly onAlertRedText: string;
+  readonly onAlertRedButton: string;
   readonly borderInteractive: string;
   readonly focusRing: string;
 }
@@ -48,7 +49,8 @@ export const DAY_PALETTE: ThemePalette = {
   alertRed: '#D64545',
   alertRedText: '#B42D2D',
   alertRedSurface: '#FDECEC',
-  onAlertRedText: '#FFFFFF',
+  onAlertRedText: '#1F2421',
+  onAlertRedButton: '#FFFFFF',
   borderInteractive: '#737A75',
   focusRing: '#2B5B4E',
 };
@@ -73,7 +75,8 @@ export const NIGHT_3AM_PALETTE: ThemePalette = {
   alertRed: '#F07575',
   alertRedText: '#F07575',
   alertRedSurface: '#471D1D',
-  onAlertRedText: '#121110',
+  onAlertRedText: '#F3EDE2',
+  onAlertRedButton: '#121110',
   borderInteractive: '#756D65',
   focusRing: '#F2B872',
 };

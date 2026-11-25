@@ -4,6 +4,7 @@ import {
   DISCLAIMERS_MX,
   ETHICAL_GUARDRAILS,
   loadOfflineEnvConfig,
+  LOCAL_STORAGE_KEYS,
   LocalAccountLifecycleAdapter,
   MemoryStorageAdapter,
   OfflineDeploymentInfoStub,
@@ -168,6 +169,24 @@ describe('Apple 1.4.1, Apple 5.1.1(v), Ethical Guardrails & Offline Adapters', (
     ).toBe(5);
     expect(firstConcurrent.deletedKeysCount).toBe(5);
     expect(secondConcurrent.deletedKeysCount).toBe(0);
+    expect(await storage.getItem('other_app:theme')).toBe('dark');
+  });
+
+  it('deletes the reserved preferences key while preserving external data', async () => {
+    const storage = new MemoryStorageAdapter();
+    const adapter = new LocalAccountLifecycleAdapter(storage);
+    await storage.setItem(
+      LOCAL_STORAGE_KEYS.preferences,
+      JSON.stringify({ themeMode: 'night_3am', activeStageId: '1-3a' }),
+    );
+    await storage.setItem('other_app:theme', 'dark');
+
+    const deletion = await adapter.deleteAccountAndData({
+      confirmedAtIso: '2026-11-24T23:33:00Z',
+    });
+
+    expect(deletion.deletedKeysCount).toBe(1);
+    expect(await storage.getItem(LOCAL_STORAGE_KEYS.preferences)).toBeNull();
     expect(await storage.getItem('other_app:theme')).toBe('dark');
   });
 

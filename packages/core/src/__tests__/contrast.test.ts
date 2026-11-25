@@ -94,6 +94,23 @@ describe('Design System WCAG 2.2 AA & Status Indicators', () => {
     expect(() => assertWcagAaPalette(brokenPalette)).toThrow(/WCAG 2.2 AA/);
   });
 
+  it('separates alert text and button foreground tokens for AA contrast', () => {
+    expect(NIGHT_3AM_PALETTE.onAlertRedText).toBe('#F3EDE2');
+    expect(NIGHT_3AM_PALETTE.onAlertRedButton).toBe('#121110');
+    expect(
+      contrastRatio(
+        NIGHT_3AM_PALETTE.onAlertRedText,
+        NIGHT_3AM_PALETTE.alertRedSurface,
+      ),
+    ).toBeGreaterThanOrEqual(WCAG_AA_NORMAL_TEXT_RATIO);
+    expect(
+      contrastRatio(
+        NIGHT_3AM_PALETTE.onAlertRedButton,
+        NIGHT_3AM_PALETTE.alertRedText,
+      ),
+    ).toBeGreaterThanOrEqual(WCAG_AA_NORMAL_TEXT_RATIO);
+  });
+
   it('pairs every StatusSeverity with an icon, Mexican Spanish label, and no paywall', () => {
     for (const severity of ['normal', 'caution', 'urgent_red'] as const) {
       const spec = STATUS_SPECS[severity];

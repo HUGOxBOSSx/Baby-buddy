@@ -8,13 +8,14 @@ import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBadge } from './StatusBadge';
 import { useThemeContext } from './ThemeProvider';
+import { accountLifecycleAdapter } from '../lib/localAdapter';
 
 export function OnboardingGate() {
   const {
     mode,
     palette,
     toggleMode,
-    acceptOnboarding,
+    acceptOnboardingDisclaimer,
     lastDeletionResult,
     clearLastDeletionResult,
     iconsLoaded,
@@ -29,7 +30,12 @@ export function OnboardingGate() {
     }
     setSubmitting(true);
     try {
-      await acceptOnboarding();
+      await acceptOnboardingDisclaimer();
+      const storedAcceptance =
+        await accountLifecycleAdapter.hasAcceptedOnboardingDisclaimer();
+      if (!storedAcceptance) {
+        throw new Error('No se confirmó la aceptación en el almacenamiento.');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -120,7 +126,7 @@ export function OnboardingGate() {
               className="text-base font-bold"
               style={{ color: palette.brandText }}
             >
-              Cuenta y datos locales eliminados
+              Datos locales eliminados
             </Text>
             <Text className="text-sm" style={{ color: palette.textPrimary }}>
               Se eliminaron {lastDeletionResult.deletedKeysCount} registros
@@ -203,11 +209,11 @@ export function OnboardingGate() {
             accessibilityLabel="Llamar al 911 por emergencia médica sin costo"
           >
             {iconsLoaded ? (
-              <Feather name="phone" size={18} color={palette.onAlertRedText} />
+              <Feather name="phone" size={18} color={palette.onAlertRedButton} />
             ) : null}
             <Text
               className="text-sm font-bold"
-              style={{ color: palette.onAlertRedText }}
+              style={{ color: palette.onAlertRedButton }}
             >
               Emergencias 911 (Acceso gratuito)
             </Text>

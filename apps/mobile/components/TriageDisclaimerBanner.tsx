@@ -80,11 +80,11 @@ export function TriageDisclaimerBanner() {
         accessibilityLabel="Llamar al 911 en caso de emergencia médica, acceso gratuito sin suscripción"
       >
         {iconsLoaded ? (
-          <Feather name="phone" size={18} color={palette.onAlertRedText} />
+          <Feather name="phone" size={18} color={palette.onAlertRedButton} />
         ) : null}
         <Text
           className="text-base font-bold"
-          style={{ color: palette.onAlertRedText }}
+          style={{ color: palette.onAlertRedButton }}
         >
           Llamar al 911 — Emergencias (Gratis)
         </Text>

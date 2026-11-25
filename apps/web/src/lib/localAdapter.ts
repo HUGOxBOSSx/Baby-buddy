@@ -333,7 +333,7 @@ export async function deleteStoredAccountAndData(
     reason: trimmedReason && trimmedReason.length > 0 ? trimmedReason : undefined,
   });
   transientDeletionResult = result;
-  transientStatusMessage = `Cuenta y datos locales eliminados (${result.deletedKeysCount} registros borrados).`;
+  transientStatusMessage = `Datos locales eliminados (${result.deletedKeysCount} registros borrados).`;
   applyThemeToDocument('day', false);
   notifyLocalStoreChange();
   return result;

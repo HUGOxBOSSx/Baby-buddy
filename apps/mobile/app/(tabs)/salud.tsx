@@ -50,18 +50,21 @@ export default function SaludScreen() {
       style={{ backgroundColor: palette.bgPrimary }}
       contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 32 }}
     >
-      <View className="gap-1">
-        <Text
-          className="text-2xl font-bold"
-          style={{ color: palette.textPrimary }}
-        >
-          Salud, Emergencias y Privacidad
-        </Text>
-        <Text className="text-sm" style={{ color: palette.textSecondary }}>
-          Orientación de urgencias 911 sin suscripción y control total de tus
-          datos locales.
-        </Text>
-      </View>
+        <View className="flex-row items-center justify-between flex-wrap gap-2">
+          <View className="flex-1 gap-1">
+            <Text
+              className="text-2xl font-bold"
+              style={{ color: palette.textPrimary }}
+            >
+              Salud, Emergencias y Privacidad
+            </Text>
+            <Text className="text-sm" style={{ color: palette.textSecondary }}>
+              Orientación de urgencias 911 sin suscripción y control total de tus
+              datos locales.
+            </Text>
+          </View>
+          <StatusBadge severity="urgent_red" />
+        </View>
 
       <TriageDisclaimerBanner />
 
@@ -77,7 +80,7 @@ export default function SaludScreen() {
             className="text-lg font-bold"
             style={{ color: palette.textPrimary }}
           >
-            Datos locales y cuenta (Apple 5.1.1(v))
+            Datos locales y privacidad
           </Text>
           <StatusBadge
             severity={snapshotSummary.hasActiveProfile ? 'normal' : 'caution'}
@@ -101,6 +104,10 @@ export default function SaludScreen() {
             Aviso inicial aceptado:{' '}
             {snapshotSummary.onboardingAccepted ? 'Sí' : 'No'} · Perfil demo
             activo: {snapshotSummary.hasActiveProfile ? 'Sí' : 'No'}
+          </Text>
+          <Text className="text-xs" style={{ color: palette.textSecondary }}>
+            Datos guardados solo en este dispositivo. Esta versión no tiene una
+            cuenta remota.
           </Text>
           {childProfile !== null ? (
             <Text className="text-xs" style={{ color: palette.brandText }}>
@@ -152,20 +159,20 @@ export default function SaludScreen() {
               backgroundColor: palette.alertRedText,
             }}
             accessibilityRole="button"
-            accessibilityLabel="Eliminar cuenta y datos locales"
+            accessibilityLabel="Eliminar los datos locales de Baby Buddy MX"
           >
             {iconsLoaded ? (
               <Feather
                 name="trash-2"
                 size={18}
-                color={palette.onAlertRedText}
+                color={palette.onAlertRedButton}
               />
             ) : null}
             <Text
               className="text-sm font-bold"
-              style={{ color: palette.onAlertRedText }}
+              style={{ color: palette.onAlertRedButton }}
             >
-              Eliminar cuenta y datos locales
+              Eliminar datos de este dispositivo
             </Text>
           </Pressable>
         </View>

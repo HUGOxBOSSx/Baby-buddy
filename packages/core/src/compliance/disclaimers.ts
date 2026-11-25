@@ -27,9 +27,9 @@ export const DISCLAIMERS_MX: Record<DisclaimerLevel, DisclaimerContent> = {
   },
   guide_header: {
     level: 'guide_header',
-    titleMx: 'Información educativa con fuentes revisadas',
+    titleMx: 'Información educativa con fuentes citadas',
     bodyMx:
-      'Contenido orientativo basado en guías clínicas de referencia. No diagnostica enfermedades ni reemplaza la consulta con tu pediatra.',
+      'Contenido editorial en borrador basado en guías clínicas de referencia. No diagnostica enfermedades ni reemplaza la consulta con tu pediatra.',
     emergencyNumber: '911',
     emergencyActionLabelMx:
       'Ante duda clínica o urgencia, consulta a tu pediatra o llama al 911.',

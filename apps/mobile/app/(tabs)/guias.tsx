@@ -125,11 +125,11 @@ export default function GuiasScreen() {
                   className="text-xs font-semibold"
                   style={{ color: palette.textMuted }}
                 >
-                  Versión: {guide.metadata.version} · Revisado:{' '}
+                  Versión: {guide.metadata.version} · Corte editorial:{' '}
                   {guide.metadata.reviewed_at}
                 </Text>
                 <Text className="text-xs" style={{ color: palette.textMuted }}>
-                  Revisión: {guide.metadata.reviewed_by}
+                  Estado de revisión: {guide.metadata.reviewed_by}
                 </Text>
                 {guide.metadata.sources.map((source) => (
                   <Text

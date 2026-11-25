@@ -47,7 +47,7 @@ export interface ThemeContextValue {
   readonly selectedStage: StageId;
   readonly setSelectedStage: (stageId: StageId) => void;
   readonly onboardingAccepted: boolean;
-  readonly acceptOnboarding: () => Promise<void>;
+  readonly acceptOnboardingDisclaimer: () => Promise<void>;
   readonly deleteAccountAndData: (
     reason?: string,
   ) => Promise<AccountDeletionResult>;
@@ -158,7 +158,7 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
     void savePersistedStageId(stageId);
   }, []);
 
-  const acceptOnboarding = useCallback(async () => {
+  const acceptOnboardingDisclaimer = useCallback(async () => {
     await accountLifecycleAdapter.acceptOnboardingDisclaimer(
       new Date().toISOString(),
     );
@@ -199,7 +199,7 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       await refreshSnapshot();
       setLastDeletionResult(result);
       setStatusAnnouncement(
-        `Cuenta y ${result.deletedKeysCount} registros locales eliminados por completo.`,
+        `Datos locales eliminados: ${result.deletedKeysCount} registros borrados.`,
       );
       return result;
     },
@@ -221,7 +221,7 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       selectedStage,
       setSelectedStage,
       onboardingAccepted,
-      acceptOnboarding,
+      acceptOnboardingDisclaimer,
       deleteAccountAndData,
       seedDemoData,
       snapshotSummary,
@@ -240,7 +240,7 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       selectedStage,
       setSelectedStage,
       onboardingAccepted,
-      acceptOnboarding,
+      acceptOnboardingDisclaimer,
       deleteAccountAndData,
       seedDemoData,
       snapshotSummary,

@@ -13,6 +13,7 @@
   "dependencies": {
     "@baby-buddy/content": "*",
     "@baby-buddy/core": "*",
+    "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~55.0.32",
     "expo-constants": "~55.0.17",
     "expo-linking": "~55.0.17",

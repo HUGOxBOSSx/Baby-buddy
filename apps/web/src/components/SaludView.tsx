@@ -8,7 +8,6 @@ import {
   loadOfflineEnvConfig,
 } from '@baby-buddy/core';
 import { AccountDeletionDialog } from '@/components/AccountDeletionDialog';
-import { TriageDisclaimerBanner } from '@/components/TriageDisclaimerBanner';
 import { useAppState } from '@/components/ThemeProvider';
 
 const envConfig = loadOfflineEnvConfig();
@@ -40,8 +39,6 @@ export function SaludView() {
         </h1>
       </header>
 
-      <TriageDisclaimerBanner />
-
       <section
         aria-labelledby="datos-locales-titulo"
         className="rounded-2xl border border-border-interactive bg-bg-card p-5 space-y-4 shadow-sm"
@@ -51,12 +48,13 @@ export function SaludView() {
             id="datos-locales-titulo"
             className="text-lg font-bold text-ink-primary"
           >
-            Gestión de datos locales y eliminación de cuenta
+            Datos locales y privacidad
           </h2>
           <p className="text-sm text-ink-secondary">
             Tus preferencias y datos de demostración se guardan únicamente en el
             almacenamiento local de este navegador. Puedes cargar un perfil demo
-            o eliminar por completo todos los registros de Baby Buddy MX.
+            o eliminar por completo todos los registros locales de Baby Buddy MX.
+            En esta versión no existe una cuenta remota.
           </p>
         </div>
 

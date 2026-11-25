@@ -146,11 +146,11 @@ export default function RopaYClimaScreen() {
                   className="text-xs font-semibold"
                   style={{ color: palette.textMuted }}
                 >
-                  Versión: {item.metadata.version} · Revisado:{' '}
+                  Versión: {item.metadata.version} · Corte editorial:{' '}
                   {item.metadata.reviewed_at}
                 </Text>
                 <Text className="text-xs" style={{ color: palette.textMuted }}>
-                  Revisión: {item.metadata.reviewed_by}
+                  Estado de revisión: {item.metadata.reviewed_by}
                 </Text>
                 {item.metadata.sources.map((source) => (
                   <Text

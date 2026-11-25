@@ -98,7 +98,8 @@ export function evaluatePaletteContrast(
     checkPair('alertRedText on bgPrimary', palette.alertRedText, palette.bgPrimary, N),
     checkPair('alertRedText on bgCard', palette.alertRedText, palette.bgCard, N),
     checkPair('alertRedText on alertRedSurface', palette.alertRedText, palette.alertRedSurface, N),
-    checkPair('onAlertRedText on alertRedText', palette.onAlertRedText, palette.alertRedText, N),
+    checkPair('onAlertRedText on alertRedSurface', palette.onAlertRedText, palette.alertRedSurface, N),
+    checkPair('onAlertRedButton on alertRedText', palette.onAlertRedButton, palette.alertRedText, N),
 
     checkPair('brandPrimary UI on bgPrimary', palette.brandPrimary, palette.bgPrimary, UI),
     checkPair('alertRed UI on bgPrimary', palette.alertRed, palette.bgPrimary, UI),
