@@ -190,4 +190,62 @@ describe('recommendClothing (-5 °C a 50 °C)', () => {
     expect(calor.comfortZone).toBe('overheat');
     expect(calor.actionsMx.join(' ')).toContain('Sobra abrigo');
   });
+
+  it('mantiene continuidad y monotonicidad en pasos de 0.5 °C sin saltos bruscos (ej. 19.5 °C vs 20 °C)', () => {
+    for (const environment of ['cuarto', 'exterior'] as const) {
+      let prev = recommendClothing({
+        tempC: CLOTHING_MIN_TEMP_C,
+        environment,
+        stageId: '0-3m',
+      }).recommendedTogRange;
+      expect(prev.min).toBeLessThan(prev.max);
+
+      for (let t = CLOTHING_MIN_TEMP_C + 0.5; t <= CLOTHING_MAX_TEMP_C; t += 0.5) {
+        const curr = recommendClothing({
+          tempC: t,
+          environment,
+          stageId: '0-3m',
+        }).recommendedTogRange;
+        expect(curr.min).toBeLessThan(curr.max);
+        expect(curr.min).toBeLessThanOrEqual(prev.min);
+        expect(curr.max).toBeLessThanOrEqual(prev.max);
+        expect(Math.abs(curr.min - prev.min)).toBeLessThanOrEqual(0.25);
+        expect(Math.abs(curr.max - prev.max)).toBeLessThanOrEqual(0.25);
+        prev = curr;
+      }
+    }
+
+    const at195 = recommendClothing({
+      tempC: 19.5,
+      environment: 'cuarto',
+      stageId: '0-3m',
+    }).recommendedTogRange;
+    const at200 = recommendClothing({
+      tempC: 20,
+      environment: 'cuarto',
+      stageId: '0-3m',
+    }).recommendedTogRange;
+    expect(Math.abs(at195.min - at200.min)).toBeLessThanOrEqual(0.25);
+    expect(Math.abs(at195.max - at200.max)).toBeLessThanOrEqual(0.25);
+
+    for (const environment of ['cuarto', 'exterior'] as const) {
+      for (const tempC of [-2, 4, 8, 12, 16, 19.5, 20, 21, 23.5, 26, 32]) {
+        const defaults = getDefaultOptimalLayers({
+          tempC,
+          environment,
+          stageId: '0-3m',
+        });
+        const rec = recommendClothing({
+          tempC,
+          environment,
+          stageId: '0-3m',
+          selectedLayers: defaults,
+        });
+        expect(
+          rec.comfortZone,
+          `Falló óptimo en ${environment} a ${tempC}°C (TOG ${rec.currentTog} vs ${rec.recommendedTogRange.min}-${rec.recommendedTogRange.max})`,
+        ).toBe('optimal');
+      }
+    }
+  });
 });

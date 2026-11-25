@@ -327,6 +327,59 @@ function resolveWallAdjustment(
   };
 }
 
+const INDOOR_TOG_CURVE: readonly (readonly [number, number, number])[] = [
+  [10, 3.8, 4.9],
+  [14, 3.2, 4.2],
+  [16, 2.7, 3.6],
+  [18, 2.1, 3.0],
+  [20, 1.5, 2.3],
+  [22, 1.0, 1.7],
+  [24, 0.5, 1.1],
+  [26, 0.2, 0.7],
+  [28, 0.0, 0.2],
+];
+
+const OUTDOOR_TOG_CURVE: readonly (readonly [number, number, number])[] = [
+  [0, 2.7, 3.8],
+  [6, 2.15, 3.2],
+  [10, 1.65, 2.6],
+  [14, 1.15, 2.0],
+  [18, 0.7, 1.4],
+  [22, 0.3, 0.85],
+  [26, 0.1, 0.45],
+  [30, 0.0, 0.2],
+];
+
+function roundToStep05(value: number): number {
+  return Number((Math.round(value * 20) / 20).toFixed(2));
+}
+
+function interpolateTogRange(
+  tempC: number,
+  curve: readonly (readonly [number, number, number])[],
+): TogRange {
+  const first = curve[0]!;
+  if (tempC <= first[0]) {
+    return { min: first[1], max: first[2] };
+  }
+  const last = curve[curve.length - 1]!;
+  if (tempC >= last[0]) {
+    return { min: last[1], max: last[2] };
+  }
+  for (let i = 0; i < curve.length - 1; i += 1) {
+    const [t0, min0, max0] = curve[i]!;
+    const [t1, min1, max1] = curve[i + 1]!;
+    if (tempC >= t0 && tempC <= t1) {
+      const ratio = (tempC - t0) / (t1 - t0);
+      return {
+        min: min0 + (min1 - min0) * ratio,
+        max: max0 + (max1 - max0) * ratio,
+      };
+    }
+  }
+  return { min: last[1], max: last[2] };
+}
+
 function getRecommendedTogRange(
   effectiveTempC: number,
   environment: ClothingEnvironment,
@@ -334,48 +387,14 @@ function getRecommendedTogRange(
   hasFever: boolean,
   ctx: ClothingContextFlags,
 ): TogRange {
-  let min = 1.0;
-  let max = 1.9;
-  if (environment === 'cuarto') {
-    if (effectiveTempC >= 28) {
-      min = 0;
-      max = 0.2;
-    } else if (effectiveTempC >= 24) {
-      min = 0.2;
-      max = 0.7;
-    } else if (effectiveTempC >= 20) {
-      min = 1.0;
-      max = 1.9;
-    } else if (effectiveTempC >= 18) {
-      min = 1.8;
-      max = 2.8;
-    } else if (effectiveTempC >= 14) {
-      min = 2.5;
-      max = 3.8;
-    } else {
-      min = 3.5;
-      max = 4.5;
-    }
-  } else {
-    if (effectiveTempC >= 30) {
-      min = 0;
-      max = 0.2;
-    } else if (effectiveTempC >= 24) {
-      min = 0.1;
-      max = 0.5;
-    } else if (effectiveTempC >= 19) {
-      min = 0.5;
-      max = 1.1;
-    } else if (effectiveTempC >= 14) {
-      min = 1.0;
-      max = 1.9;
-    } else if (effectiveTempC >= 8) {
-      min = 1.6;
-      max = 2.6;
-    } else {
-      min = 2.2;
-      max = 3.5;
-    }
+  const base = interpolateTogRange(
+    effectiveTempC,
+    environment === 'cuarto' ? INDOOR_TOG_CURVE : OUTDOOR_TOG_CURVE,
+  );
+  let min = base.min;
+  let max = base.max;
+
+  if (environment === 'exterior') {
     if (ctx.isWindy) {
       min += 0.35;
       max += 0.35;
@@ -384,9 +403,11 @@ function getRecommendedTogRange(
       min += 0.25;
       max += 0.25;
     }
-    if (ctx.weatherCondition === 'soleado' && effectiveTempC >= 20) {
-      min = Math.max(0, min - 0.15);
-      max = Math.max(0.2, max - 0.15);
+    if (ctx.weatherCondition === 'soleado' && effectiveTempC > 18) {
+      const sunFactor = Math.min(1, (effectiveTempC - 18) / 4);
+      const sunDelta = 0.15 * sunFactor;
+      min = Math.max(0, min - sunDelta);
+      max = Math.max(0.2, max - sunDelta);
     }
   }
 
@@ -398,7 +419,10 @@ function getRecommendedTogRange(
     min += 0.3;
     max += 0.3;
   }
-  if (ctx.inCarrierOrStroller || (environment === 'exterior' && ctx.outdoorTransport === 'portabebe')) {
+  if (
+    ctx.inCarrierOrStroller ||
+    (environment === 'exterior' && ctx.outdoorTransport === 'portabebe')
+  ) {
     min = Math.max(0, min - 0.35);
     max = Math.max(0.2, max - 0.35);
   }
@@ -406,9 +430,11 @@ function getRecommendedTogRange(
     min = Math.max(0, min - 0.35);
     max = Math.max(0.2, max - 0.35);
   }
+  const roundedMin = Math.max(0, roundToStep05(min));
+  const roundedMax = Math.max(roundToStep05(roundedMin + 0.2), roundToStep05(max));
   return {
-    min: Number(min.toFixed(2)),
-    max: Number(max.toFixed(2)),
+    min: roundedMin,
+    max: roundedMax,
   };
 }
 
@@ -449,11 +475,14 @@ const INDOOR_PRESETS: readonly SelectedLayersInput[] = [
   { base: ['ninguna'], mid: [], outer: [], accessories: [] }, // 0
   { base: ['panalero_sin_mangas'], mid: [], outer: [], accessories: [] }, // 0.1
   { base: ['panalero_corta'], mid: [], outer: [], accessories: [] }, // 0.2
+  { base: ['panalero_larga'], mid: [], outer: [], accessories: [] }, // 0.35
   { base: ['panalero_corta'], mid: [], outer: ['saco_05'], accessories: [] }, // 0.7
   { base: ['panalero_larga'], mid: ['mameluco_algodon'], outer: [], accessories: [] }, // 0.85
+  { base: ['panalero_corta'], mid: ['pijama_ligera'], outer: ['saco_05'], accessories: [] }, // 1.1
   { base: ['panalero_larga'], mid: ['mameluco_algodon'], outer: ['saco_05'], accessories: [] }, // 1.35
   { base: ['panalero_larga'], mid: ['mameluco_algodon'], outer: ['saco_10'], accessories: [] }, // 1.85
   { base: ['panalero_larga'], mid: ['mameluco_afelpado'], outer: ['saco_10'], accessories: ['calcetines'] }, // 2.3
+  { base: ['panalero_corta'], mid: [], outer: ['saco_25'], accessories: [] }, // 2.7
   { base: ['panalero_larga'], mid: ['mameluco_algodon'], outer: ['saco_25'], accessories: [] }, // 3.35
   { base: ['panalero_larga'], mid: ['mameluco_afelpado'], outer: ['saco_25'], accessories: ['calcetines'] }, // 3.8
   { base: ['termica_interior'], mid: ['mameluco_termico'], outer: ['saco_25'], accessories: ['calcetines'] }, // 4.45
