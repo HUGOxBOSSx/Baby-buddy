@@ -876,8 +876,7 @@ export function recommendClothing(
       outerSelected.includes('cobija_polar'));
 
   let comfortZone: ComfortZone = 'optimal';
-  let togDeltaMx =
-    'Combinación adecuada para la temperatura actual. Verifica nuca y pecho tibios y sin sudor.';
+  let togDeltaMx = 'Abrigo óptimo para esta temperatura y contexto.';
 
   if (looseBlanketAlert) {
     comfortZone = 'unsafe_sleep';
@@ -902,6 +901,51 @@ export function recommendClothing(
     comfortZone = 'overheat';
   } else if (band === 'frio_extremo' || band === 'frio') {
     comfortZone = 'cold';
+  }
+
+  const baseSelected = input.selectedLayers?.base ?? [];
+  const midSelected = (input.selectedLayers?.mid ?? []).filter((x) => x !== 'ninguna');
+  const outerActive = outerSelected.filter((x) => x !== 'ninguna');
+
+  if (comfortZone === 'cold') {
+    if (midSelected.length === 0) {
+      actionsMx.unshift(
+        'Falta abrigo: agrega un mameluco de algodón (+0.5 TOG) o afelpado (+0.8 TOG).',
+      );
+    }
+    if (environment === 'cuarto' && outerActive.length === 0) {
+      actionsMx.unshift(
+        'Agrega un saco de dormir o sube a mameluco térmico para llegar al abrigo óptimo.',
+      );
+    }
+    if (
+      environment === 'exterior' &&
+      effectiveTempC <= 17 &&
+      !accessoriesSelected.includes('gorro')
+    ) {
+      actionsMx.unshift(
+        'En exterior fresco/frío, agrega un gorro (+0.3 TOG) o suéter/chamarra (+1.0 TOG).',
+      );
+    }
+  } else if (comfortZone === 'overheat') {
+    if (environment === 'cuarto' && accessoriesSelected.includes('gorro')) {
+      actionsMx.unshift('Quita el gorro de inmediato para evitar sobrecalentamiento.');
+    }
+    if (outerActive.length > 0) {
+      actionsMx.unshift(
+        'Sobra abrigo: retira la capa exterior o cambia a una opción más ligera.',
+      );
+    } else if (midSelected.length > 0) {
+      actionsMx.unshift(
+        'Sobra abrigo: quita la capa media y deja solo pañalero ligero o pañal.',
+      );
+    } else if (baseSelected.some((x) => x !== 'ninguna')) {
+      actionsMx.unshift('Sobra abrigo: deja solo pañal si el ambiente está muy caluroso.');
+    }
+  } else if (comfortZone === 'unsafe_sleep') {
+    actionsMx.unshift(
+      'Retira la cobija suelta o polar de la cuna y usa en su lugar un mameluco afelpado/térmico o un saco de dormir seguro.',
+    );
   }
 
   return {

@@ -162,4 +162,32 @@ describe('recommendClothing (-5 °C a 50 °C)', () => {
     expect(polarToddler.currentTog).toBe(3.15);
     expect(polarToddler.comfortZone).toBe('optimal');
   });
+
+  it('genera acciones dinámicas según comfortZone (qué sumar en frío y qué quitar en calor)', () => {
+    const frio = recommendClothing({
+      tempC: 16,
+      environment: 'cuarto',
+      stageId: '3-12m',
+      selectedLayers: {
+        base: ['panalero_corta'],
+        mid: [],
+        outer: [],
+      },
+    });
+    expect(frio.comfortZone).toBe('cold');
+    expect(frio.actionsMx.join(' ')).toContain('Falta abrigo');
+
+    const calor = recommendClothing({
+      tempC: 27,
+      environment: 'cuarto',
+      stageId: '3-12m',
+      selectedLayers: {
+        base: ['panalero_larga'],
+        mid: ['mameluco_afelpado'],
+        outer: ['saco_10'],
+      },
+    });
+    expect(calor.comfortZone).toBe('overheat');
+    expect(calor.actionsMx.join(' ')).toContain('Sobra abrigo');
+  });
 });

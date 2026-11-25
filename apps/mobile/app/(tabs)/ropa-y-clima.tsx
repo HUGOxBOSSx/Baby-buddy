@@ -105,6 +105,8 @@ export default function RopaYClimaScreen() {
 
   const [tempC, setTempC] = useState<number>(21);
   const [outdoorTempC, setOutdoorTempC] = useState<number | undefined>(undefined);
+  const [weatherNote, setWeatherNote] = useState<string>('');
+  const [detectingWeather, setDetectingWeather] = useState(false);
   const [environment, setEnvironment] =
     useState<ClothingEnvironment>('cuarto');
   const [context, setContext] = useState<ClothingContextFlags>(
@@ -136,6 +138,68 @@ export default function RopaYClimaScreen() {
 
   const toggleFlag = (key: keyof ClothingContextFlags) => {
     setContext((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleDetectWeather = async () => {
+    if (detectingWeather) {
+      return;
+    }
+    setDetectingWeather(true);
+    setWeatherNote('Consultando clima exterior...');
+    try {
+      const geoRes = await fetch('https://get.geojs.io/v1/ip/geo.json');
+      const geo = (await geoRes.json()) as {
+        latitude?: string;
+        longitude?: string;
+        city?: string;
+      };
+      const lat = Number.parseFloat(geo.latitude ?? '');
+      const lon = Number.parseFloat(geo.longitude ?? '');
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+        setWeatherNote('No se pudo obtener ubicación; ajusta °C afuera manualmente.');
+        return;
+      }
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,wind_speed_10m,rain,weather_code`;
+      const res = await fetch(url);
+      const data = (await res.json()) as {
+        current?: {
+          temperature_2m?: number;
+          wind_speed_10m?: number;
+          rain?: number;
+          weather_code?: number;
+        };
+      };
+      const t = data.current?.temperature_2m;
+      if (typeof t === 'number' && Number.isFinite(t)) {
+        const clamped = Math.min(
+          CLOTHING_MAX_TEMP_C,
+          Math.max(CLOTHING_MIN_TEMP_C, Math.round(t)),
+        );
+        const wind = (data.current?.wind_speed_10m ?? 0) >= 18;
+        const rain = (data.current?.rain ?? 0) > 0;
+        const code = data.current?.weather_code ?? 0;
+        const cond: OutdoorWeatherCondition =
+          rain || code >= 51 ? 'lluvia' : code >= 2 ? 'nublado' : 'soleado';
+        setOutdoorTempC(clamped);
+        setContext((prev) => ({
+          ...prev,
+          weatherCondition: cond,
+          isWindy: wind,
+        }));
+        if (environment === 'exterior') {
+          setTempC(clamped);
+        }
+        setWeatherNote(
+          `Clima${geo.city ? ` en ${geo.city}` : ''}: ${clamped} °C.`,
+        );
+      } else {
+        setWeatherNote('No se pudo leer la temperatura; usa el control manual.');
+      }
+    } catch {
+      setWeatherNote('Sin conexión para clima exterior; usa el control manual.');
+    } finally {
+      setDetectingWeather(false);
+    }
   };
 
   return (
@@ -176,20 +240,41 @@ export default function RopaYClimaScreen() {
 
       {/* Franja compacta de clima exterior siempre visible arriba */}
       <View
-        className="rounded-2xl border px-3 py-2 flex-row items-center justify-between flex-wrap gap-2"
+        className="rounded-2xl border px-3 py-2 gap-1"
         style={{
           backgroundColor: palette.bgElevated,
           borderColor: palette.borderInteractive,
         }}
       >
-        <Text className="text-xs font-semibold" style={{ color: palette.textSecondary }}>
-          Exterior:{' '}
-          {outdoorTempC !== undefined
-            ? `${outdoorTempC} °C · ${
-                WEATHER_CONDITIONS.find((w) => w.id === context.weatherCondition)?.label
-              } · ${context.isWindy ? 'Viento' : 'Sin viento'}`
-            : 'Sin detectar (manual)'}
-        </Text>
+        <View className="flex-row items-center justify-between flex-wrap gap-2">
+          <Text className="text-xs font-semibold flex-1" style={{ color: palette.textSecondary }}>
+            Exterior:{' '}
+            {outdoorTempC !== undefined
+              ? `${outdoorTempC} °C · ${
+                  WEATHER_CONDITIONS.find((w) => w.id === context.weatherCondition)?.label
+                } · ${context.isWindy ? 'Viento' : 'Sin viento'}`
+              : 'Sin detectar (manual)'}
+          </Text>
+          <Pressable
+            onPress={() => void handleDetectWeather()}
+            disabled={detectingWeather}
+            className="rounded-xl border px-3 py-1.5 justify-center"
+            style={{
+              minHeight: MIN_TOUCH_TARGET_PX,
+              backgroundColor: palette.brandSurface,
+              borderColor: palette.brandPrimary,
+            }}
+          >
+            <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
+              {detectingWeather ? 'Detectando...' : 'Detectar clima'}
+            </Text>
+          </Pressable>
+        </View>
+        {weatherNote ? (
+          <Text className="text-[11px]" style={{ color: palette.textSecondary }}>
+            {weatherNote}
+          </Text>
+        ) : null}
       </View>
 
       {/* 1. Hasta arriba fuera del desplegable: Temperatura y Entorno */}
@@ -206,7 +291,12 @@ export default function RopaYClimaScreen() {
             return (
               <Pressable
                 key={env}
-                onPress={() => setEnvironment(env)}
+                onPress={() => {
+                  setEnvironment(env);
+                  if (env === 'exterior' && outdoorTempC !== undefined) {
+                    setTempC(outdoorTempC);
+                  }
+                }}
                 className="flex-1 rounded-xl border px-3 py-2 items-center justify-center"
                 style={{
                   minHeight: MIN_TOUCH_TARGET_PX,
@@ -956,6 +1046,19 @@ export default function RopaYClimaScreen() {
             {rec.togDeltaMx}
           </Text>
         </View>
+
+        {rec.actionsMx.length > 0 ? (
+          <View className="gap-1">
+            <Text className="text-xs font-bold uppercase" style={{ color: palette.textPrimary }}>
+              Qué hacer
+            </Text>
+            {rec.actionsMx.map((action) => (
+              <Text key={action} className="text-xs leading-5" style={{ color: palette.textSecondary }}>
+                • {action}
+              </Text>
+            ))}
+          </View>
+        ) : null}
 
         {rec.doNotDoMx.length > 0 ? (
           <View
