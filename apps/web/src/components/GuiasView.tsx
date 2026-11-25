@@ -11,33 +11,33 @@ import {
   GUIDE_CATEGORIES_MX,
   searchClinicalGuides,
   type ClinicalGuideEntry,
-  type NormalityFilter,
 } from '@baby-buddy/content';
 import { PoopColorChart } from '@/components/PoopColorChart';
-import { QuickTriageChecker } from '@/components/QuickTriageChecker';
 import { StageSelector } from '@/components/StageSelector';
 import { useAppState } from '@/components/ThemeProvider';
 import { TriageBadge } from '@/components/TriageBadge';
 
-type ViewTab = NormalityFilter | 'popo';
+type ViewTab = 'all' | 'es_normal' | 'no_es_normal' | 'urgencia' | 'popo';
+type SubFilter = 'all' | TriageLevel | 'primeros_auxilios';
 
 const TABS: readonly { readonly id: ViewTab; readonly label: string }[] = [
   { id: 'all', label: 'Todo' },
   { id: 'es_normal', label: 'Es normal' },
   { id: 'no_es_normal', label: 'No es normal' },
-  { id: 'primeros_auxilios', label: 'Primeros auxilios' },
+  { id: 'urgencia', label: 'Urgencia' },
   { id: 'popo', label: 'Tabla popó' },
 ] as const;
 
-const COLOR_FILTERS: readonly {
-  readonly id: TriageLevel | 'all';
+const SUB_FILTERS: readonly {
+  readonly id: SubFilter;
   readonly label: string;
 }[] = [
-  { id: 'all', label: 'Todos los colores' },
+  { id: 'all', label: 'Todos' },
   { id: 'green_home', label: 'Verde' },
   { id: 'yellow_pediatrician', label: 'Amarillo' },
-  { id: 'orange_urgent', label: 'Naranja' },
-  { id: 'red_911', label: 'Rojo' },
+  { id: 'orange_urgent', label: 'Naranja · Atención hoy' },
+  { id: 'red_911', label: 'Rojo · 911 / Inmediato' },
+  { id: 'primeros_auxilios', label: 'Primeros auxilios' },
 ] as const;
 
 const TRIAGE_GROUP_ORDER: readonly TriageLevel[] = [
@@ -51,7 +51,7 @@ export function GuiasView() {
   const { childProfile } = useAppState();
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState<ViewTab>('all');
-  const [triageFilter, setTriageFilter] = useState<TriageLevel | 'all'>('all');
+  const [subFilter, setSubFilter] = useState<SubFilter>('all');
   const [categoryFilter, setCategoryFilter] = useState<string | 'all'>('all');
   const [stageFilter, setStageFilter] = useState<StageId | 'all'>('all');
   const [includeOtherAges, setIncludeOtherAges] = useState(false);
@@ -59,12 +59,64 @@ export function GuiasView() {
   const effectiveStage: StageId | 'all' =
     childProfile && !includeOtherAges ? childProfile.stageId : stageFilter;
 
+  const normalityParam = tab === 'popo' ? 'all' : tab;
+
+  const level1Pool = searchClinicalGuides({
+    stageId: effectiveStage,
+    normality: normalityParam,
+  });
+
+  const availableSubFilters = SUB_FILTERS.filter((opt) => {
+    if (opt.id === 'all') return true;
+    if (opt.id === 'primeros_auxilios') {
+      return level1Pool.some((g) => g.kind === 'primeros_auxilios');
+    }
+    return level1Pool.some((g) => g.triageLevel === opt.id);
+  });
+
+  const effectiveSubFilter: SubFilter = availableSubFilters.some(
+    (opt) => opt.id === subFilter,
+  )
+    ? subFilter
+    : 'all';
+
+  const level2Pool = searchClinicalGuides({
+    stageId: effectiveStage,
+    normality: normalityParam,
+    triageLevel:
+      effectiveSubFilter !== 'all' &&
+      effectiveSubFilter !== 'primeros_auxilios'
+        ? effectiveSubFilter
+        : 'all',
+    kind:
+      effectiveSubFilter === 'primeros_auxilios'
+        ? 'primeros_auxilios'
+        : 'all',
+  });
+
+  const availableCategories = GUIDE_CATEGORIES_MX.filter((cat) =>
+    level2Pool.some((g) => g.categoryMx === cat),
+  );
+
+  const effectiveCategory: string | 'all' =
+    categoryFilter === 'all' || availableCategories.includes(categoryFilter)
+      ? categoryFilter
+      : 'all';
+
   const guides = searchClinicalGuides({
     query,
     stageId: effectiveStage,
-    normality: tab === 'popo' ? 'all' : tab,
-    triageLevel: triageFilter,
-    categoryMx: categoryFilter,
+    normality: normalityParam,
+    triageLevel:
+      effectiveSubFilter !== 'all' &&
+      effectiveSubFilter !== 'primeros_auxilios'
+        ? effectiveSubFilter
+        : 'all',
+    kind:
+      effectiveSubFilter === 'primeros_auxilios'
+        ? 'primeros_auxilios'
+        : 'all',
+    categoryMx: effectiveCategory,
   });
 
   const groupedGuides = TRIAGE_GROUP_ORDER.map((level) => ({
@@ -108,6 +160,7 @@ export function GuiasView() {
         <div className="flex flex-wrap gap-2">
           {TABS.map((t) => {
             const active = tab === t.id;
+            const isUrgencia = t.id === 'urgencia';
             return (
               <button
                 key={t.id}
@@ -115,9 +168,13 @@ export function GuiasView() {
                 onClick={() => setTab(t.id)}
                 aria-pressed={active}
                 className={`inline-flex min-h-12 items-center rounded-full border px-4 py-2 text-xs font-bold ${
-                  active
-                    ? 'border-brand-primary bg-brand-primary text-brand-on'
-                    : 'border-border-interactive bg-bg-elevated text-ink-primary'
+                  isUrgencia
+                    ? active
+                      ? 'border-alert-red bg-alert-surface text-alert-text ring-2 ring-alert-red'
+                      : 'border-alert-red bg-alert-surface text-alert-text'
+                    : active
+                      ? 'border-brand-primary bg-brand-primary text-brand-on'
+                      : 'border-border-interactive bg-bg-elevated text-ink-primary'
                 }`}
               >
                 {t.label}
@@ -126,61 +183,65 @@ export function GuiasView() {
           })}
         </div>
 
-        {tab !== 'popo' ? (
+        {tab !== 'popo' && (availableSubFilters.length > 2 || availableCategories.length > 1) ? (
           <div className="space-y-3 rounded-2xl border border-border-subtle bg-bg-elevated p-3">
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por color de semáforo">
-              {COLOR_FILTERS.map((c) => {
-                const active = triageFilter === c.id;
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => setTriageFilter(c.id)}
-                    aria-pressed={active}
-                    className={`inline-flex min-h-10 items-center rounded-full border px-3 py-1.5 text-xs font-semibold ${
-                      active
-                        ? 'border-brand-primary bg-brand-primary text-brand-on'
-                        : 'border-border-interactive bg-bg-card text-ink-primary'
-                    }`}
-                  >
-                    {c.label}
-                  </button>
-                );
-              })}
-            </div>
+            {availableSubFilters.length > 2 ? (
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por color de semáforo o auxilios">
+                {availableSubFilters.map((c) => {
+                  const active = effectiveSubFilter === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setSubFilter(c.id)}
+                      aria-pressed={active}
+                      className={`inline-flex min-h-10 items-center rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                        active
+                          ? 'border-brand-primary bg-brand-primary text-brand-on'
+                          : 'border-border-interactive bg-bg-card text-ink-primary'
+                      }`}
+                    >
+                      {c.label}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
 
-            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtrar por tema">
-              <button
-                type="button"
-                onClick={() => setCategoryFilter('all')}
-                aria-pressed={categoryFilter === 'all'}
-                className={`inline-flex min-h-9 items-center rounded-full border px-3 py-1 text-xs font-semibold ${
-                  categoryFilter === 'all'
-                    ? 'border-brand-primary bg-brand-surface text-brand-text'
-                    : 'border-border-interactive bg-bg-card text-ink-secondary'
-                }`}
-              >
-                Todos los temas
-              </button>
-              {GUIDE_CATEGORIES_MX.map((cat) => {
-                const active = categoryFilter === cat;
-                return (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => setCategoryFilter(cat)}
-                    aria-pressed={active}
-                    className={`inline-flex min-h-9 items-center rounded-full border px-3 py-1 text-xs font-semibold ${
-                      active
-                        ? 'border-brand-primary bg-brand-surface text-brand-text'
-                        : 'border-border-interactive bg-bg-card text-ink-secondary'
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                );
-              })}
-            </div>
+            {availableCategories.length > 1 ? (
+              <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtrar por tema">
+                <button
+                  type="button"
+                  onClick={() => setCategoryFilter('all')}
+                  aria-pressed={effectiveCategory === 'all'}
+                  className={`inline-flex min-h-9 items-center rounded-full border px-3 py-1 text-xs font-semibold ${
+                    effectiveCategory === 'all'
+                      ? 'border-brand-primary bg-brand-surface text-brand-text'
+                      : 'border-border-interactive bg-bg-card text-ink-secondary'
+                  }`}
+                >
+                  Todos los temas
+                </button>
+                {availableCategories.map((cat) => {
+                  const active = effectiveCategory === cat;
+                  return (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setCategoryFilter(cat)}
+                      aria-pressed={active}
+                      className={`inline-flex min-h-9 items-center rounded-full border px-3 py-1 text-xs font-semibold ${
+                        active
+                          ? 'border-brand-primary bg-brand-surface text-brand-text'
+                          : 'border-border-interactive bg-bg-card text-ink-secondary'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
           </div>
         ) : null}
 
@@ -231,7 +292,24 @@ export function GuiasView() {
         )}
       </div>
 
-      {tab === 'no_es_normal' ? <QuickTriageChecker /> : null}
+      {tab === 'urgencia' ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-alert-red bg-alert-surface p-4">
+          <div className="space-y-0.5">
+            <p className="text-sm font-bold text-alert-text">
+              Rojo: 911 / urgencias inmediatas · Naranja: atención médica hoy
+            </p>
+            <p className="text-xs text-ink-primary">
+              Ante cualquier señal roja o duda grave, no esperes.
+            </p>
+          </div>
+          <a
+            href="tel:911"
+            className="inline-flex min-h-12 items-center rounded-xl bg-alert-red px-4 py-2 text-sm font-bold text-white hover:opacity-90"
+          >
+            Llamar al 911 (Gratis)
+          </a>
+        </div>
+      ) : null}
 
       {tab === 'popo' ? (
         <PoopColorChart />
@@ -252,7 +330,7 @@ export function GuiasView() {
             onClick={() => {
               setQuery('');
               setTab('all');
-              setTriageFilter('all');
+              setSubFilter('all');
               setCategoryFilter('all');
             }}
             className="inline-flex min-h-12 items-center rounded-xl bg-brand-primary px-4 py-2 text-sm font-bold text-brand-on"

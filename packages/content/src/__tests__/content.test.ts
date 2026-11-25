@@ -85,10 +85,10 @@ describe('@baby-buddy/content M1 scaffolds & clinical metadata', () => {
     );
   });
 
-  it('validates all 45 clinical guides and poop chart for metadata, Mexican Spanish, and metric-only copy', () => {
+  it('validates all 50 clinical guides and poop chart for metadata, Mexican Spanish, and metric-only copy', () => {
     expect(IS_NORMAL_GUIDES.length).toBe(20);
-    expect(PROBLEM_SOLUTIONS_GUIDES.length).toBe(25);
-    expect(ALL_CLINICAL_GUIDES.length).toBe(45);
+    expect(PROBLEM_SOLUTIONS_GUIDES.length).toBe(30);
+    expect(ALL_CLINICAL_GUIDES.length).toBe(50);
     expect(POOP_COLOR_CHART.length).toBe(7);
 
     for (const guide of ALL_CLINICAL_GUIDES) {
@@ -161,11 +161,25 @@ describe('@baby-buddy/content M1 scaffolds & clinical metadata', () => {
 
     const normal = searchClinicalGuides({ normality: 'es_normal' });
     expect(normal.length).toBeGreaterThan(0);
-    expect(normal.every((g) => isGuideNormal(g) && g.kind !== 'primeros_auxilios')).toBe(true);
+    expect(normal.every((g) => g.triageLevel === 'green_home' && isGuideNormal(g))).toBe(true);
 
     const notNormal = searchClinicalGuides({ normality: 'no_es_normal' });
     expect(notNormal.length).toBeGreaterThan(0);
-    expect(notNormal.every((g) => !isGuideNormal(g) && g.kind !== 'primeros_auxilios')).toBe(true);
+    expect(
+      notNormal.every((g) => g.triageLevel === 'yellow_pediatrician'),
+    ).toBe(true);
+
+    const urgencia = searchClinicalGuides({ normality: 'urgencia' });
+    expect(urgencia.length).toBeGreaterThan(0);
+    expect(
+      urgencia.every(
+        (g) =>
+          g.triageLevel === 'red_911' || g.triageLevel === 'orange_urgent',
+      ),
+    ).toBe(true);
+    expect(urgencia.some((g) => g.slug === 'sin-mojar-panal-deshidratacion')).toBe(true);
+    expect(urgencia.some((g) => g.slug === 'labios-morados-cianosis')).toBe(true);
+    expect(urgencia.some((g) => g.slug === 'pausas-respiratorias-apnea')).toBe(true);
 
     const firstAid = searchClinicalGuides({ normality: 'primeros_auxilios' });
     expect(firstAid.length).toBeGreaterThan(0);

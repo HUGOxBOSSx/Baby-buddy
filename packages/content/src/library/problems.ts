@@ -43,6 +43,120 @@ function problemItem(
 
 export const PROBLEM_SOLUTIONS_GUIDES: readonly ClinicalGuideEntry[] = [
   problemItem(
+    'dificultad-respiratoria-grave-reposo',
+    'problema_solucion',
+    ['0-3m', '3-12m', '1-3a', '3-6a'],
+    'Urgencias 911',
+    'Dificultad respiratoria grave en reposo',
+    'Emergencia inmediata (911) si ocurre estando tranquilo o dormido, no solo al llorar.',
+    'Al llorar es normal respirar más rápido; la señal de alarma es el esfuerzo visible al respirar cuando el bebé ya se calmó o está en reposo.',
+    'red_911',
+    [
+      'Llama al 911 de inmediato o acude a urgencias sin esperar.',
+      'Mantén al bebé en posición cómoda con la vía aérea libre y afloja ropa apretada en el pecho.',
+      'Observa si hunde costillas, se hunde el cuello, aletea la nariz o hace un quejido constante en cada respiración estando tranquilo.',
+    ],
+    [
+      'No esperes a que amanezca ni des jarabes, tés o remedios caseros.',
+      'No le des líquidos ni alimentos mientras tenga esfuerzo para respirar.',
+    ],
+    [
+      'Hundimiento marcado de costillas, aleteo nasal o quejido constante en cada respiración en reposo = llama al 911 de inmediato.',
+    ],
+    ['dificultad respiratoria', 'costillas', 'aleteo nasal', 'quejido', 'reposo', '911', 'urgencia'],
+  ),
+  problemItem(
+    'labios-morados-cianosis',
+    'problema_solucion',
+    ['0-3m', '3-12m', '1-3a', '3-6a'],
+    'Urgencias 911',
+    'Labios o lengua morados o azulados (cianosis central)',
+    'Emergencia inmediata: llama al 911 sin esperar.',
+    'La coloración azulada o morada en labios, lengua o alrededor de la boca indica falta de oxígeno. (Manos y pies ligeramente fríos o moraditos en recién nacidos pueden ser normales; la urgencia es en labios y lengua.)',
+    'red_911',
+    [
+      'Llama al 911 de inmediato.',
+      'Verifica que respire y que no tenga ningún objeto en la boca.',
+      'Mantén al bebé abrigado de forma ligera y en un lugar ventilado mientras llega ayuda.',
+    ],
+    [
+      'No esperes a ver si recupera el color por sí solo si los labios o la lengua siguen morados.',
+      'No lo sacudas ni le soples fuerte en la cara.',
+    ],
+    [
+      'Labios, lengua o encías azulados/morados o palidez extrema súbita = 911 inmediato.',
+    ],
+    ['labios morados', 'azulados', 'cianosis', 'lengua morada', 'oxigeno', '911', 'urgencia'],
+  ),
+  problemItem(
+    'pausas-respiratorias-apnea',
+    'problema_solucion',
+    ['0-3m', '3-12m', '1-3a', '3-6a'],
+    'Urgencias 911',
+    'Pausas al respirar mayores a 10 segundos (apnea)',
+    'Emergencia inmediata: estimula suavemente y llama al 911 de inmediato.',
+    'En recién nacidos la respiración periódica normal tiene pausas cortas menores a 10 segundos sin cambio de color. Una pausa prolongada (>10–15 s) o con palidez, color morado o flacidez requiere atención de emergencia.',
+    'red_911',
+    [
+      'Estimula suavemente la planta de su pie o su espalda mientras otra persona llama al 911.',
+      'Si no reanuda la respiración o no responde, inicia maniobras básicas de reanimación (RCP infantil) siguiendo indicaciones del 911.',
+      'Acude a urgencias incluso si volvió a respirar después de una pausa larga o con cambio de color.',
+    ],
+    [
+      'Nunca sacudas al bebé con fuerza para despertarlo.',
+      'No lo dejes sin vigilancia ni pospongas la revisión médica tras un episodio de apnea.',
+    ],
+    [
+      'Pausa respiratoria >10 segundos, flacidez o cambio de color en labios/piel = 911 inmediato.',
+    ],
+    ['pausas', 'apnea', 'deja de respirar', '10 segundos', 'respiracion', '911', 'urgencia'],
+  ),
+  problemItem(
+    'bebe-no-despierta-no-responde',
+    'problema_solucion',
+    ['0-3m', '3-12m', '1-3a', '3-6a'],
+    'Urgencias 911',
+    'Bebé muy somnoliento, flácido o que no responde',
+    'Emergencia inmediata: si no despierta al estimularlo o está muy flácido, llama al 911.',
+    'Un bebé sano despierta para comer y reacciona al tacto o la voz. El decaimiento extremo o la falta de respuesta requieren valoración inmediata en urgencias.',
+    'red_911',
+    [
+      'Háblale y acaricia suavemente su espalda o planta del pie; si no reacciona, llama al 911 de inmediato.',
+      'Verifica que respire con normalidad mientras esperas asistencia.',
+    ],
+    [
+      'No le des agua, leche ni líquidos si está muy adormilado o inconsciente (riesgo de broncoaspiración).',
+      'No lo sacudas.',
+    ],
+    [
+      'No despierta, mirada perdida, flacidez marcada o falta de respuesta = 911 inmediato.',
+    ],
+    ['no despierta', 'no responde', 'flacido', 'somnoliento', 'letargo', '911', 'urgencia'],
+  ),
+  problemItem(
+    'sin-mojar-panal-deshidratacion',
+    'problema_solucion',
+    ['0-3m', '3-12m', '1-3a', '3-6a'],
+    'Hidratación',
+    'Más de 8 horas sin mojar pañal (alerta de deshidratación)',
+    'No es normal: requiere valoración médica el mismo día (o urgencias inmediatas si está muy decaído).',
+    'Pasar más de 6 a 8 horas sin orinar en lactantes es una señal importante de deshidratación, sobre todo si hubo fiebre, vómito, diarrea o rechazo de tomas.',
+    'orange_urgent',
+    [
+      'Ofrece pecho o fórmula en tomas más frecuentes y pequeñas; en mayores de 6 meses el pediatra puede indicar Vida Suero Oral a cucharaditas.',
+      'Lleva a valoración médica hoy mismo y anota la hora del último pañal mojado.',
+      'Vigila boca húmeda, lágrimas al llorar y estado de alerta.',
+    ],
+    [
+      'No des agua sola a menores de 6 meses ni refrescos, jugos o bebidas deportivas.',
+      'No esperes 24 horas si el bebé sigue sin orinar o rechaza líquidos.',
+    ],
+    [
+      'Acude de inmediato a urgencias o llama al 911 si además está muy somnoliento, no responde, llora sin lágrimas, tiene boca muy seca o fontanela hundida.',
+    ],
+    ['sin pipi', 'panal seco', '8 horas', 'deshidratacion', 'orina', 'suero', 'no moja panal'],
+  ),
+  problemItem(
     'fiebre-menores-3-meses',
     'problema_solucion',
     ['0-3m'],

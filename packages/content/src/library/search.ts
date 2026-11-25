@@ -11,6 +11,7 @@ export type NormalityFilter =
   | 'all'
   | 'es_normal'
   | 'no_es_normal'
+  | 'urgencia'
   | 'primeros_auxilios';
 
 export const ALL_CLINICAL_GUIDES: readonly ClinicalGuideEntry[] = [
@@ -23,10 +24,7 @@ export const GUIDE_CATEGORIES_MX: readonly string[] = Array.from(
 ).sort((a, b) => a.localeCompare(b, 'es-MX'));
 
 export function isGuideNormal(guide: ClinicalGuideEntry): boolean {
-  return (
-    guide.triageLevel === 'green_home' ||
-    guide.triageLevel === 'yellow_pediatrician'
-  );
+  return guide.triageLevel === 'green_home';
 }
 
 export function getClinicalGuideBySlug(
@@ -65,11 +63,18 @@ export function searchClinicalGuides(
       return false;
     }
     if (normality === 'es_normal') {
-      if (!isGuideNormal(guide) || guide.kind === 'primeros_auxilios') {
+      if (guide.triageLevel !== 'green_home') {
         return false;
       }
     } else if (normality === 'no_es_normal') {
-      if (isGuideNormal(guide) || guide.kind === 'primeros_auxilios') {
+      if (guide.triageLevel !== 'yellow_pediatrician') {
+        return false;
+      }
+    } else if (normality === 'urgencia') {
+      if (
+        guide.triageLevel !== 'red_911' &&
+        guide.triageLevel !== 'orange_urgent'
+      ) {
         return false;
       }
     } else if (normality === 'primeros_auxilios') {

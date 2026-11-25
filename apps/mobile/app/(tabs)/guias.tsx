@@ -1,16 +1,12 @@
-import Feather from '@expo/vector-icons/Feather';
 import {
   MIN_TOUCH_TARGET_PX,
   STAGE_SPECS,
-  evaluateTriageHardGates,
-  type StageId,
   type TriageLevel,
 } from '@baby-buddy/core';
 import {
   ALL_CLINICAL_GUIDES,
   GUIDE_CATEGORIES_MX,
   searchClinicalGuides,
-  type NormalityFilter,
 } from '@baby-buddy/content';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -28,25 +24,27 @@ import { StageSelector } from '../../components/StageSelector';
 import { useThemeContext } from '../../components/ThemeProvider';
 import { TriageBadge } from '../../components/TriageBadge';
 
-type ViewTab = NormalityFilter | 'popo';
+type ViewTab = 'all' | 'es_normal' | 'no_es_normal' | 'urgencia' | 'popo';
+type SubFilter = 'all' | TriageLevel | 'primeros_auxilios';
 
 const TABS: readonly { readonly id: ViewTab; readonly label: string }[] = [
   { id: 'all', label: 'Todo' },
   { id: 'es_normal', label: 'Es normal' },
   { id: 'no_es_normal', label: 'No es normal' },
-  { id: 'primeros_auxilios', label: 'Auxilios' },
+  { id: 'urgencia', label: 'Urgencia' },
   { id: 'popo', label: 'Tabla popó' },
 ] as const;
 
-const COLOR_FILTERS: readonly {
-  readonly id: TriageLevel | 'all';
+const SUB_FILTERS: readonly {
+  readonly id: SubFilter;
   readonly label: string;
 }[] = [
   { id: 'all', label: 'Todos' },
   { id: 'green_home', label: 'Verde' },
   { id: 'yellow_pediatrician', label: 'Amarillo' },
-  { id: 'orange_urgent', label: 'Naranja' },
-  { id: 'red_911', label: 'Rojo' },
+  { id: 'orange_urgent', label: 'Naranja · Hoy' },
+  { id: 'red_911', label: 'Rojo · 911' },
+  { id: 'primeros_auxilios', label: 'Primeros auxilios' },
 ] as const;
 
 const TRIAGE_GROUP_ORDER: readonly TriageLevel[] = [
@@ -58,53 +56,84 @@ const TRIAGE_GROUP_ORDER: readonly TriageLevel[] = [
 
 export default function GuiasScreen() {
   const router = useRouter();
-  const { palette, selectedStage, childProfile, iconsLoaded } =
-    useThemeContext();
+  const { palette, selectedStage, childProfile } = useThemeContext();
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState<ViewTab>('all');
-  const [triageFilter, setTriageFilter] = useState<TriageLevel | 'all'>('all');
+  const [subFilter, setSubFilter] = useState<SubFilter>('all');
   const [categoryFilter, setCategoryFilter] = useState<string | 'all'>('all');
-  const [stageFilter, setStageFilter] = useState<StageId | 'all'>('all');
   const [includeOtherAges, setIncludeOtherAges] = useState(false);
   const [expandedSlug, setExpandedSlug] = useState<string | null>(null);
 
-  const [tempInput, setTempInput] = useState('');
-  const [severeBreathing, setSevereBreathing] = useState(false);
-  const [blueLips, setBlueLips] = useState(false);
-  const [pauses10s, setPauses10s] = useState(false);
-  const [noWet8h, setNoWet8h] = useState(false);
-
   const effectiveStage = childProfile
     ? includeOtherAges
-      ? stageFilter
+      ? selectedStage
       : childProfile.stageId
     : selectedStage;
+
+  const normalityParam = tab === 'popo' ? 'all' : tab;
+
+  const level1Pool = searchClinicalGuides({
+    stageId: effectiveStage,
+    normality: normalityParam,
+  });
+
+  const availableSubFilters = SUB_FILTERS.filter((opt) => {
+    if (opt.id === 'all') return true;
+    if (opt.id === 'primeros_auxilios') {
+      return level1Pool.some((g) => g.kind === 'primeros_auxilios');
+    }
+    return level1Pool.some((g) => g.triageLevel === opt.id);
+  });
+
+  const effectiveSubFilter: SubFilter = availableSubFilters.some(
+    (opt) => opt.id === subFilter,
+  )
+    ? subFilter
+    : 'all';
+
+  const level2Pool = searchClinicalGuides({
+    stageId: effectiveStage,
+    normality: normalityParam,
+    triageLevel:
+      effectiveSubFilter !== 'all' &&
+      effectiveSubFilter !== 'primeros_auxilios'
+        ? effectiveSubFilter
+        : 'all',
+    kind:
+      effectiveSubFilter === 'primeros_auxilios'
+        ? 'primeros_auxilios'
+        : 'all',
+  });
+
+  const availableCategories = GUIDE_CATEGORIES_MX.filter((cat) =>
+    level2Pool.some((g) => g.categoryMx === cat),
+  );
+
+  const effectiveCategory: string | 'all' =
+    categoryFilter === 'all' || availableCategories.includes(categoryFilter)
+      ? categoryFilter
+      : 'all';
 
   const guides = searchClinicalGuides({
     query,
     stageId: effectiveStage,
-    normality: tab === 'popo' ? 'all' : tab,
-    triageLevel: triageFilter,
-    categoryMx: categoryFilter,
+    normality: normalityParam,
+    triageLevel:
+      effectiveSubFilter !== 'all' &&
+      effectiveSubFilter !== 'primeros_auxilios'
+        ? effectiveSubFilter
+        : 'all',
+    kind:
+      effectiveSubFilter === 'primeros_auxilios'
+        ? 'primeros_auxilios'
+        : 'all',
+    categoryMx: effectiveCategory,
   });
 
   const groupedGuides = TRIAGE_GROUP_ORDER.map((level) => ({
     level,
     items: guides.filter((g) => g.triageLevel === level),
   })).filter((group) => group.items.length > 0);
-
-  const parsedTemp = Number.parseFloat(tempInput);
-  const triageRes = evaluateTriageHardGates({
-    ageMonths: childProfile ? childProfile.ageMonths : 2,
-    tempC:
-      tempInput.trim().length > 0 && Number.isFinite(parsedTemp)
-        ? parsedTemp
-        : undefined,
-    severeBreathingDistress: severeBreathing,
-    blueLips,
-    breathingPausesOver10s: pauses10s,
-    noWetDiapers8h: noWet8h,
-  });
 
   const topMetadata = ALL_CLINICAL_GUIDES[0]!.metadata;
 
@@ -143,6 +172,7 @@ export default function GuiasScreen() {
       <View className="flex-row flex-wrap gap-2">
         {TABS.map((t) => {
           const active = tab === t.id;
+          const isUrgencia = t.id === 'urgencia';
           return (
             <Pressable
               key={t.id}
@@ -150,18 +180,26 @@ export default function GuiasScreen() {
               className="rounded-full border px-3 py-2 justify-center"
               style={{
                 minHeight: MIN_TOUCH_TARGET_PX,
-                backgroundColor: active
-                  ? palette.brandPrimary
-                  : palette.bgElevated,
-                borderColor: active
-                  ? palette.brandPrimary
-                  : palette.borderInteractive,
+                backgroundColor: isUrgencia
+                  ? palette.alertRedSurface
+                  : active
+                    ? palette.brandPrimary
+                    : palette.bgElevated,
+                borderColor: isUrgencia
+                  ? palette.alertRed
+                  : active
+                    ? palette.brandPrimary
+                    : palette.borderInteractive,
               }}
             >
               <Text
                 className="text-xs font-bold"
                 style={{
-                  color: active ? palette.onBrandPrimary : palette.textPrimary,
+                  color: isUrgencia
+                    ? palette.alertRedText
+                    : active
+                      ? palette.onBrandPrimary
+                      : palette.textPrimary,
                 }}
               >
                 {t.label}
@@ -171,53 +209,21 @@ export default function GuiasScreen() {
         })}
       </View>
 
-      {tab !== 'popo' ? (
+      {tab !== 'popo' && (availableSubFilters.length > 2 || availableCategories.length > 1) ? (
         <View className="gap-2">
-          <View className="flex-row flex-wrap gap-1.5">
-            {COLOR_FILTERS.map((c) => {
-              const active = triageFilter === c.id;
-              return (
-                <Pressable
-                  key={c.id}
-                  onPress={() => setTriageFilter(c.id)}
-                  className="rounded-full border px-3 py-1.5 justify-center"
-                  style={{
-                    minHeight: 38,
-                    backgroundColor: active
-                      ? palette.brandPrimary
-                      : palette.bgCard,
-                    borderColor: active
-                      ? palette.brandPrimary
-                      : palette.borderInteractive,
-                  }}
-                >
-                  <Text
-                    className="text-xs font-semibold"
-                    style={{
-                      color: active
-                        ? palette.onBrandPrimary
-                        : palette.textPrimary,
-                    }}
-                  >
-                    {c.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View className="flex-row gap-1.5">
-              {(['all', ...GUIDE_CATEGORIES_MX] as const).map((cat) => {
-                const active = categoryFilter === cat;
+          {availableSubFilters.length > 2 ? (
+            <View className="flex-row flex-wrap gap-1.5">
+              {availableSubFilters.map((c) => {
+                const active = effectiveSubFilter === c.id;
                 return (
                   <Pressable
-                    key={cat}
-                    onPress={() => setCategoryFilter(cat)}
+                    key={c.id}
+                    onPress={() => setSubFilter(c.id)}
                     className="rounded-full border px-3 py-1.5 justify-center"
                     style={{
-                      minHeight: 36,
+                      minHeight: 38,
                       backgroundColor: active
-                        ? palette.brandSurface
+                        ? palette.brandPrimary
                         : palette.bgCard,
                       borderColor: active
                         ? palette.brandPrimary
@@ -227,16 +233,52 @@ export default function GuiasScreen() {
                     <Text
                       className="text-xs font-semibold"
                       style={{
-                        color: active ? palette.brandText : palette.textSecondary,
+                        color: active
+                          ? palette.onBrandPrimary
+                          : palette.textPrimary,
                       }}
                     >
-                      {cat === 'all' ? 'Todos los temas' : cat}
+                      {c.label}
                     </Text>
                   </Pressable>
                 );
               })}
             </View>
-          </ScrollView>
+          ) : null}
+          {availableCategories.length > 1 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View className="flex-row gap-1.5">
+                {(['all', ...availableCategories] as const).map((cat) => {
+                  const active = effectiveCategory === cat;
+                  return (
+                    <Pressable
+                      key={cat}
+                      onPress={() => setCategoryFilter(cat)}
+                      className="rounded-full border px-3 py-1.5 justify-center"
+                      style={{
+                        minHeight: 36,
+                        backgroundColor: active
+                          ? palette.brandSurface
+                          : palette.bgCard,
+                        borderColor: active
+                          ? palette.brandPrimary
+                          : palette.borderInteractive,
+                      }}
+                    >
+                      <Text
+                        className="text-xs font-semibold"
+                        style={{
+                          color: active ? palette.brandText : palette.textSecondary,
+                        }}
+                      >
+                        {cat === 'all' ? 'Todos los temas' : cat}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </ScrollView>
+          ) : null}
         </View>
       ) : null}
 
@@ -283,121 +325,32 @@ export default function GuiasScreen() {
         <StageSelector />
       )}
 
-      {tab === 'no_es_normal' ? (
+
+      {tab === 'urgencia' ? (
         <View
-          className="rounded-2xl border p-4 gap-3"
+          className="rounded-2xl border p-4 gap-2"
           style={{
-            backgroundColor: palette.bgCard,
-            borderColor: palette.borderInteractive,
+            backgroundColor: palette.alertRedSurface,
+            borderColor: palette.alertRed,
           }}
         >
-          <Text className="text-lg font-bold" style={{ color: palette.textPrimary }}>
-            Semáforo rápido: ¿debo preocuparme?
+          <Text className="text-xs font-bold" style={{ color: palette.alertRedText }}>
+            Rojo: 911 / urgencias inmediatas · Naranja: atención médica hoy
           </Text>
-          <TriageBadge level={triageRes.level} />
-
-          <TextInput
-            value={tempInput}
-            onChangeText={setTempInput}
-            keyboardType="decimal-pad"
-            placeholder="Temperatura en °C (opcional, ej. 38.2)"
-            placeholderTextColor={palette.textMuted}
-            className="rounded-xl border px-3 py-2 text-sm"
+          <Pressable
+            onPress={() => {
+              void Linking.openURL('tel:911');
+            }}
+            className="rounded-xl items-center justify-center px-4 py-3"
             style={{
               minHeight: MIN_TOUCH_TARGET_PX,
-              backgroundColor: palette.bgElevated,
-              borderColor: palette.borderInteractive,
-              color: palette.textPrimary,
-            }}
-          />
-
-          <View className="flex-row flex-wrap gap-2">
-            {[
-              {
-                label: 'Hunde costillas (en reposo)',
-                active: severeBreathing,
-                toggle: () => setSevereBreathing((v) => !v),
-              },
-              {
-                label: 'Labios morados',
-                active: blueLips,
-                toggle: () => setBlueLips((v) => !v),
-              },
-              {
-                label: 'Pausas >10 s',
-                active: pauses10s,
-                toggle: () => setPauses10s((v) => !v),
-              },
-              {
-                label: '>8 h sin pipí',
-                active: noWet8h,
-                toggle: () => setNoWet8h((v) => !v),
-              },
-            ].map((flag) => (
-              <Pressable
-                key={flag.label}
-                onPress={flag.toggle}
-                className="rounded-full border px-3 py-2 justify-center"
-                style={{
-                  minHeight: MIN_TOUCH_TARGET_PX,
-                  backgroundColor: flag.active
-                    ? palette.alertRedSurface
-                    : palette.bgElevated,
-                  borderColor: flag.active
-                    ? palette.alertRed
-                    : palette.borderInteractive,
-                }}
-              >
-                <Text
-                  className="text-xs font-bold"
-                  style={{
-                    color: flag.active
-                      ? palette.alertRedText
-                      : palette.textPrimary,
-                  }}
-                >
-                  {flag.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          <View
-            className="rounded-xl border p-3 gap-1"
-            style={{
-              backgroundColor: palette.bgElevated,
-              borderColor: palette.borderInteractive,
+              backgroundColor: palette.alertRed,
             }}
           >
-            <Text className="text-sm font-bold" style={{ color: palette.textPrimary }}>
-              {triageRes.nextStepMx}
+            <Text className="text-sm font-bold" style={{ color: palette.onAlertRedButton }}>
+              Llamar al 911 (Gratis)
             </Text>
-            {triageRes.triggeredRulesMx.map((r) => (
-              <Text key={r} className="text-xs" style={{ color: palette.textSecondary }}>
-                • {r}
-              </Text>
-            ))}
-          </View>
-
-          {triageRes.call911Immediately ? (
-            <Pressable
-              onPress={() => {
-                void Linking.openURL('tel:911');
-              }}
-              className="rounded-xl flex-row items-center justify-center gap-2 px-4 py-3"
-              style={{
-                minHeight: MIN_TOUCH_TARGET_PX,
-                backgroundColor: palette.alertRed,
-              }}
-            >
-              {iconsLoaded ? (
-                <Feather name="phone-call" size={18} color={palette.onAlertRedButton} />
-              ) : null}
-              <Text className="text-sm font-bold" style={{ color: palette.onAlertRedButton }}>
-                Llamar al 911 (Gratis)
-              </Text>
-            </Pressable>
-          ) : null}
+          </Pressable>
         </View>
       ) : null}
 
