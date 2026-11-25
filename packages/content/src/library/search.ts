@@ -169,11 +169,13 @@ function getLinkMeta(level: TriageLevel): {
 export function getRelatedGuideLinks(
   slug: string,
 ): readonly ClinicalGuideLink[] {
+  const source = getClinicalGuideBySlug(slug);
   const targets = RELATED_GUIDE_SLUGS[slug] ?? [];
   const links: ClinicalGuideLink[] = [];
   for (const targetSlug of targets) {
     const target = getClinicalGuideBySlug(targetSlug);
-    if (!target) continue;
+    if (!target || target.slug === slug) continue;
+    if (source && target.triageLevel === source.triageLevel) continue;
     const { tone, prefixMx } = getLinkMeta(target.triageLevel);
     links.push({
       slug: target.slug,

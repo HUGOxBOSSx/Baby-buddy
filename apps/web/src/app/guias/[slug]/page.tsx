@@ -62,7 +62,7 @@ export default async function GuideDetailPage({
         href="/guias"
         className="inline-flex min-h-12 items-center rounded-xl border border-border-interactive bg-bg-elevated px-4 py-2 text-xs font-bold text-brand-text"
       >
-        ← Volver a Guías
+        ← Volver a ¿Es normal?
       </Link>
 
       <article className="rounded-3xl border border-border-interactive bg-bg-card p-6 space-y-5 shadow-sm">

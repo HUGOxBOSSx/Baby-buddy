@@ -12,7 +12,6 @@ import {
   getRelatedGuideLinks,
   searchClinicalGuides,
   type ClinicalGuideEntry,
-  type ClinicalGuideLinkTone,
 } from '@baby-buddy/content';
 import { PoopColorChart } from '@/components/PoopColorChart';
 import { StageSelector } from '@/components/StageSelector';

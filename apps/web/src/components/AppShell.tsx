@@ -27,10 +27,10 @@ interface NavItem {
 }
 
 const NAV_ITEMS: readonly NavItem[] = [
-  { href: '/', label: 'Hoy', icon: 'home' },
-  { href: '/guias', label: 'Guías', icon: 'guides' },
+  { href: '/', label: 'Registro diario', icon: 'home' },
   { href: '/ropa-y-clima', label: 'Ropa y Clima', icon: 'clothing' },
   { href: '/salud', label: 'Salud', icon: 'health' },
+  { href: '/guias', label: '¿Es normal?', icon: 'guides' },
 ] as const;
 
 function renderNavIcon(icon: NavItem['icon']) {

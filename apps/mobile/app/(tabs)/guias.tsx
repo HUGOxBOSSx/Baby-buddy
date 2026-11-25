@@ -6,11 +6,12 @@ import {
 import {
   ALL_CLINICAL_GUIDES,
   GUIDE_CATEGORIES_MX,
+  getClinicalGuideBySlug,
   getRelatedGuideLinks,
   searchClinicalGuides,
 } from '@baby-buddy/content';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   Linking,
   Pressable,
@@ -62,7 +63,17 @@ export default function GuiasScreen() {
   const [subFilter, setSubFilter] = useState<SubFilter>('all');
   const [categoryFilter, setCategoryFilter] = useState<string | 'all'>('all');
   const [includeOtherAges, setIncludeOtherAges] = useState(false);
-  const [expandedSlug, setExpandedSlug] = useState<string | null>(null);
+  const [focusedSlug, setFocusedSlug] = useState<string | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
+
+  const openGuide = (slug: string) => {
+    setFocusedSlug(slug);
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  };
+
+  const focusedGuide = focusedSlug
+    ? getClinicalGuideBySlug(focusedSlug)
+    : undefined;
 
   const effectiveStage = childProfile
     ? includeOtherAges
@@ -118,8 +129,170 @@ export default function GuiasScreen() {
 
   const topMetadata = ALL_CLINICAL_GUIDES[0]!.metadata;
 
+  if (focusedGuide) {
+    const relatedLinks = getRelatedGuideLinks(focusedGuide.slug);
+    return (
+      <ScrollView
+        ref={scrollRef}
+        className="flex-1"
+        style={{ backgroundColor: palette.bgPrimary }}
+        contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 32 }}
+      >
+        <Pressable
+          onPress={() => {
+            setFocusedSlug(null);
+            scrollRef.current?.scrollTo({ y: 0, animated: true });
+          }}
+          className="rounded-xl border px-4 py-2 self-start justify-center"
+          style={{
+            minHeight: MIN_TOUCH_TARGET_PX,
+            backgroundColor: palette.bgElevated,
+            borderColor: palette.borderInteractive,
+          }}
+        >
+          <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
+            ← Volver a ¿Es normal?
+          </Text>
+        </Pressable>
+
+        <View
+          className="rounded-2xl border p-4 gap-3"
+          style={{
+            backgroundColor: palette.bgCard,
+            borderColor: palette.borderInteractive,
+          }}
+        >
+          <View className="flex-row items-center justify-between gap-2 flex-wrap">
+            <TriageBadge level={focusedGuide.triageLevel} />
+            <Text
+              className="text-xs font-semibold px-2.5 py-1 rounded-full border"
+              style={{
+                color: palette.brandText,
+                backgroundColor: palette.bgElevated,
+                borderColor: palette.borderInteractive,
+              }}
+            >
+              {focusedGuide.categoryMx}
+            </Text>
+          </View>
+
+          <Text className="text-xl font-bold" style={{ color: palette.textPrimary }}>
+            {focusedGuide.titleMx}
+          </Text>
+          <Text className="text-sm font-semibold" style={{ color: palette.brandText }}>
+            {focusedGuide.quickAnswerMx}
+          </Text>
+          <Text className="text-xs" style={{ color: palette.textSecondary }}>
+            {focusedGuide.summaryMx}
+          </Text>
+
+          <View
+            className="rounded-xl border p-3 gap-1"
+            style={{
+              backgroundColor: palette.brandSurface,
+              borderColor: palette.brandPrimary,
+            }}
+          >
+            <Text className="text-xs font-bold uppercase" style={{ color: palette.brandText }}>
+              Qué SÍ hacer
+            </Text>
+            {focusedGuide.doStepsMx.map((s) => (
+              <Text key={s} className="text-xs" style={{ color: palette.textPrimary }}>
+                • {s}
+              </Text>
+            ))}
+          </View>
+
+          <View
+            className="rounded-xl border p-3 gap-1"
+            style={{
+              backgroundColor: palette.alertRedSurface,
+              borderColor: palette.alertRed,
+            }}
+          >
+            <Text className="text-xs font-bold uppercase" style={{ color: palette.alertRedText }}>
+              Qué NO hacer
+            </Text>
+            {focusedGuide.doNotDoMx.map((n) => (
+              <Text key={n} className="text-xs" style={{ color: palette.textPrimary }}>
+                • {n}
+              </Text>
+            ))}
+          </View>
+
+          <View
+            className="rounded-xl border p-3 gap-1"
+            style={{
+              backgroundColor: palette.accentWarmSurface,
+              borderColor: palette.accentWarm,
+            }}
+          >
+            <Text className="text-xs font-bold uppercase" style={{ color: palette.accentWarmText }}>
+              Cuándo llamar al pediatra o acudir a urgencias
+            </Text>
+            {focusedGuide.redFlagsMx.map((flag) => (
+              <Text key={flag} className="text-xs" style={{ color: palette.textPrimary }}>
+                • {flag}
+              </Text>
+            ))}
+          </View>
+
+          {relatedLinks.length > 0 ? (
+            <View className="gap-2 pt-1">
+              <Text className="text-xs font-bold uppercase" style={{ color: palette.textSecondary }}>
+                Guías relacionadas
+              </Text>
+              {relatedLinks.map((rel) => {
+                const bg =
+                  rel.tone === 'normal_green'
+                    ? palette.brandSurface
+                    : rel.tone === 'not_normal_yellow'
+                      ? palette.accentWarmSurface
+                      : palette.alertRedSurface;
+                const border =
+                  rel.tone === 'normal_green'
+                    ? palette.brandPrimary
+                    : rel.tone === 'not_normal_yellow'
+                      ? palette.accentWarm
+                      : palette.alertRed;
+                const text =
+                  rel.tone === 'normal_green'
+                    ? palette.brandText
+                    : rel.tone === 'not_normal_yellow'
+                      ? palette.accentWarmText
+                      : palette.alertRedText;
+                return (
+                  <Pressable
+                    key={rel.slug}
+                    onPress={() => openGuide(rel.slug)}
+                    className="rounded-xl border px-3 py-2 flex-row items-center justify-between gap-2"
+                    style={{
+                      minHeight: MIN_TOUCH_TARGET_PX,
+                      backgroundColor: bg,
+                      borderColor: border,
+                    }}
+                  >
+                    <Text className="text-xs font-bold flex-1" style={{ color: text }}>
+                      {rel.prefixMx} {rel.titleMx}
+                    </Text>
+                    <Text className="text-base font-bold" style={{ color: text }}>
+                      →
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
+        </View>
+
+        <GuideDisclaimerHeader metadata={focusedGuide.metadata} />
+      </ScrollView>
+    );
+  }
+
   return (
     <ScrollView
+      ref={scrollRef}
       className="flex-1"
       style={{ backgroundColor: palette.bgPrimary }}
       contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 32 }}
@@ -354,9 +527,7 @@ export default function GuiasScreen() {
                   {group.items.length === 1 ? 'guía' : 'guías'}
                 </Text>
               </View>
-              {group.items.map((guide) => {
-                const isExpanded = expandedSlug === guide.slug;
-                return (
+              {group.items.map((guide) => (
                   <View
                     key={guide.slug}
                     className="rounded-2xl border p-4 gap-2"
@@ -392,9 +563,7 @@ export default function GuiasScreen() {
 
                     <View className="flex-row flex-wrap gap-2">
                       <Pressable
-                        onPress={() =>
-                          setExpandedSlug(isExpanded ? null : guide.slug)
-                        }
+                        onPress={() => openGuide(guide.slug)}
                         className="rounded-xl border px-3 py-2 self-start flex-row items-center gap-2"
                         style={{
                           minHeight: MIN_TOUCH_TARGET_PX,
@@ -403,18 +572,14 @@ export default function GuiasScreen() {
                         }}
                       >
                         <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
-                          {isExpanded
-                            ? 'Ocultar detalle ▴'
-                            : 'Qué SÍ hacer y qué NO hacer'}
+                          Qué SÍ hacer y qué NO hacer
                         </Text>
-                        {!isExpanded ? (
-                          <Text
-                            className="text-lg font-bold"
-                            style={{ color: palette.brandText }}
-                          >
-                            →
-                          </Text>
-                        ) : null}
+                        <Text
+                          className="text-lg font-bold"
+                          style={{ color: palette.brandText }}
+                        >
+                          →
+                        </Text>
                       </Pressable>
 
                       {getRelatedGuideLinks(guide.slug).map((rel) => {
@@ -439,14 +604,7 @@ export default function GuiasScreen() {
                         return (
                           <Pressable
                             key={rel.slug}
-                            onPress={() => {
-                              setQuery('');
-                              setTab('all');
-                              setSubFilter('all');
-                              setCategoryFilter('all');
-                              setIncludeOtherAges(true);
-                              setExpandedSlug(rel.slug);
-                            }}
+                            onPress={() => openGuide(rel.slug)}
                             className="rounded-xl border px-3 py-2 self-start flex-row items-center gap-1.5"
                             style={{
                               minHeight: MIN_TOUCH_TARGET_PX,
@@ -464,46 +622,8 @@ export default function GuiasScreen() {
                         );
                       })}
                     </View>
-
-                    {isExpanded ? (
-                      <View className="gap-2 pt-2 border-t" style={{ borderTopColor: palette.borderInteractive }}>
-                        <View
-                          className="rounded-xl border p-3 gap-1"
-                          style={{
-                            backgroundColor: palette.brandSurface,
-                            borderColor: palette.brandPrimary,
-                          }}
-                        >
-                          <Text className="text-xs font-bold uppercase" style={{ color: palette.brandText }}>
-                            Qué SÍ hacer
-                          </Text>
-                          {guide.doStepsMx.map((s) => (
-                            <Text key={s} className="text-xs" style={{ color: palette.textPrimary }}>
-                              • {s}
-                            </Text>
-                          ))}
-                        </View>
-                        <View
-                          className="rounded-xl border p-3 gap-1"
-                          style={{
-                            backgroundColor: palette.alertRedSurface,
-                            borderColor: palette.alertRed,
-                          }}
-                        >
-                          <Text className="text-xs font-bold uppercase" style={{ color: palette.alertRedText }}>
-                            Qué NO hacer
-                          </Text>
-                          {guide.doNotDoMx.map((n) => (
-                        <Text key={n} className="text-xs" style={{ color: palette.textPrimary }}>
-                          • {n}
-                        </Text>
-                      ))}
-                    </View>
                   </View>
-                ) : null}
-              </View>
-            );
-          })}
+              ))}
             </View>
           ))}
         </View>
