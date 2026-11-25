@@ -9,6 +9,7 @@ import {
   formatChildAgeMx,
   type ChildSex,
 } from '@baby-buddy/core';
+import { BirthDatePicker } from '@/components/BirthDatePicker';
 import { PhoneCallIcon } from '@/components/Icons';
 import { MascotAvatar } from '@/components/MascotAvatar';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -156,31 +157,27 @@ export function OnboardingGate() {
         </div>
 
         {setupMode === 'register' ? (
-          <div className="grid gap-2 sm:grid-cols-3">
-            <input
-              type="text"
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              placeholder="Nombre o apodo del bebé"
-              className="min-h-11 rounded-xl border border-border-interactive bg-bg-card px-3 py-2 text-xs text-ink-primary"
-            />
-            <input
-              type="date"
-              value={birthDate}
-              onChange={(e) => setBirthDate(e.target.value)}
-              aria-label="Fecha de nacimiento"
-              className="min-h-11 rounded-xl border border-border-interactive bg-bg-card px-3 py-2 text-xs text-ink-primary"
-            />
-            <select
-              value={sex}
-              onChange={(e) => setSex(e.target.value as ChildSex)}
-              aria-label="Sexo del bebé"
-              className="min-h-11 rounded-xl border border-border-interactive bg-bg-card px-3 py-2 text-xs text-ink-primary"
-            >
-              <option value="no_especificado">Prefiero no decir</option>
-              <option value="niña">Niña</option>
-              <option value="niño">Niño</option>
-            </select>
+          <div className="space-y-3">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <input
+                type="text"
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+                placeholder="Nombre o apodo del bebé"
+                className="min-h-11 rounded-xl border border-border-interactive bg-bg-card px-3 py-2 text-xs text-ink-primary"
+              />
+              <select
+                value={sex}
+                onChange={(e) => setSex(e.target.value as ChildSex)}
+                aria-label="Sexo del bebé"
+                className="min-h-11 rounded-xl border border-border-interactive bg-bg-card px-3 py-2 text-xs text-ink-primary"
+              >
+                <option value="no_especificado">Prefiero no decir</option>
+                <option value="niña">Niña</option>
+                <option value="niño">Niño</option>
+              </select>
+            </div>
+            <BirthDatePicker value={birthDate} onChange={setBirthDate} />
           </div>
         ) : (
           <div className="space-y-2">

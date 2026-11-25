@@ -10,6 +10,7 @@ import {
 import { useState } from 'react';
 import { Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BirthDatePicker } from './BirthDatePicker';
 import { MascotAvatar } from './MascotAvatar';
 import { StatusBadge } from './StatusBadge';
 import { useThemeContext } from './ThemeProvider';
@@ -297,19 +298,7 @@ export function OnboardingGate() {
                   color: palette.textPrimary,
                 }}
               />
-              <TextInput
-                value={birthDate}
-                onChangeText={setBirthDate}
-                placeholder="Fecha de nacimiento (YYYY-MM-DD, opcional)"
-                placeholderTextColor={palette.textMuted}
-                className="rounded-xl border px-3 py-2 text-xs"
-                style={{
-                  minHeight: MIN_TOUCH_TARGET_PX,
-                  backgroundColor: palette.bgCard,
-                  borderColor: palette.borderInteractive,
-                  color: palette.textPrimary,
-                }}
-              />
+              <BirthDatePicker value={birthDate} onChange={setBirthDate} />
               <View className="flex-row gap-2">
                 {(['no_especificado', 'niña', 'niño'] as const).map((s) => (
                   <Pressable
