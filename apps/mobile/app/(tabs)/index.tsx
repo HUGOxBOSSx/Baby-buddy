@@ -1,11 +1,9 @@
 import {
-  MIN_TOUCH_TARGET_PX,
   STAGE_SPECS,
   formatMeasurement,
 } from '@baby-buddy/core';
 import { STAGE_OVERVIEWS } from '@baby-buddy/content';
-import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { DailyLogPanel } from '../../components/DailyLogPanel';
 import { MascotAvatar } from '../../components/MascotAvatar';
 import { StageSelector } from '../../components/StageSelector';
@@ -13,7 +11,6 @@ import { StatusBadge } from '../../components/StatusBadge';
 import { useThemeContext } from '../../components/ThemeProvider';
 
 export default function HoyScreen() {
-  const router = useRouter();
   const {
     mode,
     palette,
@@ -66,22 +63,8 @@ export default function HoyScreen() {
               Etapa automática: {stageSpec.label}
             </Text>
             <Text className="text-sm" style={{ color: palette.textPrimary }}>
-              Mostrando solo el contenido para {childProfile.nicknameMx}. Si
-              deseas cambiar de etapa, actualiza sus datos en Salud.
+              Mostrando solo el contenido para {childProfile.nicknameMx}.
             </Text>
-            <Pressable
-              onPress={() => router.push('/(tabs)/salud')}
-              className="self-start rounded-xl border px-3 py-2 justify-center"
-              style={{
-                minHeight: MIN_TOUCH_TARGET_PX,
-                backgroundColor: palette.bgCard,
-                borderColor: palette.borderInteractive,
-              }}
-            >
-              <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
-                Cambiar datos del bebé
-              </Text>
-            </Pressable>
           </View>
         ) : (
           <StageSelector />

@@ -143,11 +143,18 @@ export function AppShell({ children }: { readonly children: ReactNode }) {
             <p className="inline-block rounded-full border border-border-interactive bg-bg-elevated px-2.5 py-0.5 text-xs font-semibold text-brand-text">
               Etapa: {activeStage.shortLabel}
             </p>
+            {babyBarSummary ? (
+              <p className="mt-1 text-xs font-semibold text-ink-primary">
+                {babyBarSummary}
+              </p>
+            ) : null}
             <Link
               href="/salud#perfil-bebe"
-              className="mt-1 block rounded-xl border border-border-interactive bg-bg-elevated px-2.5 py-2 text-xs font-semibold text-ink-primary hover:bg-brand-surface"
+              className="mt-1.5 flex w-full items-center justify-center rounded-lg border border-border-interactive bg-bg-elevated px-3 py-1.5 text-xs font-semibold text-brand-text hover:bg-brand-surface"
             >
-              {babyBarSummary ?? 'Configurar datos del bebé'}
+              {childProfile
+                ? 'Cambiar datos del bebé'
+                : 'Configurar datos del bebé'}
             </Link>
           </div>
 
@@ -199,20 +206,27 @@ export function AppShell({ children }: { readonly children: ReactNode }) {
       {/* Main Column */}
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Mobile Compact Header */}
-        <header className="flex items-center justify-between gap-3 border-b border-border-interactive bg-bg-card px-4 py-3 md:hidden">
-          <div className="min-w-0">
-            <p className="truncate text-base font-bold text-ink-primary">
-              {childProfile ? childProfile.nicknameMx : 'Baby Buddy MX'}
-            </p>
-            <p className="truncate text-xs text-ink-secondary">
-              {babyBarSummary ?? `${activeStage.label} · ${isNight ? 'Modo nocturno' : 'Modo Día'}`}
-            </p>
+        <header className="space-y-2 border-b border-border-interactive bg-bg-card px-4 py-2.5 md:hidden">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate text-base font-bold text-ink-primary">
+                {childProfile ? childProfile.nicknameMx : 'Baby Buddy MX'}
+              </p>
+              <p className="truncate text-xs text-ink-secondary">
+                {babyBarSummary ?? `${activeStage.label} · ${isNight ? 'Modo nocturno' : 'Modo Día'}`}
+              </p>
+            </div>
+            <span className="inline-flex min-h-12 shrink-0 items-center rounded-full border border-brand-primary bg-brand-surface px-3 py-1 text-xs font-semibold text-brand-text">
+              {activeStage.shortLabel}
+            </span>
           </div>
           <Link
             href="/salud#perfil-bebe"
-            className="inline-flex min-h-12 shrink-0 items-center rounded-full border border-brand-primary bg-brand-surface px-3 py-1 text-xs font-semibold text-brand-text"
+            className="flex w-full items-center justify-center rounded-lg border border-border-interactive bg-bg-elevated px-3 py-1.5 text-xs font-semibold text-brand-text hover:bg-brand-surface"
           >
-            {activeStage.shortLabel}
+            {childProfile
+              ? 'Cambiar datos del bebé'
+              : 'Configurar datos del bebé'}
           </Link>
         </header>
 

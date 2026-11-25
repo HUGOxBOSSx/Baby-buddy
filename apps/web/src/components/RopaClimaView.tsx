@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import {
   ACCESSORY_OPTIONS,
@@ -307,19 +306,9 @@ export function RopaClimaView() {
   return (
     <div className="mx-auto max-w-3xl space-y-5">
       <header className="space-y-1.5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-2xl font-bold text-ink-primary sm:text-3xl">
-            ¿Cuánta ropa le pongo?
-          </h1>
-          {childProfile ? (
-            <Link
-              href="/salud#perfil-bebe"
-              className="inline-flex min-h-12 items-center rounded-xl border border-border-interactive bg-bg-elevated px-4 py-2 text-xs font-bold text-brand-text hover:bg-brand-surface"
-            >
-              Cambiar datos del bebé
-            </Link>
-          ) : null}
-        </div>
+        <h1 className="text-2xl font-bold text-ink-primary sm:text-3xl">
+          ¿Cuánta ropa le pongo?
+        </h1>
         <p className="text-sm text-ink-secondary">
           Etapa activa:{' '}
           <strong className="text-ink-primary">

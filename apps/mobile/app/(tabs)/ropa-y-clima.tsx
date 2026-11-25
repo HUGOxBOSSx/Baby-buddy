@@ -24,7 +24,6 @@ import {
   type SelectedLayersInput,
 } from '@baby-buddy/core';
 import { CLOTHING_ENGINE_METADATA } from '@baby-buddy/content';
-import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { SelectedLayersPreview } from '../../components/ClothingGarmentVisual';
@@ -98,7 +97,6 @@ function toggleMulti<T extends string>(
 }
 
 export default function RopaYClimaScreen() {
-  const router = useRouter();
   const { palette, selectedStage, childProfile, iconsLoaded } =
     useThemeContext();
   const effectiveStage = childProfile ? childProfile.stageId : selectedStage;
@@ -275,23 +273,7 @@ export default function RopaYClimaScreen() {
         </Text>
       </View>
 
-      {childProfile ? (
-        <Pressable
-          onPress={() => router.push('/(tabs)/salud')}
-          className="self-start rounded-xl border px-3 py-2 justify-center"
-          style={{
-            minHeight: MIN_TOUCH_TARGET_PX,
-            backgroundColor: palette.bgCard,
-            borderColor: palette.borderInteractive,
-          }}
-        >
-          <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
-            Cambiar datos del bebé
-          </Text>
-        </Pressable>
-      ) : (
-        <StageSelector />
-      )}
+      {childProfile ? null : <StageSelector />}
 
       {/* Franja compacta de clima exterior siempre visible arriba */}
       <View

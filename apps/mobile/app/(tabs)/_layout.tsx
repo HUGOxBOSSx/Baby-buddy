@@ -4,7 +4,7 @@ import {
   MIN_TOUCH_TARGET_PX,
   formatChildAgeMx,
 } from '@baby-buddy/core';
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MascotAvatar } from '../../components/MascotAvatar';
@@ -17,7 +17,7 @@ function HeaderModeToggle() {
   return (
     <Pressable
       onPress={toggleMode}
-      className="min-h-[48px] min-w-[48px] mr-2 flex-row items-center justify-center rounded-xl border px-2.5 py-1.5 gap-1.5"
+      className="min-h-[48px] min-w-[48px] flex-row items-center justify-center rounded-xl border px-2.5 py-1.5 gap-1.5"
       style={{
         minHeight: MIN_TOUCH_TARGET_PX,
         minWidth: MIN_TOUCH_TARGET_PX,
@@ -51,6 +51,7 @@ function HeaderModeToggle() {
 }
 
 export default function TabsLayout() {
+  const router = useRouter();
   const { palette, iconsLoaded, childProfile } = useThemeContext();
   const insets = useSafeAreaInsets();
   const bottomPad = Math.max(insets.bottom, 6);
@@ -72,23 +73,59 @@ export default function TabsLayout() {
           fontWeight: '700',
           fontSize: 15,
         },
-        headerTitle: babyHeader
-          ? () => (
+        header: () => (
+          <View
+            style={{
+              paddingTop: insets.top + 6,
+              paddingBottom: 8,
+              paddingHorizontal: 12,
+              backgroundColor: palette.bgCard,
+              borderBottomWidth: 1,
+              borderBottomColor: palette.borderInteractive,
+              gap: 6,
+            }}
+          >
+            <View className="flex-row items-center justify-between gap-2.5">
+              <MascotAvatar variant="home" size="sm" />
               <Text
                 numberOfLines={1}
-                className="text-sm font-bold"
+                className="flex-1 min-w-0 text-sm font-bold"
                 style={{ color: palette.textPrimary }}
               >
-                {babyHeader}
+                {babyHeader ?? 'Baby Buddy MX'}
               </Text>
-            )
-          : undefined,
-        headerLeft: () => (
-          <View className="ml-3">
-            <MascotAvatar variant="home" size="sm" />
+              <HeaderModeToggle />
+            </View>
+            <Pressable
+              onPress={() => router.push('/(tabs)/salud')}
+              hitSlop={{ top: 10, bottom: 10, left: 4, right: 4 }}
+              className="w-full flex-row items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5"
+              style={{
+                backgroundColor: palette.bgElevated,
+                borderColor: palette.borderInteractive,
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={
+                childProfile
+                  ? 'Cambiar datos del bebé'
+                  : 'Configurar datos del bebé'
+              }
+            >
+              {iconsLoaded ? (
+                <Feather name="edit-2" size={12} color={palette.brandText} />
+              ) : null}
+              <Text
+                numberOfLines={1}
+                className="text-[11px] font-bold"
+                style={{ color: palette.brandText }}
+              >
+                {childProfile
+                  ? 'Cambiar datos del bebé'
+                  : 'Configurar datos del bebé'}
+              </Text>
+            </Pressable>
           </View>
         ),
-        headerRight: () => <HeaderModeToggle />,
         tabBarActiveTintColor: palette.brandText,
         tabBarInactiveTintColor: palette.textMuted,
         tabBarStyle: {
