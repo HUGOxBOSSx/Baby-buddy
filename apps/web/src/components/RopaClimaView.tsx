@@ -109,6 +109,7 @@ export function RopaClimaView() {
   const [tempC, setTempC] = useState<number>(21);
   const [outdoorTempC, setOutdoorTempC] = useState<number | undefined>(undefined);
   const [weatherNote, setWeatherNote] = useState<string>('');
+  const [detectingWeather, setDetectingWeather] = useState(false);
   const [environment, setEnvironment] =
     useState<ClothingEnvironment>('cuarto');
   const [context, setContext] = useState<ClothingContextFlags>(
@@ -142,58 +143,157 @@ export function RopaClimaView() {
     setContext((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const handleDetectWeather = () => {
-    if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      setWeatherNote('Tu navegador no permite detectar ubicación; ajusta °C afuera manualmente.');
-      return;
+  const fetchJsonWithTimeout = async <T,>(
+    url: string,
+    timeoutMs = 6000,
+  ): Promise<T> => {
+    const ctrl = new AbortController();
+    const timer = window.setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { signal: ctrl.signal });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as T;
+    } finally {
+      window.clearTimeout(timer);
     }
-    setWeatherNote('Consultando clima exterior gratuito...');
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const url = `https://api.open-meteo.com/v1/forecast?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&current=temperature_2m,wind_speed_10m,rain,weather_code`;
-          const res = await fetch(url);
-          const data = (await res.json()) as {
-            current?: {
-              temperature_2m?: number;
-              wind_speed_10m?: number;
-              rain?: number;
-              weather_code?: number;
-            };
+  };
+
+  const resolveIpLocation = async (): Promise<{
+    lat: number;
+    lon: number;
+    city?: string;
+  } | null> => {
+    try {
+      const ipWho = await fetchJsonWithTimeout<{
+        success?: boolean;
+        latitude?: number;
+        longitude?: number;
+        city?: string;
+      }>('https://ipwho.is/', 5000);
+      if (
+        ipWho.success !== false &&
+        typeof ipWho.latitude === 'number' &&
+        typeof ipWho.longitude === 'number'
+      ) {
+        return { lat: ipWho.latitude, lon: ipWho.longitude, city: ipWho.city };
+      }
+    } catch {
+      // Fallback to geojs below.
+    }
+    try {
+      const geo = await fetchJsonWithTimeout<{
+        latitude?: string;
+        longitude?: string;
+        city?: string;
+      }>('https://get.geojs.io/v1/ip/geo.json', 5000);
+      const lat = Number.parseFloat(geo.latitude ?? '');
+      const lon = Number.parseFloat(geo.longitude ?? '');
+      if (Number.isFinite(lat) && Number.isFinite(lon)) {
+        return { lat, lon, city: geo.city };
+      }
+    } catch {
+      // Both IP providers failed.
+    }
+    return null;
+  };
+
+  const handleDetectWeather = async () => {
+    if (detectingWeather) return;
+    setDetectingWeather(true);
+    setWeatherNote('Consultando clima exterior...');
+
+    try {
+      let coords: { lat: number; lon: number; label: string } | null = null;
+
+      if (
+        typeof window !== 'undefined' &&
+        window.isSecureContext &&
+        typeof navigator !== 'undefined' &&
+        navigator.geolocation
+      ) {
+        coords = await new Promise<{
+          lat: number;
+          lon: number;
+          label: string;
+        } | null>((resolve) => {
+          navigator.geolocation.getCurrentPosition(
+            (pos) =>
+              resolve({
+                lat: pos.coords.latitude,
+                lon: pos.coords.longitude,
+                label: 'GPS',
+              }),
+            () => resolve(null),
+            { timeout: 6000, maximumAge: 300_000 },
+          );
+        });
+      }
+
+      if (!coords) {
+        const ipLoc = await resolveIpLocation();
+        if (ipLoc) {
+          coords = {
+            lat: ipLoc.lat,
+            lon: ipLoc.lon,
+            label: ipLoc.city ? `red (${ipLoc.city})` : 'red',
           };
-          const t = data.current?.temperature_2m;
-          if (typeof t === 'number' && Number.isFinite(t)) {
-            const clamped = Math.min(
-              CLOTHING_MAX_TEMP_C,
-              Math.max(CLOTHING_MIN_TEMP_C, Math.round(t)),
-            );
-            const wind = (data.current?.wind_speed_10m ?? 0) >= 18;
-            const rain = (data.current?.rain ?? 0) > 0;
-            const code = data.current?.weather_code ?? 0;
-            const cond: OutdoorWeatherCondition =
-              rain || code >= 51 ? 'lluvia' : code >= 2 ? 'nublado' : 'soleado';
-            setOutdoorTempC(clamped);
-            setContext((prev) => ({
-              ...prev,
-              weatherCondition: cond,
-              isWindy: wind,
-            }));
-            if (environment === 'exterior') {
-              setTempC(clamped);
-            }
-            setWeatherNote(`Clima exterior actualizado: ${clamped} °C (Open-Meteo).`);
-          } else {
-            setWeatherNote('No se pudo leer la temperatura exterior; usa el control manual.');
-          }
-        } catch {
-          setWeatherNote('Sin conexión para clima exterior; usa el control manual.');
         }
-      },
-      () => {
-        setWeatherNote('Permiso de ubicación denegado; usa el control manual de °C afuera.');
-      },
-      { timeout: 8000 },
-    );
+      }
+
+      if (!coords) {
+        setWeatherNote(
+          'No se pudo detectar ubicación (sin conexión o tiempo agotado); ajusta °C afuera manualmente.',
+        );
+        return;
+      }
+
+      const data = await fetchJsonWithTimeout<{
+        current?: {
+          temperature_2m?: number;
+          wind_speed_10m?: number;
+          rain?: number;
+          weather_code?: number;
+        };
+      }>(
+        `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,wind_speed_10m,rain,weather_code`,
+        6000,
+      );
+
+      const t = data.current?.temperature_2m;
+      if (typeof t === 'number' && Number.isFinite(t)) {
+        const clamped = Math.min(
+          CLOTHING_MAX_TEMP_C,
+          Math.max(CLOTHING_MIN_TEMP_C, Math.round(t)),
+        );
+        const wind = (data.current?.wind_speed_10m ?? 0) >= 18;
+        const rain = (data.current?.rain ?? 0) > 0;
+        const code = data.current?.weather_code ?? 0;
+        const cond: OutdoorWeatherCondition =
+          rain || code >= 51 ? 'lluvia' : code >= 2 ? 'nublado' : 'soleado';
+        setOutdoorTempC(clamped);
+        setContext((prev) => ({
+          ...prev,
+          weatherCondition: cond,
+          isWindy: wind,
+        }));
+        if (environment === 'exterior') {
+          setTempC(clamped);
+        }
+        setWeatherNote(
+          `Clima exterior por ${coords.label}: ${clamped} °C (Open-Meteo).`,
+        );
+      } else {
+        setWeatherNote(
+          'No se pudo leer la temperatura exterior; usa el control manual.',
+        );
+      }
+    } catch {
+      setWeatherNote(
+        'No se pudo detectar el clima (sin conexión o tiempo agotado); ajusta °C manualmente.',
+      );
+    } finally {
+      setDetectingWeather(false);
+    }
   };
 
   return (

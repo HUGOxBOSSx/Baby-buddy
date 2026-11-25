@@ -140,6 +140,21 @@ export default function RopaYClimaScreen() {
     setContext((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const fetchJsonWithTimeout = async <T,>(
+    url: string,
+    timeoutMs = 6000,
+  ): Promise<T> => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { signal: ctrl.signal });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as T;
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+
   const handleDetectWeather = async () => {
     if (detectingWeather) {
       return;
@@ -147,28 +162,61 @@ export default function RopaYClimaScreen() {
     setDetectingWeather(true);
     setWeatherNote('Consultando clima exterior...');
     try {
-      const geoRes = await fetch('https://get.geojs.io/v1/ip/geo.json');
-      const geo = (await geoRes.json()) as {
-        latitude?: string;
-        longitude?: string;
-        city?: string;
-      };
-      const lat = Number.parseFloat(geo.latitude ?? '');
-      const lon = Number.parseFloat(geo.longitude ?? '');
-      if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+      let lat: number | null = null;
+      let lon: number | null = null;
+      let cityLabel = '';
+
+      try {
+        const ipWho = await fetchJsonWithTimeout<{
+          success?: boolean;
+          latitude?: number;
+          longitude?: number;
+          city?: string;
+        }>('https://ipwho.is/', 5000);
+        if (
+          ipWho.success !== false &&
+          typeof ipWho.latitude === 'number' &&
+          typeof ipWho.longitude === 'number'
+        ) {
+          lat = ipWho.latitude;
+          lon = ipWho.longitude;
+          cityLabel = ipWho.city ?? '';
+        }
+      } catch {
+        // Fallback to geojs below.
+      }
+
+      if (lat === null || lon === null) {
+        const geo = await fetchJsonWithTimeout<{
+          latitude?: string;
+          longitude?: string;
+          city?: string;
+        }>('https://get.geojs.io/v1/ip/geo.json', 5000);
+        const pLat = Number.parseFloat(geo.latitude ?? '');
+        const pLon = Number.parseFloat(geo.longitude ?? '');
+        if (Number.isFinite(pLat) && Number.isFinite(pLon)) {
+          lat = pLat;
+          lon = pLon;
+          cityLabel = geo.city ?? '';
+        }
+      }
+
+      if (lat === null || lon === null) {
         setWeatherNote('No se pudo obtener ubicación; ajusta °C afuera manualmente.');
         return;
       }
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,wind_speed_10m,rain,weather_code`;
-      const res = await fetch(url);
-      const data = (await res.json()) as {
+
+      const data = await fetchJsonWithTimeout<{
         current?: {
           temperature_2m?: number;
           wind_speed_10m?: number;
           rain?: number;
           weather_code?: number;
         };
-      };
+      }>(
+        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,wind_speed_10m,rain,weather_code`,
+        6000,
+      );
       const t = data.current?.temperature_2m;
       if (typeof t === 'number' && Number.isFinite(t)) {
         const clamped = Math.min(
@@ -190,7 +238,7 @@ export default function RopaYClimaScreen() {
           setTempC(clamped);
         }
         setWeatherNote(
-          `Clima${geo.city ? ` en ${geo.city}` : ''}: ${clamped} °C.`,
+          `Clima${cityLabel ? ` en ${cityLabel}` : ''}: ${clamped} °C.`,
         );
       } else {
         setWeatherNote('No se pudo leer la temperatura; usa el control manual.');
