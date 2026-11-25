@@ -27,11 +27,10 @@ import { StageSelector } from '../../components/StageSelector';
 import { useThemeContext } from '../../components/ThemeProvider';
 import { TriageBadge } from '../../components/TriageBadge';
 
-type ViewTab = 'all' | 'es_normal' | 'no_es_normal' | 'urgencia' | 'popo';
-type SubFilter = 'all' | TriageLevel;
+type ViewTab = 'es_normal' | 'no_es_normal' | 'urgencia' | 'popo';
+type SubFilter = TriageLevel;
 
 const TABS: readonly { readonly id: ViewTab; readonly label: string }[] = [
-  { id: 'all', label: 'Todo' },
   { id: 'es_normal', label: 'Es normal' },
   { id: 'no_es_normal', label: 'No es normal' },
   { id: 'urgencia', label: 'Urgencia' },
@@ -42,7 +41,6 @@ const SUB_FILTERS: readonly {
   readonly id: SubFilter;
   readonly label: string;
 }[] = [
-  { id: 'all', label: 'Todos' },
   { id: 'green_home', label: 'Verde' },
   { id: 'yellow_pediatrician', label: 'Amarillo' },
   { id: 'orange_urgent', label: 'Naranja · Consulta hoy' },
@@ -60,9 +58,9 @@ export default function GuiasScreen() {
   const router = useRouter();
   const { palette, selectedStage, childProfile } = useThemeContext();
   const [query, setQuery] = useState('');
-  const [tab, setTab] = useState<ViewTab>('all');
-  const [subFilter, setSubFilter] = useState<SubFilter>('all');
-  const [categoryFilter, setCategoryFilter] = useState<string | 'all'>('all');
+  const [tab, setTab] = useState<ViewTab>('es_normal');
+  const [subFilter, setSubFilter] = useState<SubFilter>('green_home');
+  const [categoryFilter, setCategoryFilter] = useState<string>('Recién nacido');
   const [includeOtherAges, setIncludeOtherAges] = useState(false);
   const [focusedSlug, setFocusedSlug] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
@@ -89,16 +87,15 @@ export default function GuiasScreen() {
     normality: normalityParam,
   });
 
-  const availableSubFilters = SUB_FILTERS.filter((opt) => {
-    if (opt.id === 'all') return true;
-    return level1Pool.some((g) => g.triageLevel === opt.id);
-  });
+  const availableSubFilters = SUB_FILTERS.filter((opt) =>
+    level1Pool.some((g) => g.triageLevel === opt.id),
+  );
 
   const effectiveSubFilter: SubFilter = availableSubFilters.some(
     (opt) => opt.id === subFilter,
   )
     ? subFilter
-    : 'all';
+    : (availableSubFilters[0]?.id ?? 'green_home');
 
   const level2Pool = searchClinicalGuides({
     stageId: effectiveStage,
@@ -110,10 +107,9 @@ export default function GuiasScreen() {
     level2Pool.some((g) => g.categoryMx === cat),
   );
 
-  const effectiveCategory: string | 'all' =
-    categoryFilter === 'all' || availableCategories.includes(categoryFilter)
-      ? categoryFilter
-      : 'all';
+  const effectiveCategory: string = availableCategories.includes(categoryFilter)
+    ? categoryFilter
+    : (availableCategories[0] ?? 'all');
 
   const guides = searchClinicalGuides({
     query,
@@ -327,49 +323,66 @@ export default function GuiasScreen() {
         }}
       />
 
-      <View className="flex-row flex-wrap gap-2">
-        {TABS.map((t) => {
-          const active = tab === t.id;
-          const isUrgencia = t.id === 'urgencia';
-          return (
-            <Pressable
-              key={t.id}
-              onPress={() => setTab(t.id)}
-              className="rounded-full border px-3 py-2 justify-center"
-              style={{
-                minHeight: MIN_TOUCH_TARGET_PX,
-                backgroundColor: isUrgencia
-                  ? palette.alertRedSurface
-                  : active
-                    ? palette.brandPrimary
-                    : palette.bgElevated,
-                borderColor: isUrgencia
-                  ? palette.alertRed
-                  : active
-                    ? palette.brandPrimary
-                    : palette.borderInteractive,
-              }}
-            >
-              <Text
-                className="text-xs font-bold"
-                style={{
-                  color: isUrgencia
-                    ? palette.alertRedText
-                    : active
-                      ? palette.onBrandPrimary
-                      : palette.textPrimary,
-                }}
-              >
-                {t.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <View
+        className="rounded-2xl border p-3 gap-3"
+        style={{
+          backgroundColor: palette.bgElevated,
+          borderColor: palette.borderInteractive,
+        }}
+      >
+        <View className="gap-1.5">
+          <Text className="text-[11px] font-bold uppercase" style={{ color: palette.textSecondary }}>
+            1. Tipo de situación
+          </Text>
+          <View className="flex-row flex-wrap gap-2">
+            {TABS.map((t) => {
+              const active = tab === t.id;
+              const isUrgencia = t.id === 'urgencia';
+              return (
+                <Pressable
+                  key={t.id}
+                  onPress={() => setTab(t.id)}
+                  className="rounded-full border px-3 py-2 justify-center"
+                  style={{
+                    minHeight: MIN_TOUCH_TARGET_PX,
+                    backgroundColor: isUrgencia
+                      ? palette.alertRedSurface
+                      : active
+                        ? palette.brandPrimary
+                        : palette.bgCard,
+                    borderColor: isUrgencia
+                      ? palette.alertRed
+                      : active
+                        ? palette.brandPrimary
+                        : palette.borderInteractive,
+                  }}
+                >
+                  <Text
+                    className="text-xs font-bold"
+                    style={{
+                      color: isUrgencia
+                        ? palette.alertRedText
+                        : active
+                          ? palette.onBrandPrimary
+                          : palette.textPrimary,
+                    }}
+                  >
+                    {t.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
 
-      {tab !== 'popo' && (availableSubFilters.length > 2 || availableCategories.length > 1) ? (
-        <View className="gap-2">
-          {availableSubFilters.length > 2 ? (
+        {tab !== 'popo' && availableSubFilters.length > 1 ? (
+          <View
+            className="gap-1.5 border-t pt-2.5"
+            style={{ borderTopColor: palette.borderInteractive }}
+          >
+            <Text className="text-[11px] font-bold uppercase" style={{ color: palette.textSecondary }}>
+              2. Nivel de atención
+            </Text>
             <View className="flex-row flex-wrap gap-1.5">
               {availableSubFilters.map((c) => {
                 const active = effectiveSubFilter === c.id;
@@ -402,11 +415,20 @@ export default function GuiasScreen() {
                 );
               })}
             </View>
-          ) : null}
-          {availableCategories.length > 1 ? (
+          </View>
+        ) : null}
+
+        {tab !== 'popo' && availableCategories.length > 0 ? (
+          <View
+            className="gap-1.5 border-t pt-2.5"
+            style={{ borderTopColor: palette.borderInteractive }}
+          >
+            <Text className="text-[11px] font-bold uppercase" style={{ color: palette.textSecondary }}>
+              {availableSubFilters.length > 1 ? '3. Tema' : '2. Tema'}
+            </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View className="flex-row gap-1.5">
-                {(['all', ...availableCategories] as const).map((cat) => {
+                {availableCategories.map((cat) => {
                   const active = effectiveCategory === cat;
                   return (
                     <Pressable
@@ -429,16 +451,16 @@ export default function GuiasScreen() {
                           color: active ? palette.brandText : palette.textSecondary,
                         }}
                       >
-                        {cat === 'all' ? 'Todos los temas' : cat}
+                        {cat}
                       </Text>
                     </Pressable>
                   );
                 })}
               </View>
             </ScrollView>
-          ) : null}
-        </View>
-      ) : null}
+          </View>
+        ) : null}
+      </View>
 
       {childProfile ? (
         <View className="gap-2">

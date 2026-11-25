@@ -19,11 +19,10 @@ import { StageSelector } from '@/components/StageSelector';
 import { useAppState } from '@/components/ThemeProvider';
 import { TriageBadge } from '@/components/TriageBadge';
 
-type ViewTab = 'all' | 'es_normal' | 'no_es_normal' | 'urgencia' | 'popo';
-type SubFilter = 'all' | TriageLevel;
+type ViewTab = 'es_normal' | 'no_es_normal' | 'urgencia' | 'popo';
+type SubFilter = TriageLevel;
 
 const TABS: readonly { readonly id: ViewTab; readonly label: string }[] = [
-  { id: 'all', label: 'Todo' },
   { id: 'es_normal', label: 'Es normal' },
   { id: 'no_es_normal', label: 'No es normal' },
   { id: 'urgencia', label: 'Urgencia' },
@@ -34,7 +33,6 @@ const SUB_FILTERS: readonly {
   readonly id: SubFilter;
   readonly label: string;
 }[] = [
-  { id: 'all', label: 'Todos' },
   { id: 'green_home', label: 'Verde' },
   { id: 'yellow_pediatrician', label: 'Amarillo' },
   { id: 'orange_urgent', label: 'Naranja · Atención / Consulta hoy' },
@@ -51,9 +49,9 @@ const TRIAGE_GROUP_ORDER: readonly TriageLevel[] = [
 export function GuiasView() {
   const { childProfile } = useAppState();
   const [query, setQuery] = useState('');
-  const [tab, setTab] = useState<ViewTab>('all');
-  const [subFilter, setSubFilter] = useState<SubFilter>('all');
-  const [categoryFilter, setCategoryFilter] = useState<string | 'all'>('all');
+  const [tab, setTab] = useState<ViewTab>('es_normal');
+  const [subFilter, setSubFilter] = useState<SubFilter>('green_home');
+  const [categoryFilter, setCategoryFilter] = useState<string>('Recién nacido');
   const [stageFilter, setStageFilter] = useState<StageId | 'all'>('all');
   const [includeOtherAges, setIncludeOtherAges] = useState(false);
 
@@ -67,16 +65,15 @@ export function GuiasView() {
     normality: normalityParam,
   });
 
-  const availableSubFilters = SUB_FILTERS.filter((opt) => {
-    if (opt.id === 'all') return true;
-    return level1Pool.some((g) => g.triageLevel === opt.id);
-  });
+  const availableSubFilters = SUB_FILTERS.filter((opt) =>
+    level1Pool.some((g) => g.triageLevel === opt.id),
+  );
 
   const effectiveSubFilter: SubFilter = availableSubFilters.some(
     (opt) => opt.id === subFilter,
   )
     ? subFilter
-    : 'all';
+    : (availableSubFilters[0]?.id ?? 'green_home');
 
   const level2Pool = searchClinicalGuides({
     stageId: effectiveStage,
@@ -88,10 +85,9 @@ export function GuiasView() {
     level2Pool.some((g) => g.categoryMx === cat),
   );
 
-  const effectiveCategory: string | 'all' =
-    categoryFilter === 'all' || availableCategories.includes(categoryFilter)
-      ? categoryFilter
-      : 'all';
+  const effectiveCategory: string = availableCategories.includes(categoryFilter)
+    ? categoryFilter
+    : (availableCategories[0] ?? 'all');
 
   const guides = searchClinicalGuides({
     query,
@@ -142,36 +138,44 @@ export function GuiasView() {
           />
         </label>
 
-        <div className="flex flex-wrap gap-2">
-          {TABS.map((t) => {
-            const active = tab === t.id;
-            const isUrgencia = t.id === 'urgencia';
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setTab(t.id)}
-                aria-pressed={active}
-                className={`inline-flex min-h-12 items-center rounded-full border px-4 py-2 text-xs font-bold ${
-                  isUrgencia
-                    ? active
-                      ? 'border-alert-red bg-alert-surface text-alert-text ring-2 ring-alert-red'
-                      : 'border-alert-red bg-alert-surface text-alert-text'
-                    : active
-                      ? 'border-brand-primary bg-brand-primary text-brand-on'
-                      : 'border-border-interactive bg-bg-elevated text-ink-primary'
-                }`}
-              >
-                {t.label}
-              </button>
-            );
-          })}
-        </div>
+        <div className="space-y-3 rounded-2xl border border-border-subtle bg-bg-elevated p-3.5">
+          <div className="space-y-1.5">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-ink-secondary">
+              1. Tipo de situación
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {TABS.map((t) => {
+                const active = tab === t.id;
+                const isUrgencia = t.id === 'urgencia';
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setTab(t.id)}
+                    aria-pressed={active}
+                    className={`inline-flex min-h-11 items-center rounded-full border px-4 py-2 text-xs font-bold ${
+                      isUrgencia
+                        ? active
+                          ? 'border-alert-red bg-alert-surface text-alert-text ring-2 ring-alert-red'
+                          : 'border-alert-red bg-alert-surface text-alert-text'
+                        : active
+                          ? 'border-brand-primary bg-brand-primary text-brand-on'
+                          : 'border-border-interactive bg-bg-card text-ink-primary'
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-        {tab !== 'popo' && (availableSubFilters.length > 2 || availableCategories.length > 1) ? (
-          <div className="space-y-3 rounded-2xl border border-border-subtle bg-bg-elevated p-3">
-            {availableSubFilters.length > 2 ? (
-              <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por color de semáforo o auxilios">
+          {tab !== 'popo' && availableSubFilters.length > 1 ? (
+            <div className="space-y-1.5 border-t border-border-subtle pt-3">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-ink-secondary">
+                2. Nivel de atención
+              </p>
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por nivel de atención">
                 {availableSubFilters.map((c) => {
                   const active = effectiveSubFilter === c.id;
                   return (
@@ -191,22 +195,15 @@ export function GuiasView() {
                   );
                 })}
               </div>
-            ) : null}
+            </div>
+          ) : null}
 
-            {availableCategories.length > 1 ? (
+          {tab !== 'popo' && availableCategories.length > 0 ? (
+            <div className="space-y-1.5 border-t border-border-subtle pt-3">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-ink-secondary">
+                {availableSubFilters.length > 1 ? '3. Tema' : '2. Tema'}
+              </p>
               <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtrar por tema">
-                <button
-                  type="button"
-                  onClick={() => setCategoryFilter('all')}
-                  aria-pressed={effectiveCategory === 'all'}
-                  className={`inline-flex min-h-9 items-center rounded-full border px-3 py-1 text-xs font-semibold ${
-                    effectiveCategory === 'all'
-                      ? 'border-brand-primary bg-brand-surface text-brand-text'
-                      : 'border-border-interactive bg-bg-card text-ink-secondary'
-                  }`}
-                >
-                  Todos los temas
-                </button>
                 {availableCategories.map((cat) => {
                   const active = effectiveCategory === cat;
                   return (
@@ -226,9 +223,9 @@ export function GuiasView() {
                   );
                 })}
               </div>
-            ) : null}
-          </div>
-        ) : null}
+            </div>
+          ) : null}
+        </div>
 
         {childProfile ? (
           <div className="space-y-3">
@@ -314,9 +311,9 @@ export function GuiasView() {
             type="button"
             onClick={() => {
               setQuery('');
-              setTab('all');
-              setSubFilter('all');
-              setCategoryFilter('all');
+              setTab('es_normal');
+              setSubFilter('green_home');
+              setCategoryFilter('Recién nacido');
             }}
             className="inline-flex min-h-12 items-center rounded-xl bg-brand-primary px-4 py-2 text-sm font-bold text-brand-on"
           >
