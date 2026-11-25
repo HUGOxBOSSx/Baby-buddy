@@ -314,7 +314,7 @@ export default function GuiasScreen() {
           <View className="flex-row flex-wrap gap-2">
             {[
               {
-                label: 'Hunde costillas',
+                label: 'Hunde costillas (en reposo)',
                 active: severeBreathing,
                 toggle: () => setSevereBreathing((v) => !v),
               },

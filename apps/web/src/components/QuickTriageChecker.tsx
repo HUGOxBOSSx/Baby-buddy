@@ -89,7 +89,7 @@ export function QuickTriageChecker() {
       <div className="flex flex-wrap gap-2">
         {[
           {
-            label: 'Hunde costillas / aleteo nasal',
+            label: 'Hunde costillas / aleteo nasal (en reposo)',
             checked: severeBreathing,
             toggle: () => setSevereBreathing((v) => !v),
           },
