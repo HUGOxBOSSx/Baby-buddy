@@ -18,7 +18,7 @@ import { useAppState } from '@/components/ThemeProvider';
 import { TriageBadge } from '@/components/TriageBadge';
 
 type ViewTab = 'all' | 'es_normal' | 'no_es_normal' | 'urgencia' | 'popo';
-type SubFilter = 'all' | TriageLevel | 'primeros_auxilios';
+type SubFilter = 'all' | TriageLevel;
 
 const TABS: readonly { readonly id: ViewTab; readonly label: string }[] = [
   { id: 'all', label: 'Todo' },
@@ -37,7 +37,6 @@ const SUB_FILTERS: readonly {
   { id: 'yellow_pediatrician', label: 'Amarillo' },
   { id: 'orange_urgent', label: 'Naranja · Atención hoy' },
   { id: 'red_911', label: 'Rojo · 911 / Inmediato' },
-  { id: 'primeros_auxilios', label: 'Primeros auxilios' },
 ] as const;
 
 const TRIAGE_GROUP_ORDER: readonly TriageLevel[] = [
@@ -68,9 +67,6 @@ export function GuiasView() {
 
   const availableSubFilters = SUB_FILTERS.filter((opt) => {
     if (opt.id === 'all') return true;
-    if (opt.id === 'primeros_auxilios') {
-      return level1Pool.some((g) => g.kind === 'primeros_auxilios');
-    }
     return level1Pool.some((g) => g.triageLevel === opt.id);
   });
 
@@ -83,15 +79,7 @@ export function GuiasView() {
   const level2Pool = searchClinicalGuides({
     stageId: effectiveStage,
     normality: normalityParam,
-    triageLevel:
-      effectiveSubFilter !== 'all' &&
-      effectiveSubFilter !== 'primeros_auxilios'
-        ? effectiveSubFilter
-        : 'all',
-    kind:
-      effectiveSubFilter === 'primeros_auxilios'
-        ? 'primeros_auxilios'
-        : 'all',
+    triageLevel: effectiveSubFilter,
   });
 
   const availableCategories = GUIDE_CATEGORIES_MX.filter((cat) =>
@@ -107,15 +95,7 @@ export function GuiasView() {
     query,
     stageId: effectiveStage,
     normality: normalityParam,
-    triageLevel:
-      effectiveSubFilter !== 'all' &&
-      effectiveSubFilter !== 'primeros_auxilios'
-        ? effectiveSubFilter
-        : 'all',
-    kind:
-      effectiveSubFilter === 'primeros_auxilios'
-        ? 'primeros_auxilios'
-        : 'all',
+    triageLevel: effectiveSubFilter,
     categoryMx: effectiveCategory,
   });
 
