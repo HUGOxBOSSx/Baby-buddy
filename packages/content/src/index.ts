@@ -3,3 +3,7 @@ export * from './disclaimers';
 export * from './scaffold/stages';
 export * from './scaffold/guides';
 export * from './scaffold/clothing';
+export * from './library/isNormal';
+export * from './library/problems';
+export * from './library/poopChart';
+export * from './library/search';

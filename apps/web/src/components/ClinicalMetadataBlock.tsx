@@ -8,7 +8,7 @@ export function ClinicalMetadataBlock({
   metadata,
 }: ClinicalMetadataBlockProps) {
   return (
-    <details className="rounded-xl border border-border-interactive bg-bg-elevated px-3 py-2 text-xs text-ink-secondary">
+    <details className="text-xs text-ink-secondary">
       <summary className="cursor-pointer font-semibold text-ink-muted hover:text-ink-primary">
         Fuentes y revisión editorial ({metadata.version})
       </summary>

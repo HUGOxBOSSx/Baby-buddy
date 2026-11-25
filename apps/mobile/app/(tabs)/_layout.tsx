@@ -106,28 +106,12 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Hoy',
-          tabBarLabel: 'Hoy',
-          tabBarAccessibilityLabel: 'Pestaña Hoy',
+          title: 'Registro diario',
+          tabBarLabel: 'Registro',
+          tabBarAccessibilityLabel: 'Pestaña Registro diario',
           tabBarIcon: ({ color, size }) =>
             iconsLoaded ? (
               <Feather name="home" size={size} color={color} />
-            ) : (
-              <View className="w-5 h-5 items-center justify-center">
-                <Text style={{ color, fontWeight: '700' }}>•</Text>
-              </View>
-            ),
-        }}
-      />
-      <Tabs.Screen
-        name="guias"
-        options={{
-          title: 'Guías',
-          tabBarLabel: 'Guías',
-          tabBarAccessibilityLabel: 'Pestaña Guías clínicas',
-          tabBarIcon: ({ color, size }) =>
-            iconsLoaded ? (
-              <Feather name="book-open" size={size} color={color} />
             ) : (
               <View className="w-5 h-5 items-center justify-center">
                 <Text style={{ color, fontWeight: '700' }}>•</Text>
@@ -160,6 +144,22 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) =>
             iconsLoaded ? (
               <Feather name="heart" size={size} color={color} />
+            ) : (
+              <View className="w-5 h-5 items-center justify-center">
+                <Text style={{ color, fontWeight: '700' }}>•</Text>
+              </View>
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="guias"
+        options={{
+          title: '¿Es normal?',
+          tabBarLabel: '¿Es normal?',
+          tabBarAccessibilityLabel: 'Pestaña ¿Es normal?',
+          tabBarIcon: ({ color, size }) =>
+            iconsLoaded ? (
+              <Feather name="book-open" size={size} color={color} />
             ) : (
               <View className="w-5 h-5 items-center justify-center">
                 <Text style={{ color, fontWeight: '700' }}>•</Text>

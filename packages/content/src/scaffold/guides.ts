@@ -11,7 +11,7 @@ export const M1_GUIDE_SCAFFOLDS: readonly GuideScaffoldItem[] = [
     severity: 'urgent_red',
     redFlagsMx: [
       'Temperatura axilar >= 38.0 °C en bebé menor de 3 meses: llama al 911 o acude a urgencias de inmediato.',
-      'Dificultad respiratoria grave: respiración muy rápida y sostenida en reposo con esfuerzo para respirar, hundimiento de costillas, aleteo nasal, quejido, pausas largas o coloración azulada en labios: llama al 911.',
+      'Dificultad respiratoria grave en reposo (al estar tranquilo, no solo al llorar): respiración muy rápida y sostenida con esfuerzo visible (hundimiento de costillas, aleteo nasal o quejido constante en cada respiración), pausas largas o coloración azulada en labios: llama al 911.',
       'Dificultad para despertar, rechazo total del pecho o mamila, o llanto inconsolable: consulta urgente o 911.',
     ],
     metadata: createClinicalMetadata({
