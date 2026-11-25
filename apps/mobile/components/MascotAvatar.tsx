@@ -5,9 +5,9 @@ export type MascotVariant = 'home' | 'clima' | 'salud' | 'es_normal';
 
 const MASCOT_SOURCES: Record<MascotVariant, ImageSourcePropType> = {
   home: require('../assets/mascot/mascot-home.png') as ImageSourcePropType,
-  clima: require('../assets/mascot/mascot-home.png') as ImageSourcePropType,
-  salud: require('../assets/mascot/mascot-home.png') as ImageSourcePropType,
-  es_normal: require('../assets/mascot/mascot-home.png') as ImageSourcePropType,
+  clima: require('../assets/mascot/mascot-clima.jpg') as ImageSourcePropType,
+  salud: require('../assets/mascot/mascot-salud.jpg') as ImageSourcePropType,
+  es_normal: require('../assets/mascot/mascot-es-normal.jpg') as ImageSourcePropType,
 };
 
 const SIZE_PX = {

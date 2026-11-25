@@ -21,6 +21,7 @@ import {
   View,
 } from 'react-native';
 import { GuideDisclaimerHeader } from '../../components/GuideDisclaimerHeader';
+import { MascotAvatar } from '../../components/MascotAvatar';
 import { PoopColorChart } from '../../components/PoopColorChart';
 import { StageSelector } from '../../components/StageSelector';
 import { useThemeContext } from '../../components/ThemeProvider';
@@ -297,16 +298,19 @@ export default function GuiasScreen() {
       style={{ backgroundColor: palette.bgPrimary }}
       contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 32 }}
     >
-      <View className="gap-1">
-        <Text
-          className="text-2xl font-bold"
-          style={{ color: palette.textPrimary }}
-        >
-          ¿Es normal?
-        </Text>
-        <Text className="text-xs" style={{ color: palette.textSecondary }}>
-          Orientación por síntomas, etapa, primeros auxilios y tabla de popó.
-        </Text>
+      <View className="flex-row items-center gap-3">
+        <MascotAvatar variant="es_normal" size="md" />
+        <View className="flex-1 gap-1">
+          <Text
+            className="text-2xl font-bold"
+            style={{ color: palette.textPrimary }}
+          >
+            ¿Es normal?
+          </Text>
+          <Text className="text-xs" style={{ color: palette.textSecondary }}>
+            Orientación por síntomas, etapa, primeros auxilios y tabla de popó.
+          </Text>
+        </View>
       </View>
 
       <TextInput

@@ -56,6 +56,7 @@ export default function SaludScreen() {
       contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 32 }}
     >
         <View className="flex-row items-center justify-between flex-wrap gap-2">
+          <MascotAvatar variant="salud" size="md" />
           <View className="flex-1 gap-1">
             <Text
               className="text-2xl font-bold"
@@ -70,6 +71,8 @@ export default function SaludScreen() {
           </View>
           <StatusBadge severity="urgent_red" />
         </View>
+
+        <HealthJournalPanel />
 
       <TriageDisclaimerBanner />
 

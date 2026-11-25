@@ -2,9 +2,9 @@ export type MascotVariant = 'home' | 'clima' | 'salud' | 'es_normal';
 
 const MASCOT_SRC: Record<MascotVariant, string> = {
   home: '/mascot/mascot-home.png',
-  clima: '/mascot/mascot-home.png',
-  salud: '/mascot/mascot-home.png',
-  es_normal: '/mascot/mascot-home.png',
+  clima: '/mascot/mascot-clima.jpg',
+  salud: '/mascot/mascot-salud.jpg',
+  es_normal: '/mascot/mascot-es-normal.jpg',
 };
 
 const MASCOT_ALT: Record<MascotVariant, string> = {
