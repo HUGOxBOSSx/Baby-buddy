@@ -1,12 +1,14 @@
 'use client';
 
 import type {
+  AccessoryId,
   BaseLayerId,
   GarmentVisualKind,
   MidLayerId,
   OuterLayerId,
 } from '@baby-buddy/core';
 import {
+  ACCESSORY_OPTIONS,
   BASE_LAYER_OPTIONS,
   MID_LAYER_OPTIONS,
   OUTER_LAYER_OPTIONS,
@@ -80,6 +82,25 @@ export function GarmentIcon({
           <path d="M4 10h16M8 5v14" />
         </svg>
       );
+    case 'hat':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className} aria-hidden="true">
+          <path d="M5 16a7 7 0 0 1 14 0" />
+          <rect x="4" y="16" width="16" height="3" rx="1.5" />
+        </svg>
+      );
+    case 'mittens':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className} aria-hidden="true">
+          <path d="M8 18V9a4 4 0 0 1 8 0v4l2 1v4H8Z" />
+        </svg>
+      );
+    case 'socks':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className} aria-hidden="true">
+          <path d="M9 4h6v9l3 3a2.5 2.5 0 0 1-3.5 3.5L9 14V4Z" />
+        </svg>
+      );
   }
 }
 
@@ -87,50 +108,53 @@ export function SelectedLayersPreview({
   base,
   mid,
   outer,
+  accessories = [],
 }: {
-  readonly base: BaseLayerId;
-  readonly mid: MidLayerId;
-  readonly outer: OuterLayerId;
+  readonly base: readonly BaseLayerId[];
+  readonly mid: readonly MidLayerId[];
+  readonly outer: readonly OuterLayerId[];
+  readonly accessories?: readonly AccessoryId[];
 }) {
-  const baseOpt =
-    BASE_LAYER_OPTIONS.find((o) => o.id === base) ?? BASE_LAYER_OPTIONS[0]!;
-  const midOpt =
-    MID_LAYER_OPTIONS.find((o) => o.id === mid) ?? MID_LAYER_OPTIONS[0]!;
-  const outerOpt =
-    OUTER_LAYER_OPTIONS.find((o) => o.id === outer) ?? OUTER_LAYER_OPTIONS[0]!;
-
-  const items = [
-    { title: 'Capa base', option: baseOpt },
-    { title: 'Capa media', option: midOpt },
-    { title: 'Capa exterior', option: outerOpt },
-  ] as const;
+  const selected = [
+    ...base.map(
+      (id) => BASE_LAYER_OPTIONS.find((o) => o.id === id) ?? BASE_LAYER_OPTIONS[0]!,
+    ),
+    ...mid.map(
+      (id) => MID_LAYER_OPTIONS.find((o) => o.id === id) ?? MID_LAYER_OPTIONS[0]!,
+    ),
+    ...outer.map(
+      (id) => OUTER_LAYER_OPTIONS.find((o) => o.id === id) ?? OUTER_LAYER_OPTIONS[0]!,
+    ),
+    ...accessories.map(
+      (id) => ACCESSORY_OPTIONS.find((o) => o.id === id) ?? ACCESSORY_OPTIONS[0]!,
+    ),
+  ].filter((o) => o.id !== 'ninguna' || base.length === 1);
 
   return (
     <div
       aria-label="Referencia visual de prendas seleccionadas"
-      className="grid gap-2 sm:grid-cols-3"
+      className="flex flex-wrap gap-2"
     >
-      {items.map(({ title, option }) => (
-        <div
-          key={title}
-          className="flex items-center gap-3 rounded-xl border border-border-interactive bg-bg-elevated p-3"
-        >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-brand-primary bg-brand-surface text-brand-text">
-            <GarmentIcon kind={option.visualKind} className="h-5 w-5" />
-          </span>
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
-              {title}
-            </p>
-            <p className="truncate text-xs font-bold text-ink-primary">
+      {selected.length === 0 ? (
+        <span className="text-xs text-ink-secondary">Sin prendas seleccionadas</span>
+      ) : (
+        selected.map((option, idx) => (
+          <div
+            key={`${option.id}-${idx}`}
+            className="inline-flex items-center gap-2 rounded-xl border border-border-interactive bg-bg-elevated px-3 py-2"
+          >
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-brand-primary bg-brand-surface text-brand-text">
+              <GarmentIcon kind={option.visualKind} className="h-4 w-4" />
+            </span>
+            <span className="text-xs font-bold text-ink-primary">
               {option.labelMx}
-            </p>
-            <p className="text-[11px] text-brand-text tabular-nums">
-              {option.tog === null ? 'Sin TOG seguro' : `${option.tog} TOG`}
-            </p>
+            </span>
+            <span className="text-[11px] text-brand-text tabular-nums">
+              {option.tog === null ? 'Sin TOG' : `${option.tog}`}
+            </span>
           </div>
-        </div>
-      ))}
+        ))
+      )}
     </div>
   );
 }

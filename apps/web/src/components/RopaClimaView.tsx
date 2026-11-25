@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import {
+  ACCESSORY_OPTIONS,
   BASE_LAYER_OPTIONS,
   CLOTHING_MAX_TEMP_C,
   CLOTHING_MIN_TEMP_C,
@@ -10,12 +11,16 @@ import {
   MID_LAYER_OPTIONS,
   OUTER_LAYER_OPTIONS,
   STAGE_SPECS,
+  getDefaultOptimalLayers,
   recommendClothing,
+  type AccessoryId,
+  type BabyHealthStatus,
   type BaseLayerId,
   type ClothingContextFlags,
   type ClothingEnvironment,
   type MidLayerId,
   type OuterLayerId,
+  type SelectedLayersInput,
   type StageId,
 } from '@baby-buddy/core';
 import { CLOTHING_ENGINE_METADATA } from '@baby-buddy/content';
@@ -31,17 +36,44 @@ import { useAppState } from '@/components/ThemeProvider';
 
 const TEMP_PRESETS = [0, 16, 21, 28, 38] as const;
 
-const CONTEXT_CHIPS: readonly {
-  readonly key: keyof Omit<ClothingContextFlags, 'coldWalls'>;
+const HEALTH_OPTIONS: readonly {
+  readonly id: BabyHealthStatus;
   readonly label: string;
 }[] = [
-  { key: 'prematureOrLowWeight', label: 'Prematuro (+1 capa)' },
-  { key: 'hasFever', label: 'Fiebre (−1 capa)' },
+  { id: 'termino_sano', label: 'Bebé a término / sano' },
+  { id: 'prematuro', label: 'Prematuro (+1 capa)' },
+  { id: 'fiebre', label: 'Fiebre (−1 capa)' },
+] as const;
+
+const CONTEXT_CHIPS: readonly {
+  readonly key:
+    | 'hasAcOrFan'
+    | 'inCarrierOrStroller'
+    | 'inCarSeat'
+    | 'canRollOver';
+  readonly label: string;
+}[] = [
   { key: 'hasAcOrFan', label: 'Clima / ventilador' },
   { key: 'inCarrierOrStroller', label: 'Portabebé / carriola (−1)' },
   { key: 'inCarSeat', label: 'Silla de auto' },
   { key: 'canRollOver', label: 'Ya se voltea' },
 ] as const;
+
+function toggleMulti<T extends string>(
+  list: readonly T[],
+  id: T,
+  noneId?: T,
+): T[] {
+  if (noneId && id === noneId) {
+    return [noneId];
+  }
+  const withoutNone = noneId ? list.filter((x) => x !== noneId) : [...list];
+  if (withoutNone.includes(id)) {
+    const next = withoutNone.filter((x) => x !== id);
+    return next.length === 0 && noneId ? [noneId] : next;
+  }
+  return [...withoutNone, id];
+}
 
 export function RopaClimaView() {
   const { activeStageId, childProfile } = useAppState();
@@ -49,37 +81,80 @@ export function RopaClimaView() {
   const effectiveStage = childProfile ? childProfile.stageId : manualStage;
 
   const [tempC, setTempC] = useState<number>(21);
+  const [outdoorTempC, setOutdoorTempC] = useState<number | undefined>(undefined);
+  const [weatherNote, setWeatherNote] = useState<string>('');
   const [environment, setEnvironment] =
     useState<ClothingEnvironment>('cuarto');
   const [context, setContext] = useState<ClothingContextFlags>(
     DEFAULT_CLOTHING_CONTEXT,
   );
-  const [baseLayer, setBaseLayer] = useState<BaseLayerId>('panalero_larga');
-  const [midLayer, setMidLayer] = useState<MidLayerId>('mameluco_algodon');
-  const [outerLayer, setOuterLayer] = useState<OuterLayerId>('saco_10');
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [customLayers, setCustomLayers] = useState<SelectedLayersInput | null>(
+    null,
+  );
+
+  const activeLayers =
+    customLayers ??
+    getDefaultOptimalLayers({
+      tempC,
+      outdoorTempC,
+      environment,
+      stageId: effectiveStage,
+      context,
+    });
 
   const rec = recommendClothing({
     tempC,
+    outdoorTempC,
     environment,
     stageId: effectiveStage,
     context,
-    selectedLayers: {
-      base: baseLayer,
-      mid: midLayer,
-      outer: outerLayer,
-    },
+    selectedLayers: activeLayers,
   });
 
   const toggleFlag = (key: keyof ClothingContextFlags) => {
     setContext((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const handleDetectWeather = () => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setWeatherNote('Tu navegador no permite detectar ubicación; ajusta °C afuera manualmente.');
+      return;
+    }
+    setWeatherNote('Consultando clima exterior gratuito...');
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const url = `https://api.open-meteo.com/v1/forecast?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&current=temperature_2m`;
+          const res = await fetch(url);
+          const data = (await res.json()) as {
+            current?: { temperature_2m?: number };
+          };
+          const t = data.current?.temperature_2m;
+          if (typeof t === 'number' && Number.isFinite(t)) {
+            const clamped = Math.min(
+              CLOTHING_MAX_TEMP_C,
+              Math.max(CLOTHING_MIN_TEMP_C, Math.round(t)),
+            );
+            setOutdoorTempC(clamped);
+            setWeatherNote(`Clima exterior detectado: ${clamped} °C (Open-Meteo).`);
+          } else {
+            setWeatherNote('No se pudo leer la temperatura exterior; usa el control manual.');
+          }
+        } catch {
+          setWeatherNote('Sin conexión para clima exterior; usa el control manual.');
+        }
+      },
+      () => {
+        setWeatherNote('Permiso de ubicación denegado; usa el control manual de °C afuera.');
+      },
+      { timeout: 8000 },
+    );
+  };
+
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-brand-text">
-          Motor de decisión (−5 °C a 50 °C) · 100 % offline
-        </p>
+    <div className="mx-auto max-w-3xl space-y-5">
+      <header className="space-y-1.5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-2xl font-bold text-ink-primary sm:text-3xl">
             ¿Cuánta ropa le pongo?
@@ -97,9 +172,8 @@ export function RopaClimaView() {
           Etapa activa:{' '}
           <strong className="text-ink-primary">
             {STAGE_SPECS[effectiveStage].label}
-          </strong>
-          . Incluye opciones cotidianas sin saco TOG y protocolos de calor o
-          frío extremo.
+          </strong>{' '}
+          · Rango −5 °C a 50 °C.
         </p>
       </header>
 
@@ -111,155 +185,10 @@ export function RopaClimaView() {
         />
       )}
 
-      {/* Tarjeta 1: Hero Status Deck */}
+      {/* 1. Hasta arriba fuera del desplegable: Temperatura y Entorno */}
       <section
-        aria-label="Resultado de vestimenta y seguridad térmica"
-        className="rounded-3xl border border-border-interactive bg-bg-card p-5 space-y-5 shadow-sm"
-      >
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-2xl border border-border-interactive bg-bg-elevated p-4 space-y-1">
-            <p className="text-xs font-semibold uppercase text-ink-muted">
-              Temperatura efectiva ({environment === 'cuarto' ? 'cuarto' : 'exterior'})
-            </p>
-            <p className="text-3xl font-bold text-ink-primary tabular-nums">
-              {rec.effectiveTempC} °C
-            </p>
-            <p className="text-xs text-ink-secondary tabular-nums">
-              {environment === 'cuarto' && context.coldWalls
-                ? `${rec.tempC} °C − 1.5 °C por muros fríos`
-                : 'Sin ajuste por muros fríos'}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-border-interactive bg-bg-elevated p-4 space-y-1">
-            <p className="text-xs font-semibold uppercase text-ink-muted">
-              Abrigo actual vs. recomendado
-            </p>
-            <p className="text-3xl font-bold text-ink-primary tabular-nums">
-              {rec.currentTog === null ? 'Inseguro' : `${rec.currentTog} TOG`}
-            </p>
-            <p className="text-xs text-brand-text font-semibold tabular-nums">
-              Recomendado: {rec.recommendedTogRange.min} –{' '}
-              {rec.recommendedTogRange.max} TOG
-            </p>
-          </div>
-        </div>
-
-        {/* Barra de confort térmico de 3 zonas */}
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
-              Zona de confort térmico
-            </span>
-            <StatusBadge severity={rec.severity} />
-          </div>
-          <div className="grid grid-cols-3 gap-1.5 text-center text-xs font-bold">
-            <div
-              className={`rounded-xl border px-2 py-2 ${
-                rec.comfortZone === 'cold'
-                  ? 'border-brand-primary bg-brand-surface text-brand-text'
-                  : 'border-border-interactive bg-bg-elevated text-ink-muted opacity-50'
-              }`}
-            >
-              Puede tener frío
-            </div>
-            <div
-              className={`rounded-xl border px-2 py-2 ${
-                rec.comfortZone === 'optimal'
-                  ? 'border-brand-primary bg-brand-primary text-brand-on'
-                  : 'border-border-interactive bg-bg-elevated text-ink-muted opacity-50'
-              }`}
-            >
-              Abrigo óptimo
-            </div>
-            <div
-              className={`rounded-xl border px-2 py-2 ${
-                rec.comfortZone === 'overheat' ||
-                rec.comfortZone === 'unsafe_sleep'
-                  ? 'border-alert-red bg-alert-surface text-alert-text'
-                  : 'border-border-interactive bg-bg-elevated text-ink-muted opacity-50'
-              }`}
-            >
-              {rec.looseBlanketAlert ? 'Sueño inseguro' : 'Sobrecalentamiento'}
-            </div>
-          </div>
-        </div>
-
-        {rec.looseBlanketAlert ? (
-          <div
-            role="alert"
-            className="rounded-2xl border-2 border-alert-red bg-alert-surface p-4 space-y-1"
-          >
-            <p className="text-sm font-bold text-alert-text">
-              Alerta de sueño inseguro en menores de 12 meses
-            </p>
-            <p className="text-sm text-ink-primary">{rec.togDeltaMx}</p>
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-border-interactive bg-bg-elevated p-4 space-y-1">
-            <p className="text-sm font-bold text-ink-primary">{rec.headlineMx}</p>
-            <p className="text-sm text-ink-secondary">{rec.togDeltaMx}</p>
-          </div>
-        )}
-
-        <SelectedLayersPreview
-          base={baseLayer}
-          mid={midLayer}
-          outer={outerLayer}
-        />
-
-        <div className="space-y-2">
-          <h2 className="text-sm font-bold text-ink-primary">
-            Recomendación por capas (incluye opciones sin saco)
-          </h2>
-          <ul className="list-disc pl-5 space-y-1 text-sm text-ink-primary">
-            {rec.layersMx.map((layer) => (
-              <li key={layer}>{layer}</li>
-            ))}
-          </ul>
-        </div>
-
-        {rec.actionsMx.length > 0 ? (
-          <div className="space-y-2">
-            <h2 className="text-sm font-bold text-ink-primary">Qué hacer</h2>
-            <ul className="list-disc pl-5 space-y-1 text-sm text-ink-secondary">
-              {rec.actionsMx.map((action) => (
-                <li key={action}>{action}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-
-        {rec.doNotDoMx.length > 0 ? (
-          <div className="rounded-2xl border border-alert-red bg-alert-surface p-4 space-y-1.5">
-            <h2 className="text-sm font-bold text-alert-text">Qué NO hacer</h2>
-            <ul className="list-disc pl-5 space-y-1 text-sm text-ink-primary">
-              {rec.doNotDoMx.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-
-        <p className="rounded-xl border border-warm bg-warm-surface px-4 py-3 text-xs font-semibold text-ink-primary">
-          Verificación táctil: {rec.touchCheckMx}
-        </p>
-
-        {rec.emergency911Visible ? (
-          <a
-            href="tel:911"
-            className="flex min-h-12 min-w-12 items-center justify-center gap-2 rounded-2xl bg-alert-red px-5 py-3 text-sm font-bold text-alert-on hover:opacity-95"
-          >
-            <PhoneCallIcon className="h-5 w-5 shrink-0" />
-            <span>Llamar al 911 si observas signos de alarma (Gratis)</span>
-          </a>
-        ) : null}
-      </section>
-
-      {/* Tarjeta 2: Controles interactivos */}
-      <section
-        aria-label="Controles de temperatura y simulador de prendas"
-        className="rounded-3xl border border-border-interactive bg-bg-card p-5 space-y-5 shadow-sm"
+        aria-label="Selector de temperatura y entorno"
+        className="rounded-3xl border border-border-interactive bg-bg-card p-5 space-y-4 shadow-sm"
       >
         <div className="grid grid-cols-2 gap-2">
           {(['cuarto', 'exterior'] as const).map((env) => {
@@ -347,130 +276,461 @@ export function RopaClimaView() {
         </div>
 
         {environment === 'cuarto' ? (
-          <button
-            type="button"
-            onClick={() => toggleFlag('coldWalls')}
-            aria-pressed={context.coldWalls}
-            className={`flex min-h-12 w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm font-semibold ${
-              context.coldWalls
-                ? 'border-brand-primary bg-brand-surface text-brand-text'
-                : 'border-border-interactive bg-bg-elevated text-ink-primary'
-            }`}
-          >
-            <span>Muros fríos o cuna cerca de pared exterior</span>
-            <span className="text-xs font-bold tabular-nums">−1.5 °C</span>
-          </button>
+          <div className="space-y-2 rounded-2xl border border-border-interactive bg-bg-elevated p-3">
+            <button
+              type="button"
+              onClick={() => toggleFlag('coldWalls')}
+              aria-pressed={context.coldWalls}
+              className={`flex min-h-12 w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-xs font-bold ${
+                context.coldWalls
+                  ? 'border-brand-primary bg-brand-surface text-brand-text'
+                  : 'border-border-interactive bg-bg-card text-ink-primary'
+              }`}
+            >
+              <span>Cuna cerca de muro exterior (frío o caliente)</span>
+              <span className="tabular-nums">
+                {context.coldWalls ? rec.wallEffectLabelMx : 'Desactivado'}
+              </span>
+            </button>
+
+            {context.coldWalls ? (
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-ink-secondary">
+                    Afuera:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOutdoorTempC((v) =>
+                        Math.max(CLOTHING_MIN_TEMP_C, (v ?? tempC) - 1),
+                      )
+                    }
+                    className="inline-flex min-h-12 min-w-12 items-center justify-center rounded-xl border border-border-interactive bg-bg-card px-2 text-xs font-bold"
+                  >
+                    −1
+                  </button>
+                  <span className="text-xs font-bold text-ink-primary tabular-nums">
+                    {outdoorTempC !== undefined ? `${outdoorTempC} °C` : 'Auto'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOutdoorTempC((v) =>
+                        Math.min(CLOTHING_MAX_TEMP_C, (v ?? tempC) + 1),
+                      )
+                    }
+                    className="inline-flex min-h-12 min-w-12 items-center justify-center rounded-xl border border-border-interactive bg-bg-card px-2 text-xs font-bold"
+                  >
+                    +1
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDetectWeather}
+                  className="inline-flex min-h-12 items-center rounded-xl border border-brand-primary bg-brand-surface px-3 py-1.5 text-xs font-bold text-brand-text"
+                >
+                  Detectar clima exterior
+                </button>
+              </div>
+            ) : null}
+            {weatherNote ? (
+              <p className="text-xs text-ink-secondary">{weatherNote}</p>
+            ) : null}
+          </div>
         ) : null}
+      </section>
 
-        {/* Simulador de 3 capas con referencias visuales */}
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
-              1. Capa base
+      {/* 2. Menú desplegable colapsable (arriba del resumen, cerrado por defecto) */}
+      <section
+        aria-label="Configurar ropa y contexto"
+        className="rounded-3xl border border-border-interactive bg-bg-card p-5 space-y-4 shadow-sm"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-sm font-bold text-ink-primary">
+              Ropa configurada {customLayers === null ? '(óptimo por defecto)' : '(personalizada)'}
             </p>
-            <div className="flex flex-wrap gap-2">
-              {BASE_LAYER_OPTIONS.map((opt) => {
-                const selected = baseLayer === opt.id;
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setBaseLayer(opt.id)}
-                    aria-pressed={selected}
-                    className={`inline-flex min-h-12 items-center gap-2 rounded-full border px-3.5 py-2 text-xs font-semibold ${
-                      selected
-                        ? 'border-brand-primary bg-brand-surface text-brand-text'
-                        : 'border-border-interactive bg-bg-elevated text-ink-primary'
-                    }`}
-                  >
-                    <GarmentIcon kind={opt.visualKind} className="h-4 w-4" />
-                    <span>{opt.labelMx}</span>
-                  </button>
-                );
-              })}
+            <p className="text-xs text-ink-secondary">
+              {drawerOpen
+                ? 'Elige una o varias prendas por capa y accesorios.'
+                : 'Despliega para personalizar estado del bebé, contexto o prendas.'}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {customLayers !== null ? (
+              <button
+                type="button"
+                onClick={() => setCustomLayers(null)}
+                className="inline-flex min-h-12 items-center rounded-xl border border-border-interactive bg-bg-elevated px-3 py-2 text-xs font-bold text-brand-text"
+              >
+                Restaurar óptimo
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setDrawerOpen((v) => !v)}
+              aria-expanded={drawerOpen}
+              className="inline-flex min-h-12 items-center rounded-xl border border-brand-primary bg-brand-surface px-4 py-2 text-xs font-bold text-brand-text"
+            >
+              {drawerOpen ? 'Ocultar configuración ▴' : 'Configurar ropa y contexto ▾'}
+            </button>
+          </div>
+        </div>
+
+        <SelectedLayersPreview
+          base={activeLayers.base}
+          mid={activeLayers.mid}
+          outer={activeLayers.outer}
+          accessories={activeLayers.accessories}
+        />
+
+        {drawerOpen ? (
+          <div className="space-y-5 border-t border-border-interactive pt-4">
+            {/* Primero arriba al desplegar: Estado del bebé + chips de contexto */}
+            <div className="space-y-2">
+              <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
+                Estado del bebé (elige una opción)
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {HEALTH_OPTIONS.map((opt) => {
+                  const selected = context.babyHealthStatus === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() =>
+                        setContext((prev) => ({
+                          ...prev,
+                          babyHealthStatus: opt.id,
+                          prematureOrLowWeight: opt.id === 'prematuro',
+                          hasFever: opt.id === 'fiebre',
+                        }))
+                      }
+                      aria-pressed={selected}
+                      className={`inline-flex min-h-12 items-center rounded-full border px-3.5 py-2 text-xs font-bold ${
+                        selected
+                          ? 'border-brand-primary bg-brand-primary text-brand-on'
+                          : 'border-border-interactive bg-bg-elevated text-ink-primary'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
+                Contexto adicional
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {CONTEXT_CHIPS.map((chip) => {
+                  const active = context[chip.key];
+                  return (
+                    <button
+                      key={chip.key}
+                      type="button"
+                      onClick={() => toggleFlag(chip.key)}
+                      aria-pressed={active}
+                      className={`inline-flex min-h-12 items-center rounded-full border px-3.5 py-2 text-xs font-semibold ${
+                        active
+                          ? 'border-brand-primary bg-brand-primary text-brand-on'
+                          : 'border-border-interactive bg-bg-elevated text-ink-primary'
+                      }`}
+                    >
+                      {chip.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Multi-selección por capa */}
+            <div className="space-y-2">
+              <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
+                1. Capa base (puedes elegir varias)
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {BASE_LAYER_OPTIONS.map((opt) => {
+                  const selected = activeLayers.base.includes(opt.id);
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() =>
+                        setCustomLayers({
+                          ...activeLayers,
+                          base: toggleMulti<BaseLayerId>(
+                            activeLayers.base,
+                            opt.id,
+                            'ninguna',
+                          ),
+                        })
+                      }
+                      aria-pressed={selected}
+                      className={`inline-flex min-h-12 items-center gap-2 rounded-full border px-3.5 py-2 text-xs font-semibold ${
+                        selected
+                          ? 'border-brand-primary bg-brand-surface text-brand-text'
+                          : 'border-border-interactive bg-bg-elevated text-ink-primary'
+                      }`}
+                    >
+                      <GarmentIcon kind={opt.visualKind} className="h-4 w-4" />
+                      <span>{opt.labelMx}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
+                2. Capa media (puedes elegir varias, ej. mameluco + chamarra)
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {MID_LAYER_OPTIONS.map((opt) => {
+                  const selected = activeLayers.mid.includes(opt.id);
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() =>
+                        setCustomLayers({
+                          ...activeLayers,
+                          mid: toggleMulti<MidLayerId>(
+                            activeLayers.mid,
+                            opt.id,
+                            'ninguna',
+                          ),
+                        })
+                      }
+                      aria-pressed={selected}
+                      className={`inline-flex min-h-12 items-center gap-2 rounded-full border px-3.5 py-2 text-xs font-semibold ${
+                        selected
+                          ? 'border-brand-primary bg-brand-surface text-brand-text'
+                          : 'border-border-interactive bg-bg-elevated text-ink-primary'
+                      }`}
+                    >
+                      <GarmentIcon kind={opt.visualKind} className="h-4 w-4" />
+                      <span>{opt.labelMx}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
+                3. Cobija, manta o saco (puedes combinar)
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {OUTER_LAYER_OPTIONS.map((opt) => {
+                  const selected = activeLayers.outer.includes(opt.id);
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() =>
+                        setCustomLayers({
+                          ...activeLayers,
+                          outer: toggleMulti<OuterLayerId>(
+                            activeLayers.outer,
+                            opt.id,
+                            'ninguna',
+                          ),
+                        })
+                      }
+                      aria-pressed={selected}
+                      className={`inline-flex min-h-12 items-center gap-2 rounded-full border px-3.5 py-2 text-xs font-semibold ${
+                        selected
+                          ? 'border-brand-primary bg-brand-surface text-brand-text'
+                          : 'border-border-interactive bg-bg-elevated text-ink-primary'
+                      }`}
+                    >
+                      <GarmentIcon kind={opt.visualKind} className="h-4 w-4" />
+                      <span>{opt.labelMx}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
+                4. Accesorios (gorro, guantes, calcetines)
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {ACCESSORY_OPTIONS.map((opt) => {
+                  const currentAcc = activeLayers.accessories ?? [];
+                  const selected = currentAcc.includes(opt.id);
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() =>
+                        setCustomLayers({
+                          ...activeLayers,
+                          accessories: toggleMulti<AccessoryId>(
+                            currentAcc,
+                            opt.id,
+                          ),
+                        })
+                      }
+                      aria-pressed={selected}
+                      className={`inline-flex min-h-12 items-center gap-2 rounded-full border px-3.5 py-2 text-xs font-semibold ${
+                        selected
+                          ? 'border-brand-primary bg-brand-surface text-brand-text'
+                          : 'border-border-interactive bg-bg-elevated text-ink-primary'
+                      }`}
+                    >
+                      <GarmentIcon kind={opt.visualKind} className="h-4 w-4" />
+                      <span>{opt.labelMx}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
+        ) : null}
+      </section>
 
-          <div className="space-y-2">
-            <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
-              2. Capa media
+      {/* 3. Justo debajo del desplegable: Resumen / Hero Status Deck */}
+      <section
+        aria-label="Resumen de vestimenta y seguridad térmica"
+        className="rounded-3xl border border-border-interactive bg-bg-card p-5 space-y-5 shadow-sm"
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-2xl border border-border-interactive bg-bg-elevated p-4 space-y-1">
+            <p className="text-xs font-semibold uppercase text-ink-muted">
+              Temperatura efectiva ({environment === 'cuarto' ? 'cuarto' : 'exterior'})
             </p>
-            <div className="flex flex-wrap gap-2">
-              {MID_LAYER_OPTIONS.map((opt) => {
-                const selected = midLayer === opt.id;
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setMidLayer(opt.id)}
-                    aria-pressed={selected}
-                    className={`inline-flex min-h-12 items-center gap-2 rounded-full border px-3.5 py-2 text-xs font-semibold ${
-                      selected
-                        ? 'border-brand-primary bg-brand-surface text-brand-text'
-                        : 'border-border-interactive bg-bg-elevated text-ink-primary'
-                    }`}
-                  >
-                    <GarmentIcon kind={opt.visualKind} className="h-4 w-4" />
-                    <span>{opt.labelMx}</span>
-                  </button>
-                );
-              })}
-            </div>
+            <p className="text-3xl font-bold text-ink-primary tabular-nums">
+              {rec.effectiveTempC} °C
+            </p>
+            <p className="text-xs text-ink-secondary tabular-nums">
+              {rec.wallEffectLabelMx}
+            </p>
           </div>
 
-          <div className="space-y-2">
-            <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
-              3. Cobija, manta o saco exterior
+          <div className="rounded-2xl border border-border-interactive bg-bg-elevated p-4 space-y-1">
+            <p className="text-xs font-semibold uppercase text-ink-muted">
+              Abrigo actual vs. recomendado
             </p>
-            <div className="flex flex-wrap gap-2">
-              {OUTER_LAYER_OPTIONS.map((opt) => {
-                const selected = outerLayer === opt.id;
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setOuterLayer(opt.id)}
-                    aria-pressed={selected}
-                    className={`inline-flex min-h-12 items-center gap-2 rounded-full border px-3.5 py-2 text-xs font-semibold ${
-                      selected
-                        ? 'border-brand-primary bg-brand-surface text-brand-text'
-                        : 'border-border-interactive bg-bg-elevated text-ink-primary'
-                    }`}
-                  >
-                    <GarmentIcon kind={opt.visualKind} className="h-4 w-4" />
-                    <span>{opt.labelMx}</span>
-                  </button>
-                );
-              })}
-            </div>
+            <p className="text-3xl font-bold text-ink-primary tabular-nums">
+              {rec.currentTog === null ? 'Inseguro' : `${rec.currentTog} TOG`}
+            </p>
+            <p className="text-xs text-brand-text font-semibold tabular-nums">
+              Recomendado: {rec.recommendedTogRange.min} –{' '}
+              {rec.recommendedTogRange.max} TOG
+            </p>
           </div>
         </div>
 
         <div className="space-y-2">
-          <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
-            Contexto adicional (opcional)
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {CONTEXT_CHIPS.map((chip) => {
-              const active = context[chip.key];
-              return (
-                <button
-                  key={chip.key}
-                  type="button"
-                  onClick={() => toggleFlag(chip.key)}
-                  aria-pressed={active}
-                  className={`inline-flex min-h-12 items-center rounded-full border px-3.5 py-2 text-xs font-semibold ${
-                    active
-                      ? 'border-brand-primary bg-brand-primary text-brand-on'
-                      : 'border-border-interactive bg-bg-elevated text-ink-primary'
-                  }`}
-                >
-                  {chip.label}
-                </button>
-              );
-            })}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
+              Zona de confort térmico
+            </span>
+            <StatusBadge severity={rec.severity} />
+          </div>
+          <div className="grid grid-cols-3 gap-1.5 text-center text-xs font-bold">
+            <div
+              className={`rounded-xl border px-2 py-2 ${
+                rec.comfortZone === 'cold'
+                  ? 'border-brand-primary bg-brand-surface text-brand-text'
+                  : 'border-border-interactive bg-bg-elevated text-ink-muted opacity-50'
+              }`}
+            >
+              Puede tener frío
+            </div>
+            <div
+              className={`rounded-xl border px-2 py-2 ${
+                rec.comfortZone === 'optimal'
+                  ? 'border-brand-primary bg-brand-primary text-brand-on'
+                  : 'border-border-interactive bg-bg-elevated text-ink-muted opacity-50'
+              }`}
+            >
+              Abrigo óptimo
+            </div>
+            <div
+              className={`rounded-xl border px-2 py-2 ${
+                rec.comfortZone === 'overheat' ||
+                rec.comfortZone === 'unsafe_sleep'
+                  ? 'border-alert-red bg-alert-surface text-alert-text'
+                  : 'border-border-interactive bg-bg-elevated text-ink-muted opacity-50'
+              }`}
+            >
+              {rec.looseBlanketAlert ? 'Sueño inseguro' : 'Sobrecalentamiento'}
+            </div>
           </div>
         </div>
+
+        <div
+          className={`rounded-2xl border p-4 space-y-1 ${
+            rec.looseBlanketAlert
+              ? 'border-2 border-alert-red bg-alert-surface'
+              : 'border-border-interactive bg-bg-elevated'
+          }`}
+        >
+          <p
+            className={`text-sm font-bold ${
+              rec.looseBlanketAlert ? 'text-alert-text' : 'text-ink-primary'
+            }`}
+          >
+            {rec.looseBlanketAlert
+              ? 'Alerta de sueño inseguro en menores de 12 meses'
+              : rec.headlineMx}
+          </p>
+          <p className="text-sm text-ink-primary">{rec.togDeltaMx}</p>
+        </div>
+
+        <div className="space-y-2">
+          <h2 className="text-sm font-bold text-ink-primary">
+            Recomendación por capas (incluye opciones sin saco)
+          </h2>
+          <ul className="list-disc pl-5 space-y-1 text-sm text-ink-primary">
+            {rec.layersMx.map((layer) => (
+              <li key={layer}>{layer}</li>
+            ))}
+          </ul>
+        </div>
+
+        {rec.actionsMx.length > 0 ? (
+          <div className="space-y-2">
+            <h2 className="text-sm font-bold text-ink-primary">Qué hacer</h2>
+            <ul className="list-disc pl-5 space-y-1 text-sm text-ink-secondary">
+              {rec.actionsMx.map((action) => (
+                <li key={action}>{action}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        {rec.doNotDoMx.length > 0 ? (
+          <div className="rounded-2xl border border-alert-red bg-alert-surface p-4 space-y-1.5">
+            <h2 className="text-sm font-bold text-alert-text">Qué NO hacer</h2>
+            <ul className="list-disc pl-5 space-y-1 text-sm text-ink-primary">
+              {rec.doNotDoMx.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        <p className="rounded-xl border border-warm bg-warm-surface px-4 py-3 text-xs font-semibold text-ink-primary">
+          Verificación táctil: {rec.touchCheckMx}
+        </p>
+
+        {rec.emergency911Visible ? (
+          <a
+            href="tel:911"
+            className="flex min-h-12 min-w-12 items-center justify-center gap-2 rounded-2xl bg-alert-red px-5 py-3 text-sm font-bold text-alert-on hover:opacity-95"
+          >
+            <PhoneCallIcon className="h-5 w-5 shrink-0" />
+            <span>Llamar al 911 si observas signos de alarma (Gratis)</span>
+          </a>
+        ) : null}
       </section>
 
       <ClinicalMetadataBlock metadata={CLOTHING_ENGINE_METADATA} />

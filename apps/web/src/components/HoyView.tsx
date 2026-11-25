@@ -25,17 +25,13 @@ export function HoyView() {
 
   return (
     <div className="space-y-6">
-      <header className="space-y-2">
+      <header className="space-y-1">
         <p className="text-xs font-semibold uppercase tracking-wide text-brand-text">
           Hoy · {themeMode === 'night_3am' ? 'Modo 3:00 AM activo' : 'Modo Día Calma'}
         </p>
         <h1 className="text-2xl font-bold text-ink-primary sm:text-3xl">
-          Baby Buddy MX — Tu compañero de 0 a 6 años
+          Resumen diario
         </h1>
-        <p className="text-sm text-ink-secondary">
-          Orientación educativa en español de México y unidades métricas (°C,
-          kg, cm, ml). No sustituye la consulta con tu pediatra.
-        </p>
       </header>
 
       {childProfile ? (

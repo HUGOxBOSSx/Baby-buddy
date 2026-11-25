@@ -1,5 +1,6 @@
 import Feather from '@expo/vector-icons/Feather';
 import {
+  ACCESSORY_OPTIONS,
   BASE_LAYER_OPTIONS,
   CLOTHING_MAX_TEMP_C,
   CLOTHING_MIN_TEMP_C,
@@ -8,12 +9,16 @@ import {
   MIN_TOUCH_TARGET_PX,
   OUTER_LAYER_OPTIONS,
   STAGE_SPECS,
+  getDefaultOptimalLayers,
   recommendClothing,
+  type AccessoryId,
+  type BabyHealthStatus,
   type BaseLayerId,
   type ClothingContextFlags,
   type ClothingEnvironment,
   type MidLayerId,
   type OuterLayerId,
+  type SelectedLayersInput,
 } from '@baby-buddy/core';
 import { CLOTHING_ENGINE_METADATA } from '@baby-buddy/content';
 import { useRouter } from 'expo-router';
@@ -27,17 +32,44 @@ import { useThemeContext } from '../../components/ThemeProvider';
 
 const TEMP_PRESETS = [0, 16, 21, 28, 38] as const;
 
-const CONTEXT_CHIPS: readonly {
-  readonly key: keyof Omit<ClothingContextFlags, 'coldWalls'>;
+const HEALTH_OPTIONS: readonly {
+  readonly id: BabyHealthStatus;
   readonly label: string;
 }[] = [
-  { key: 'prematureOrLowWeight', label: 'Prematuro (+1)' },
-  { key: 'hasFever', label: 'Fiebre (−1)' },
+  { id: 'termino_sano', label: 'Bebé a término / sano' },
+  { id: 'prematuro', label: 'Prematuro (+1)' },
+  { id: 'fiebre', label: 'Fiebre (−1)' },
+] as const;
+
+const CONTEXT_CHIPS: readonly {
+  readonly key:
+    | 'hasAcOrFan'
+    | 'inCarrierOrStroller'
+    | 'inCarSeat'
+    | 'canRollOver';
+  readonly label: string;
+}[] = [
   { key: 'hasAcOrFan', label: 'Clima / ventilador' },
   { key: 'inCarrierOrStroller', label: 'Portabebé (−1)' },
   { key: 'inCarSeat', label: 'Silla de auto' },
   { key: 'canRollOver', label: 'Ya se voltea' },
 ] as const;
+
+function toggleMulti<T extends string>(
+  list: readonly T[],
+  id: T,
+  noneId?: T,
+): T[] {
+  if (noneId && id === noneId) {
+    return [noneId];
+  }
+  const withoutNone = noneId ? list.filter((x) => x !== noneId) : [...list];
+  if (withoutNone.includes(id)) {
+    const next = withoutNone.filter((x) => x !== id);
+    return next.length === 0 && noneId ? [noneId] : next;
+  }
+  return [...withoutNone, id];
+}
 
 export default function RopaYClimaScreen() {
   const router = useRouter();
@@ -46,25 +78,34 @@ export default function RopaYClimaScreen() {
   const effectiveStage = childProfile ? childProfile.stageId : selectedStage;
 
   const [tempC, setTempC] = useState<number>(21);
+  const [outdoorTempC, setOutdoorTempC] = useState<number | undefined>(undefined);
   const [environment, setEnvironment] =
     useState<ClothingEnvironment>('cuarto');
   const [context, setContext] = useState<ClothingContextFlags>(
     DEFAULT_CLOTHING_CONTEXT,
   );
-  const [baseLayer, setBaseLayer] = useState<BaseLayerId>('panalero_larga');
-  const [midLayer, setMidLayer] = useState<MidLayerId>('mameluco_algodon');
-  const [outerLayer, setOuterLayer] = useState<OuterLayerId>('saco_10');
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [customLayers, setCustomLayers] = useState<SelectedLayersInput | null>(
+    null,
+  );
+
+  const activeLayers =
+    customLayers ??
+    getDefaultOptimalLayers({
+      tempC,
+      outdoorTempC,
+      environment,
+      stageId: effectiveStage,
+      context,
+    });
 
   const rec = recommendClothing({
     tempC,
+    outdoorTempC,
     environment,
     stageId: effectiveStage,
     context,
-    selectedLayers: {
-      base: baseLayer,
-      mid: midLayer,
-      outer: outerLayer,
-    },
+    selectedLayers: activeLayers,
   });
 
   const toggleFlag = (key: keyof ClothingContextFlags) => {
@@ -85,12 +126,9 @@ export default function RopaYClimaScreen() {
           ¿Cuánta ropa le pongo?
         </Text>
         <Text className="text-sm" style={{ color: palette.textSecondary }}>
-          Motor de −5 °C a 50 °C (100 % offline) · Etapa:{' '}
-          {STAGE_SPECS[effectiveStage].label}
+          Etapa: {STAGE_SPECS[effectiveStage].label} · −5 °C a 50 °C
         </Text>
       </View>
-
-      <GuideDisclaimerHeader metadata={CLOTHING_ENGINE_METADATA} />
 
       {childProfile ? (
         <Pressable
@@ -110,7 +148,473 @@ export default function RopaYClimaScreen() {
         <StageSelector />
       )}
 
-      {/* Tarjeta 1: Hero Status Deck */}
+      {/* 1. Hasta arriba fuera del desplegable: Temperatura y Entorno */}
+      <View
+        className="rounded-3xl border p-4 gap-4"
+        style={{
+          backgroundColor: palette.bgCard,
+          borderColor: palette.borderInteractive,
+        }}
+      >
+        <View className="flex-row gap-2">
+          {(['cuarto', 'exterior'] as const).map((env) => {
+            const active = environment === env;
+            return (
+              <Pressable
+                key={env}
+                onPress={() => setEnvironment(env)}
+                className="flex-1 rounded-xl border px-3 py-2 items-center justify-center"
+                style={{
+                  minHeight: MIN_TOUCH_TARGET_PX,
+                  backgroundColor: active
+                    ? palette.brandPrimary
+                    : palette.bgElevated,
+                  borderColor: active
+                    ? palette.brandPrimary
+                    : palette.borderInteractive,
+                }}
+              >
+                <Text
+                  className="text-xs font-bold"
+                  style={{
+                    color: active ? palette.onBrandPrimary : palette.textPrimary,
+                  }}
+                >
+                  {env === 'cuarto' ? 'Cuarto' : 'Exterior'}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <View className="flex-row items-center justify-between gap-2">
+          <Pressable
+            onPress={() =>
+              setTempC((t) => Math.max(CLOTHING_MIN_TEMP_C, t - 1))
+            }
+            className="rounded-xl border px-4 py-2 justify-center"
+            style={{
+              minHeight: MIN_TOUCH_TARGET_PX,
+              backgroundColor: palette.bgElevated,
+              borderColor: palette.borderInteractive,
+            }}
+          >
+            <Text className="text-base font-bold" style={{ color: palette.textPrimary }}>
+              −1 °C
+            </Text>
+          </Pressable>
+          <Text className="text-2xl font-bold" style={{ color: palette.brandText }}>
+            {tempC} °C
+          </Text>
+          <Pressable
+            onPress={() =>
+              setTempC((t) => Math.min(CLOTHING_MAX_TEMP_C, t + 1))
+            }
+            className="rounded-xl border px-4 py-2 justify-center"
+            style={{
+              minHeight: MIN_TOUCH_TARGET_PX,
+              backgroundColor: palette.bgElevated,
+              borderColor: palette.borderInteractive,
+            }}
+          >
+            <Text className="text-base font-bold" style={{ color: palette.textPrimary }}>
+              +1 °C
+            </Text>
+          </Pressable>
+        </View>
+
+        <View className="flex-row flex-wrap gap-2">
+          {TEMP_PRESETS.map((preset) => (
+            <Pressable
+              key={preset}
+              onPress={() => setTempC(preset)}
+              className="rounded-xl border px-3 py-2 justify-center"
+              style={{
+                minHeight: MIN_TOUCH_TARGET_PX,
+                backgroundColor:
+                  tempC === preset ? palette.brandSurface : palette.bgElevated,
+                borderColor:
+                  tempC === preset
+                    ? palette.brandPrimary
+                    : palette.borderInteractive,
+              }}
+            >
+              <Text className="text-xs font-bold" style={{ color: palette.textPrimary }}>
+                {preset} °C
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {environment === 'cuarto' ? (
+          <View className="gap-2">
+            <Pressable
+              onPress={() => toggleFlag('coldWalls')}
+              className="rounded-xl border px-4 py-2 flex-row items-center justify-between"
+              style={{
+                minHeight: MIN_TOUCH_TARGET_PX,
+                backgroundColor: context.coldWalls
+                  ? palette.brandSurface
+                  : palette.bgElevated,
+                borderColor: context.coldWalls
+                  ? palette.brandPrimary
+                  : palette.borderInteractive,
+              }}
+            >
+              <Text className="text-xs font-bold" style={{ color: palette.textPrimary }}>
+                Cuna cerca de muro exterior
+              </Text>
+              <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
+                {context.coldWalls ? rec.wallEffectLabelMx : 'Desactivado'}
+              </Text>
+            </Pressable>
+            {context.coldWalls ? (
+              <View className="flex-row items-center justify-between gap-2">
+                <Text className="text-xs font-semibold" style={{ color: palette.textSecondary }}>
+                  Temp. afuera: {outdoorTempC !== undefined ? `${outdoorTempC} °C` : 'Auto'}
+                </Text>
+                <View className="flex-row gap-2">
+                  <Pressable
+                    onPress={() =>
+                      setOutdoorTempC((v) =>
+                        Math.max(CLOTHING_MIN_TEMP_C, (v ?? tempC) - 1),
+                      )
+                    }
+                    className="rounded-xl border px-3 py-1.5 justify-center"
+                    style={{
+                      minHeight: MIN_TOUCH_TARGET_PX,
+                      backgroundColor: palette.bgElevated,
+                      borderColor: palette.borderInteractive,
+                    }}
+                  >
+                    <Text className="text-xs font-bold" style={{ color: palette.textPrimary }}>
+                      −1 °C
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() =>
+                      setOutdoorTempC((v) =>
+                        Math.min(CLOTHING_MAX_TEMP_C, (v ?? tempC) + 1),
+                      )
+                    }
+                    className="rounded-xl border px-3 py-1.5 justify-center"
+                    style={{
+                      minHeight: MIN_TOUCH_TARGET_PX,
+                      backgroundColor: palette.bgElevated,
+                      borderColor: palette.borderInteractive,
+                    }}
+                  >
+                    <Text className="text-xs font-bold" style={{ color: palette.textPrimary }}>
+                      +1 °C
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+      </View>
+
+      {/* 2. Menú desplegable colapsable (cerrado por defecto) */}
+      <View
+        className="rounded-3xl border p-4 gap-3"
+        style={{
+          backgroundColor: palette.bgCard,
+          borderColor: palette.borderInteractive,
+        }}
+      >
+        <View className="flex-row items-center justify-between flex-wrap gap-2">
+          <Text className="text-sm font-bold" style={{ color: palette.textPrimary }}>
+            Ropa configurada {customLayers === null ? '(óptimo)' : '(personalizada)'}
+          </Text>
+          <View className="flex-row gap-2">
+            {customLayers !== null ? (
+              <Pressable
+                onPress={() => setCustomLayers(null)}
+                className="rounded-xl border px-3 py-2 justify-center"
+                style={{
+                  minHeight: MIN_TOUCH_TARGET_PX,
+                  backgroundColor: palette.bgElevated,
+                  borderColor: palette.borderInteractive,
+                }}
+              >
+                <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
+                  Óptimo
+                </Text>
+              </Pressable>
+            ) : null}
+            <Pressable
+              onPress={() => setDrawerOpen((v) => !v)}
+              className="rounded-xl border px-3 py-2 justify-center"
+              style={{
+                minHeight: MIN_TOUCH_TARGET_PX,
+                backgroundColor: palette.brandSurface,
+                borderColor: palette.brandPrimary,
+              }}
+            >
+              <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
+                {drawerOpen ? 'Ocultar ▴' : 'Configurar ▾'}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+
+        <SelectedLayersPreview
+          base={activeLayers.base}
+          mid={activeLayers.mid}
+          outer={activeLayers.outer}
+          accessories={activeLayers.accessories}
+        />
+
+        {drawerOpen ? (
+          <View className="gap-4 pt-2 border-t" style={{ borderTopColor: palette.borderInteractive }}>
+            <View className="gap-2">
+              <Text className="text-xs font-bold uppercase" style={{ color: palette.textSecondary }}>
+                Estado del bebé
+              </Text>
+              <View className="flex-row flex-wrap gap-2">
+                {HEALTH_OPTIONS.map((opt) => {
+                  const selected = context.babyHealthStatus === opt.id;
+                  return (
+                    <Pressable
+                      key={opt.id}
+                      onPress={() =>
+                        setContext((prev) => ({
+                          ...prev,
+                          babyHealthStatus: opt.id,
+                          prematureOrLowWeight: opt.id === 'prematuro',
+                          hasFever: opt.id === 'fiebre',
+                        }))
+                      }
+                      className="rounded-full border px-3 py-2 justify-center"
+                      style={{
+                        minHeight: MIN_TOUCH_TARGET_PX,
+                        backgroundColor: selected
+                          ? palette.brandPrimary
+                          : palette.bgElevated,
+                        borderColor: selected
+                          ? palette.brandPrimary
+                          : palette.borderInteractive,
+                      }}
+                    >
+                      <Text
+                        className="text-xs font-bold"
+                        style={{
+                          color: selected
+                            ? palette.onBrandPrimary
+                            : palette.textPrimary,
+                        }}
+                      >
+                        {opt.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+
+            <View className="gap-2">
+              <Text className="text-xs font-bold uppercase" style={{ color: palette.textSecondary }}>
+                Contexto adicional
+              </Text>
+              <View className="flex-row flex-wrap gap-2">
+                {CONTEXT_CHIPS.map((chip) => {
+                  const active = context[chip.key];
+                  return (
+                    <Pressable
+                      key={chip.key}
+                      onPress={() => toggleFlag(chip.key)}
+                      className="rounded-full border px-3 py-2 justify-center"
+                      style={{
+                        minHeight: MIN_TOUCH_TARGET_PX,
+                        backgroundColor: active
+                          ? palette.brandPrimary
+                          : palette.bgElevated,
+                        borderColor: active
+                          ? palette.brandPrimary
+                          : palette.borderInteractive,
+                      }}
+                    >
+                      <Text
+                        className="text-xs font-semibold"
+                        style={{
+                          color: active
+                            ? palette.onBrandPrimary
+                            : palette.textPrimary,
+                        }}
+                      >
+                        {chip.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+
+            <View className="gap-2">
+              <Text className="text-xs font-bold uppercase" style={{ color: palette.textSecondary }}>
+                1. Capa base (multi-selección)
+              </Text>
+              <View className="flex-row flex-wrap gap-2">
+                {BASE_LAYER_OPTIONS.map((opt) => {
+                  const selected = activeLayers.base.includes(opt.id);
+                  return (
+                    <Pressable
+                      key={opt.id}
+                      onPress={() =>
+                        setCustomLayers({
+                          ...activeLayers,
+                          base: toggleMulti<BaseLayerId>(
+                            activeLayers.base,
+                            opt.id,
+                            'ninguna',
+                          ),
+                        })
+                      }
+                      className="rounded-full border px-3 py-2 justify-center"
+                      style={{
+                        minHeight: MIN_TOUCH_TARGET_PX,
+                        backgroundColor: selected
+                          ? palette.brandSurface
+                          : palette.bgElevated,
+                        borderColor: selected
+                          ? palette.brandPrimary
+                          : palette.borderInteractive,
+                      }}
+                    >
+                      <Text className="text-xs font-semibold" style={{ color: palette.textPrimary }}>
+                        {opt.labelMx}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+
+            <View className="gap-2">
+              <Text className="text-xs font-bold uppercase" style={{ color: palette.textSecondary }}>
+                2. Capa media (multi-selección)
+              </Text>
+              <View className="flex-row flex-wrap gap-2">
+                {MID_LAYER_OPTIONS.map((opt) => {
+                  const selected = activeLayers.mid.includes(opt.id);
+                  return (
+                    <Pressable
+                      key={opt.id}
+                      onPress={() =>
+                        setCustomLayers({
+                          ...activeLayers,
+                          mid: toggleMulti<MidLayerId>(
+                            activeLayers.mid,
+                            opt.id,
+                            'ninguna',
+                          ),
+                        })
+                      }
+                      className="rounded-full border px-3 py-2 justify-center"
+                      style={{
+                        minHeight: MIN_TOUCH_TARGET_PX,
+                        backgroundColor: selected
+                          ? palette.brandSurface
+                          : palette.bgElevated,
+                        borderColor: selected
+                          ? palette.brandPrimary
+                          : palette.borderInteractive,
+                      }}
+                    >
+                      <Text className="text-xs font-semibold" style={{ color: palette.textPrimary }}>
+                        {opt.labelMx}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+
+            <View className="gap-2">
+              <Text className="text-xs font-bold uppercase" style={{ color: palette.textSecondary }}>
+                3. Cobija, manta o saco (multi-selección)
+              </Text>
+              <View className="flex-row flex-wrap gap-2">
+                {OUTER_LAYER_OPTIONS.map((opt) => {
+                  const selected = activeLayers.outer.includes(opt.id);
+                  return (
+                    <Pressable
+                      key={opt.id}
+                      onPress={() =>
+                        setCustomLayers({
+                          ...activeLayers,
+                          outer: toggleMulti<OuterLayerId>(
+                            activeLayers.outer,
+                            opt.id,
+                            'ninguna',
+                          ),
+                        })
+                      }
+                      className="rounded-full border px-3 py-2 justify-center"
+                      style={{
+                        minHeight: MIN_TOUCH_TARGET_PX,
+                        backgroundColor: selected
+                          ? palette.brandSurface
+                          : palette.bgElevated,
+                        borderColor: selected
+                          ? palette.brandPrimary
+                          : palette.borderInteractive,
+                      }}
+                    >
+                      <Text className="text-xs font-semibold" style={{ color: palette.textPrimary }}>
+                        {opt.labelMx}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+
+            <View className="gap-2">
+              <Text className="text-xs font-bold uppercase" style={{ color: palette.textSecondary }}>
+                4. Accesorios (gorro, guantes, calcetines)
+              </Text>
+              <View className="flex-row flex-wrap gap-2">
+                {ACCESSORY_OPTIONS.map((opt) => {
+                  const currentAcc = activeLayers.accessories ?? [];
+                  const selected = currentAcc.includes(opt.id);
+                  return (
+                    <Pressable
+                      key={opt.id}
+                      onPress={() =>
+                        setCustomLayers({
+                          ...activeLayers,
+                          accessories: toggleMulti<AccessoryId>(
+                            currentAcc,
+                            opt.id,
+                          ),
+                        })
+                      }
+                      className="rounded-full border px-3 py-2 justify-center"
+                      style={{
+                        minHeight: MIN_TOUCH_TARGET_PX,
+                        backgroundColor: selected
+                          ? palette.brandSurface
+                          : palette.bgElevated,
+                        borderColor: selected
+                          ? palette.brandPrimary
+                          : palette.borderInteractive,
+                      }}
+                    >
+                      <Text className="text-xs font-semibold" style={{ color: palette.textPrimary }}>
+                        {opt.labelMx}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+        ) : null}
+      </View>
+
+      {/* 3. Justo debajo: Resumen / Hero Status Deck */}
       <View
         className="rounded-3xl border p-4 gap-4"
         style={{
@@ -133,9 +637,7 @@ export default function RopaYClimaScreen() {
               {rec.effectiveTempC} °C
             </Text>
             <Text className="text-[11px]" style={{ color: palette.textSecondary }}>
-              {environment === 'cuarto' && context.coldWalls
-                ? `${rec.tempC} °C − 1.5 °C muros`
-                : 'Sin ajuste'}
+              {rec.wallEffectLabelMx}
             </Text>
           </View>
 
@@ -240,12 +742,6 @@ export default function RopaYClimaScreen() {
           </Text>
         </View>
 
-        <SelectedLayersPreview
-          base={baseLayer}
-          mid={midLayer}
-          outer={outerLayer}
-        />
-
         <View className="gap-1">
           <Text className="text-xs font-bold uppercase" style={{ color: palette.textPrimary }}>
             Capas sugeridas (incluye opciones sin saco)
@@ -301,256 +797,7 @@ export default function RopaYClimaScreen() {
         ) : null}
       </View>
 
-      {/* Tarjeta 2: Controles */}
-      <View
-        className="rounded-3xl border p-4 gap-4"
-        style={{
-          backgroundColor: palette.bgCard,
-          borderColor: palette.borderInteractive,
-        }}
-      >
-        <View className="flex-row gap-2">
-          {(['cuarto', 'exterior'] as const).map((env) => {
-            const active = environment === env;
-            return (
-              <Pressable
-                key={env}
-                onPress={() => setEnvironment(env)}
-                className="flex-1 rounded-xl border px-3 py-2 items-center justify-center"
-                style={{
-                  minHeight: MIN_TOUCH_TARGET_PX,
-                  backgroundColor: active
-                    ? palette.brandPrimary
-                    : palette.bgElevated,
-                  borderColor: active
-                    ? palette.brandPrimary
-                    : palette.borderInteractive,
-                }}
-              >
-                <Text
-                  className="text-xs font-bold"
-                  style={{
-                    color: active ? palette.onBrandPrimary : palette.textPrimary,
-                  }}
-                >
-                  {env === 'cuarto' ? 'Cuarto' : 'Exterior'}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        <View className="flex-row items-center justify-between gap-2">
-          <Pressable
-            onPress={() =>
-              setTempC((t) => Math.max(CLOTHING_MIN_TEMP_C, t - 1))
-            }
-            className="rounded-xl border px-4 py-2 justify-center"
-            style={{
-              minHeight: MIN_TOUCH_TARGET_PX,
-              backgroundColor: palette.bgElevated,
-              borderColor: palette.borderInteractive,
-            }}
-          >
-            <Text className="text-base font-bold" style={{ color: palette.textPrimary }}>
-              −1 °C
-            </Text>
-          </Pressable>
-          <Text className="text-2xl font-bold" style={{ color: palette.brandText }}>
-            {tempC} °C
-          </Text>
-          <Pressable
-            onPress={() =>
-              setTempC((t) => Math.min(CLOTHING_MAX_TEMP_C, t + 1))
-            }
-            className="rounded-xl border px-4 py-2 justify-center"
-            style={{
-              minHeight: MIN_TOUCH_TARGET_PX,
-              backgroundColor: palette.bgElevated,
-              borderColor: palette.borderInteractive,
-            }}
-          >
-            <Text className="text-base font-bold" style={{ color: palette.textPrimary }}>
-              +1 °C
-            </Text>
-          </Pressable>
-        </View>
-
-        <View className="flex-row flex-wrap gap-2">
-          {TEMP_PRESETS.map((preset) => (
-            <Pressable
-              key={preset}
-              onPress={() => setTempC(preset)}
-              className="rounded-xl border px-3 py-2 justify-center"
-              style={{
-                minHeight: MIN_TOUCH_TARGET_PX,
-                backgroundColor:
-                  tempC === preset ? palette.brandSurface : palette.bgElevated,
-                borderColor:
-                  tempC === preset
-                    ? palette.brandPrimary
-                    : palette.borderInteractive,
-              }}
-            >
-              <Text className="text-xs font-bold" style={{ color: palette.textPrimary }}>
-                {preset} °C
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        {environment === 'cuarto' ? (
-          <Pressable
-            onPress={() => toggleFlag('coldWalls')}
-            className="rounded-xl border px-4 py-2 flex-row items-center justify-between"
-            style={{
-              minHeight: MIN_TOUCH_TARGET_PX,
-              backgroundColor: context.coldWalls
-                ? palette.brandSurface
-                : palette.bgElevated,
-              borderColor: context.coldWalls
-                ? palette.brandPrimary
-                : palette.borderInteractive,
-            }}
-          >
-            <Text className="text-xs font-bold" style={{ color: palette.textPrimary }}>
-              Muros fríos / pared exterior
-            </Text>
-            <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
-              −1.5 °C
-            </Text>
-          </Pressable>
-        ) : null}
-
-        <View className="gap-2">
-          <Text className="text-xs font-bold uppercase" style={{ color: palette.textSecondary }}>
-            1. Capa base
-          </Text>
-          <View className="flex-row flex-wrap gap-2">
-            {BASE_LAYER_OPTIONS.map((opt) => {
-              const selected = baseLayer === opt.id;
-              return (
-                <Pressable
-                  key={opt.id}
-                  onPress={() => setBaseLayer(opt.id)}
-                  className="rounded-full border px-3 py-2 justify-center"
-                  style={{
-                    minHeight: MIN_TOUCH_TARGET_PX,
-                    backgroundColor: selected
-                      ? palette.brandSurface
-                      : palette.bgElevated,
-                    borderColor: selected
-                      ? palette.brandPrimary
-                      : palette.borderInteractive,
-                  }}
-                >
-                  <Text className="text-xs font-semibold" style={{ color: palette.textPrimary }}>
-                    {opt.labelMx}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
-        <View className="gap-2">
-          <Text className="text-xs font-bold uppercase" style={{ color: palette.textSecondary }}>
-            2. Capa media
-          </Text>
-          <View className="flex-row flex-wrap gap-2">
-            {MID_LAYER_OPTIONS.map((opt) => {
-              const selected = midLayer === opt.id;
-              return (
-                <Pressable
-                  key={opt.id}
-                  onPress={() => setMidLayer(opt.id)}
-                  className="rounded-full border px-3 py-2 justify-center"
-                  style={{
-                    minHeight: MIN_TOUCH_TARGET_PX,
-                    backgroundColor: selected
-                      ? palette.brandSurface
-                      : palette.bgElevated,
-                    borderColor: selected
-                      ? palette.brandPrimary
-                      : palette.borderInteractive,
-                  }}
-                >
-                  <Text className="text-xs font-semibold" style={{ color: palette.textPrimary }}>
-                    {opt.labelMx}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
-        <View className="gap-2">
-          <Text className="text-xs font-bold uppercase" style={{ color: palette.textSecondary }}>
-            3. Cobija, manta o saco
-          </Text>
-          <View className="flex-row flex-wrap gap-2">
-            {OUTER_LAYER_OPTIONS.map((opt) => {
-              const selected = outerLayer === opt.id;
-              return (
-                <Pressable
-                  key={opt.id}
-                  onPress={() => setOuterLayer(opt.id)}
-                  className="rounded-full border px-3 py-2 justify-center"
-                  style={{
-                    minHeight: MIN_TOUCH_TARGET_PX,
-                    backgroundColor: selected
-                      ? palette.brandSurface
-                      : palette.bgElevated,
-                    borderColor: selected
-                      ? palette.brandPrimary
-                      : palette.borderInteractive,
-                  }}
-                >
-                  <Text className="text-xs font-semibold" style={{ color: palette.textPrimary }}>
-                    {opt.labelMx}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
-        <View className="gap-2">
-          <Text className="text-xs font-bold uppercase" style={{ color: palette.textSecondary }}>
-            Contexto adicional
-          </Text>
-          <View className="flex-row flex-wrap gap-2">
-            {CONTEXT_CHIPS.map((chip) => {
-              const active = context[chip.key];
-              return (
-                <Pressable
-                  key={chip.key}
-                  onPress={() => toggleFlag(chip.key)}
-                  className="rounded-full border px-3 py-2 justify-center"
-                  style={{
-                    minHeight: MIN_TOUCH_TARGET_PX,
-                    backgroundColor: active
-                      ? palette.brandPrimary
-                      : palette.bgElevated,
-                    borderColor: active
-                      ? palette.brandPrimary
-                      : palette.borderInteractive,
-                  }}
-                >
-                  <Text
-                    className="text-xs font-semibold"
-                    style={{
-                      color: active ? palette.onBrandPrimary : palette.textPrimary,
-                    }}
-                  >
-                    {chip.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-      </View>
+      <GuideDisclaimerHeader metadata={CLOTHING_ENGINE_METADATA} />
     </ScrollView>
   );
 }

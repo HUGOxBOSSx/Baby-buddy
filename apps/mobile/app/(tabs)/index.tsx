@@ -46,10 +46,7 @@ export default function HoyScreen() {
             className="text-2xl font-bold"
             style={{ color: palette.textPrimary }}
           >
-            Baby Buddy MX — Hoy
-          </Text>
-          <Text className="text-sm" style={{ color: palette.textSecondary }}>
-            Tu compañero de 0 a 6 años en español de México y unidades métricas.
+            Resumen diario
           </Text>
         </View>
 

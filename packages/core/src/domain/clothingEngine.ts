@@ -15,6 +15,8 @@ export type ThermalBand =
   | 'calor_extremo';
 
 export type ComfortZone = 'cold' | 'optimal' | 'overheat' | 'unsafe_sleep';
+export type BabyHealthStatus = 'termino_sano' | 'prematuro' | 'fiebre';
+export type WallEffectMode = 'auto' | 'frio' | 'caliente';
 
 export type BaseLayerId =
   | 'ninguna'
@@ -42,6 +44,8 @@ export type OuterLayerId =
   | 'saco_35'
   | 'cobija_suelta';
 
+export type AccessoryId = 'gorro' | 'guantes' | 'calcetines';
+
 export type GarmentVisualKind =
   | 'none'
   | 'sleeveless_bodysuit'
@@ -57,7 +61,10 @@ export type GarmentVisualKind =
   | 'swaddle_cotton'
   | 'fleece_blanket'
   | 'sleep_sack'
-  | 'loose_blanket';
+  | 'loose_blanket'
+  | 'hat'
+  | 'mittens'
+  | 'socks';
 
 export interface LayerOption<T extends string> {
   readonly id: T;
@@ -180,13 +187,31 @@ export const OUTER_LAYER_OPTIONS: readonly LayerOption<OuterLayerId>[] = [
   },
 ] as const;
 
+export const ACCESSORY_OPTIONS: readonly LayerOption<AccessoryId>[] = [
+  { id: 'gorro', labelMx: 'Gorro', tog: 0.3, visualKind: 'hat' },
+  {
+    id: 'guantes',
+    labelMx: 'Guantes / manoplas',
+    tog: 0.15,
+    visualKind: 'mittens',
+  },
+  {
+    id: 'calcetines',
+    labelMx: 'Calcetines / botitas',
+    tog: 0.15,
+    visualKind: 'socks',
+  },
+] as const;
+
 export interface SelectedLayersInput {
-  readonly base: BaseLayerId;
-  readonly mid: MidLayerId;
-  readonly outer: OuterLayerId;
+  readonly base: readonly BaseLayerId[];
+  readonly mid: readonly MidLayerId[];
+  readonly outer: readonly OuterLayerId[];
+  readonly accessories?: readonly AccessoryId[];
 }
 
 export interface ClothingContextFlags {
+  readonly babyHealthStatus: BabyHealthStatus;
   readonly prematureOrLowWeight: boolean;
   readonly hasFever: boolean;
   readonly hasAcOrFan: boolean;
@@ -194,9 +219,11 @@ export interface ClothingContextFlags {
   readonly inCarSeat: boolean;
   readonly canRollOver: boolean;
   readonly coldWalls: boolean;
+  readonly wallEffectMode: WallEffectMode;
 }
 
 export const DEFAULT_CLOTHING_CONTEXT: ClothingContextFlags = {
+  babyHealthStatus: 'termino_sano',
   prematureOrLowWeight: false,
   hasFever: false,
   hasAcOrFan: false,
@@ -204,10 +231,12 @@ export const DEFAULT_CLOTHING_CONTEXT: ClothingContextFlags = {
   inCarSeat: false,
   canRollOver: false,
   coldWalls: false,
+  wallEffectMode: 'auto',
 };
 
 export interface ClothingRecommendationInput {
   readonly tempC: number;
+  readonly outdoorTempC?: number;
   readonly environment: ClothingEnvironment;
   readonly stageId: StageId;
   readonly context?: Partial<ClothingContextFlags>;
@@ -222,6 +251,8 @@ export interface TogRange {
 export interface ClothingRecommendation {
   readonly tempC: number;
   readonly effectiveTempC: number;
+  readonly wallAdjustmentC: number;
+  readonly wallEffectLabelMx: string;
   readonly environment: ClothingEnvironment;
   readonly stageId: StageId;
   readonly band: ThermalBand;
@@ -240,9 +271,52 @@ export interface ClothingRecommendation {
   readonly touchCheckMx: string;
 }
 
+function resolveWallAdjustment(
+  tempC: number,
+  outdoorTempC: number | undefined,
+  environment: ClothingEnvironment,
+  ctx: ClothingContextFlags,
+): { readonly wallAdjustmentC: number; readonly wallEffectLabelMx: string } {
+  if (environment !== 'cuarto' || !ctx.coldWalls) {
+    return {
+      wallAdjustmentC: 0,
+      wallEffectLabelMx: 'Sin ajuste por muro exterior',
+    };
+  }
+  if (outdoorTempC !== undefined) {
+    if (outdoorTempC <= tempC - 3) {
+      return {
+        wallAdjustmentC: -1.5,
+        wallEffectLabelMx: `−1.5 °C por muro exterior frío (${outdoorTempC} °C afuera)`,
+      };
+    }
+    if (outdoorTempC >= tempC + 3) {
+      return {
+        wallAdjustmentC: 1.5,
+        wallEffectLabelMx: `+1.5 °C por muro exterior caliente (${outdoorTempC} °C afuera)`,
+      };
+    }
+    return {
+      wallAdjustmentC: 0,
+      wallEffectLabelMx: `0 °C (exterior ${outdoorTempC} °C similar al cuarto)`,
+    };
+  }
+  if (ctx.wallEffectMode === 'caliente') {
+    return {
+      wallAdjustmentC: 1.5,
+      wallEffectLabelMx: '+1.5 °C por muro exterior caliente',
+    };
+  }
+  return {
+    wallAdjustmentC: -1.5,
+    wallEffectLabelMx: '−1.5 °C por muro exterior frío',
+  };
+}
+
 function getRecommendedTogRange(
   effectiveTempC: number,
-  ctx: ClothingContextFlags,
+  isPremature: boolean,
+  hasFever: boolean,
 ): TogRange {
   let min = 1.0;
   let max = 1.9;
@@ -266,11 +340,11 @@ function getRecommendedTogRange(
     max = 4.5;
   }
 
-  if (ctx.hasFever) {
+  if (hasFever) {
     min = Math.max(0, Number((min - 0.5).toFixed(2)));
     max = Math.max(0.2, Number((max - 0.5).toFixed(2)));
   }
-  if (ctx.prematureOrLowWeight) {
+  if (isPremature) {
     min = Number((min + 0.3).toFixed(2));
     max = Number((max + 0.3).toFixed(2));
   }
@@ -280,25 +354,121 @@ function getRecommendedTogRange(
 function computeCurrentTog(
   layers: SelectedLayersInput | undefined,
   isUnder12m: boolean,
+  environment: ClothingEnvironment,
 ): number | null {
   if (!layers) {
     return null;
   }
-  if (isUnder12m && (layers.outer === 'cobija_suelta' || layers.outer === 'cobija_polar')) {
+  if (
+    environment === 'cuarto' &&
+    isUnder12m &&
+    (layers.outer.includes('cobija_suelta') ||
+      layers.outer.includes('cobija_polar'))
+  ) {
     return null;
   }
-  const baseTog =
-    BASE_LAYER_OPTIONS.find((o) => o.id === layers.base)?.tog ?? 0;
-  const midTog = MID_LAYER_OPTIONS.find((o) => o.id === layers.mid)?.tog ?? 0;
-  const outerTog =
-    OUTER_LAYER_OPTIONS.find((o) => o.id === layers.outer)?.tog ?? 0;
-  return Number((baseTog + midTog + outerTog).toFixed(2));
+  const sum = <T extends string>(
+    ids: readonly T[],
+    opts: readonly LayerOption<T>[],
+  ) =>
+    ids.reduce(
+      (acc, id) => acc + (opts.find((o) => o.id === id)?.tog ?? 0),
+      0,
+    );
+
+  const total =
+    sum(layers.base, BASE_LAYER_OPTIONS) +
+    sum(layers.mid, MID_LAYER_OPTIONS) +
+    sum(layers.outer, OUTER_LAYER_OPTIONS) +
+    sum(layers.accessories ?? [], ACCESSORY_OPTIONS);
+  return Number(total.toFixed(2));
+}
+
+export function getDefaultOptimalLayers(
+  input: Omit<ClothingRecommendationInput, 'selectedLayers'>,
+): SelectedLayersInput {
+  const ctx: ClothingContextFlags = {
+    ...DEFAULT_CLOTHING_CONTEXT,
+    ...input.context,
+  };
+  const { wallAdjustmentC } = resolveWallAdjustment(
+    input.tempC,
+    input.outdoorTempC,
+    input.environment,
+    ctx,
+  );
+  const eff = Math.min(
+    CLOTHING_MAX_TEMP_C,
+    Math.max(
+      CLOTHING_MIN_TEMP_C,
+      Number((input.tempC + wallAdjustmentC).toFixed(1)),
+    ),
+  );
+
+  if (eff >= 35) {
+    return { base: ['ninguna'], mid: [], outer: [], accessories: [] };
+  }
+  if (eff >= 28) {
+    return {
+      base: ['panalero_sin_mangas'],
+      mid: [],
+      outer: [],
+      accessories: [],
+    };
+  }
+  if (eff >= 24) {
+    return {
+      base: ['panalero_corta'],
+      mid: [],
+      outer: input.environment === 'cuarto' ? ['saco_05'] : [],
+      accessories: [],
+    };
+  }
+  if (eff >= 20) {
+    return {
+      base: ['panalero_larga'],
+      mid: ['mameluco_algodon'],
+      outer: input.environment === 'cuarto' ? ['saco_10'] : [],
+      accessories: [],
+    };
+  }
+  if (eff >= 18) {
+    return {
+      base: ['panalero_larga'],
+      mid: ['mameluco_algodon'],
+      outer: input.environment === 'cuarto' ? ['saco_10'] : [],
+      accessories: ['calcetines'],
+    };
+  }
+  if (eff >= 14) {
+    return {
+      base: ['panalero_larga'],
+      mid: ['mameluco_afelpado'],
+      outer: input.environment === 'cuarto' ? ['saco_25'] : ['ninguna'],
+      accessories:
+        input.environment === 'exterior' ? ['gorro', 'calcetines'] : ['calcetines'],
+    };
+  }
+  if (input.environment === 'exterior') {
+    return {
+      base: ['termica_interior'],
+      mid: ['mameluco_termico', 'sueter_chamarra'],
+      outer: [],
+      accessories: ['gorro', 'guantes', 'calcetines'],
+    };
+  }
+  return {
+    base: ['termica_interior'],
+    mid: ['mameluco_termico'],
+    outer: ['saco_25'],
+    accessories: ['calcetines'],
+  };
 }
 
 export function recommendClothing(
   input: ClothingRecommendationInput,
 ): ClothingRecommendation {
-  const { tempC, environment, stageId } = input;
+  const { tempC, outdoorTempC, environment, stageId } = input;
   if (
     !Number.isFinite(tempC) ||
     tempC < CLOTHING_MIN_TEMP_C ||
@@ -308,16 +478,38 @@ export function recommendClothing(
       `La temperatura debe estar entre ${CLOTHING_MIN_TEMP_C} °C y ${CLOTHING_MAX_TEMP_C} °C.`,
     );
   }
+  if (
+    outdoorTempC !== undefined &&
+    (!Number.isFinite(outdoorTempC) ||
+      outdoorTempC < CLOTHING_MIN_TEMP_C ||
+      outdoorTempC > CLOTHING_MAX_TEMP_C)
+  ) {
+    throw new RangeError(
+      `La temperatura exterior debe estar entre ${CLOTHING_MIN_TEMP_C} °C y ${CLOTHING_MAX_TEMP_C} °C.`,
+    );
+  }
 
   const ctx: ClothingContextFlags = {
     ...DEFAULT_CLOTHING_CONTEXT,
     ...input.context,
   };
+  const isPremature =
+    ctx.prematureOrLowWeight || ctx.babyHealthStatus === 'prematuro';
+  const hasFever = ctx.hasFever || ctx.babyHealthStatus === 'fiebre';
 
-  const effectiveTempC =
-    environment === 'cuarto' && ctx.coldWalls
-      ? Math.max(CLOTHING_MIN_TEMP_C, Number((tempC - 1.5).toFixed(1)))
-      : tempC;
+  const { wallAdjustmentC, wallEffectLabelMx } = resolveWallAdjustment(
+    tempC,
+    outdoorTempC,
+    environment,
+    ctx,
+  );
+  const effectiveTempC = Math.min(
+    CLOTHING_MAX_TEMP_C,
+    Math.max(
+      CLOTHING_MIN_TEMP_C,
+      Number((tempC + wallAdjustmentC).toFixed(1)),
+    ),
+  );
 
   const isUnder12m = stageId === '0-3m' || stageId === '3-12m';
 
@@ -461,7 +653,9 @@ export function recommendClothing(
     tog = environment === 'cuarto' ? '3.5' : 'sin_saco';
     headlineMx = 'Frío extremo: protege sin caer en prácticas inseguras';
     if (environment === 'cuarto') {
-      layersMx.push('Camiseta térmica/algodón + mameluco térmico grueso + calcetines');
+      layersMx.push(
+        'Camiseta térmica/algodón + mameluco térmico grueso + calcetines',
+      );
       layersMx.push(
         isUnder12m
           ? 'Saco 3.5 TOG (sin cobijas sueltas ni cobija polar suelta en menores de 12 meses)'
@@ -495,12 +689,12 @@ export function recommendClothing(
       'Si ya intenta voltearse, suspende la envoltura (taquito/swaddle) y deja los brazos libres.',
     );
   }
-  if (ctx.prematureOrLowWeight) {
+  if (isPremature) {
     actionsMx.push(
       'Prematuro o bajo peso: agrega 1 capa ligera adicional y vigila con tu pediatra.',
     );
   }
-  if (ctx.hasFever) {
+  if (hasFever) {
     actionsMx.push(
       'Con fiebre: quita 1 capa (−1 capa) y nunca lo abrigues para "sudar la fiebre".',
     );
@@ -529,10 +723,12 @@ export function recommendClothing(
     );
   }
 
-  const outerSelected = input.selectedLayers?.outer;
+  const outerSelected = input.selectedLayers?.outer ?? [];
+  const accessoriesSelected = input.selectedLayers?.accessories ?? [];
+
   const isSwaddleSelected =
-    outerSelected === 'manta_delgada_envuelta' ||
-    outerSelected === 'cobija_algodon_envuelta';
+    outerSelected.includes('manta_delgada_envuelta') ||
+    outerSelected.includes('cobija_algodon_envuelta');
 
   if (isSwaddleSelected && environment === 'cuarto') {
     if (stageId === '0-3m' && !ctx.canRollOver) {
@@ -546,12 +742,50 @@ export function recommendClothing(
     }
   }
 
-  const recommendedTogRange = getRecommendedTogRange(effectiveTempC, ctx);
-  const currentTog = computeCurrentTog(input.selectedLayers, isUnder12m);
+  const sackCount = outerSelected.filter((id) => id.startsWith('saco_')).length;
+  if (sackCount >= 2) {
+    doNotDoMx.push(
+      'Nunca uses dos sacos de dormir uno encima del otro: atrapan calor y restringen el flujo de aire.',
+    );
+    if (severity === 'normal') {
+      severity = 'caution';
+    }
+  }
+
+  if (accessoriesSelected.includes('gorro')) {
+    if (environment === 'cuarto') {
+      doNotDoMx.push(
+        'Quita el gorro para dormir bajo techo: los bebés liberan calor por la cabeza y puede deslizarse sobre la cara.',
+      );
+      if (severity === 'normal') {
+        severity = 'caution';
+      }
+    } else if (effectiveTempC <= 17) {
+      actionsMx.push('Gorro en exterior fresco/frío: protege bien la cabeza (+0.3 TOG).');
+    }
+  }
+
+  if (accessoriesSelected.includes('guantes') && environment === 'cuarto') {
+    actionsMx.push(
+      'Bajo techo los guantes no suelen ser necesarios para abrigo; manos frescas son normales y conviene evaluar en nuca o pecho.',
+    );
+  }
+
+  const recommendedTogRange = getRecommendedTogRange(
+    effectiveTempC,
+    isPremature,
+    hasFever,
+  );
+  const currentTog = computeCurrentTog(
+    input.selectedLayers,
+    isUnder12m,
+    environment,
+  );
   const looseBlanketAlert =
     environment === 'cuarto' &&
     isUnder12m &&
-    (outerSelected === 'cobija_suelta' || outerSelected === 'cobija_polar');
+    (outerSelected.includes('cobija_suelta') ||
+      outerSelected.includes('cobija_polar'));
 
   let comfortZone: ComfortZone = 'optimal';
   let togDeltaMx =
@@ -560,10 +794,9 @@ export function recommendClothing(
   if (looseBlanketAlert) {
     comfortZone = 'unsafe_sleep';
     severity = 'urgent_red';
-    togDeltaMx =
-      outerSelected === 'cobija_polar'
-        ? 'Sueño inseguro: en menores de 12 meses, la cobija polar suelta o muy gruesa aumenta el riesgo de asfixia y sobrecalentamiento. Cámbiala por mameluco afelpado/térmico o saco.'
-        : 'Sueño inseguro: en menores de 12 meses, las cobijas sueltas aumentan el riesgo de asfixia. Cámbiala por mameluco afelpado o saco de dormir.';
+    togDeltaMx = outerSelected.includes('cobija_polar')
+      ? 'Sueño inseguro: en menores de 12 meses, la cobija polar suelta o muy gruesa aumenta el riesgo de asfixia y sobrecalentamiento. Cámbiala por mameluco afelpado/térmico o saco.'
+      : 'Sueño inseguro: en menores de 12 meses, las cobijas sueltas aumentan el riesgo de asfixia. Cámbiala por mameluco afelpado o saco de dormir.';
     doNotDoMx.unshift(
       'Nunca uses cobijas sueltas, cobija polar suelta ni almohadas en la cuna de menores de 12 meses.',
     );
@@ -586,6 +819,8 @@ export function recommendClothing(
   return {
     tempC,
     effectiveTempC,
+    wallAdjustmentC,
+    wallEffectLabelMx,
     environment,
     stageId,
     band,
