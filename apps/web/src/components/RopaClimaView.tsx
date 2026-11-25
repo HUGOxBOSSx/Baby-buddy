@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ACCESSORY_OPTIONS,
   BASE_LAYER_OPTIONS,
@@ -110,6 +110,7 @@ export function RopaClimaView() {
   const [outdoorTempC, setOutdoorTempC] = useState<number | undefined>(undefined);
   const [weatherNote, setWeatherNote] = useState<string>('');
   const [detectingWeather, setDetectingWeather] = useState(false);
+  const autoDetectedRef = useRef(false);
   const [environment, setEnvironment] =
     useState<ClothingEnvironment>('cuarto');
   const [context, setContext] = useState<ClothingContextFlags>(
@@ -295,6 +296,13 @@ export function RopaClimaView() {
       setDetectingWeather(false);
     }
   };
+
+  useEffect(() => {
+    if (autoDetectedRef.current) return;
+    autoDetectedRef.current = true;
+    void handleDetectWeather();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">

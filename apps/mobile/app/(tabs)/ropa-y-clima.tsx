@@ -25,7 +25,7 @@ import {
 } from '@baby-buddy/core';
 import { CLOTHING_ENGINE_METADATA } from '@baby-buddy/content';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { SelectedLayersPreview } from '../../components/ClothingGarmentVisual';
 import { GuideDisclaimerHeader } from '../../components/GuideDisclaimerHeader';
@@ -107,6 +107,13 @@ export default function RopaYClimaScreen() {
   const [outdoorTempC, setOutdoorTempC] = useState<number | undefined>(undefined);
   const [weatherNote, setWeatherNote] = useState<string>('');
   const [detectingWeather, setDetectingWeather] = useState(false);
+  const autoDetectedRef = useRef(false);
+  useEffect(() => {
+    if (autoDetectedRef.current) return;
+    autoDetectedRef.current = true;
+    void handleDetectWeather();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [environment, setEnvironment] =
     useState<ClothingEnvironment>('cuarto');
   const [context, setContext] = useState<ClothingContextFlags>(
