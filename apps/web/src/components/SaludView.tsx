@@ -68,10 +68,10 @@ export function SaludView() {
             id="horario-nocturno-titulo"
             className="text-lg font-bold text-ink-primary"
           >
-            Horario automático de Modo 3:00 AM
+            Horario automático de Modo nocturno
           </h2>
           <p className="text-sm text-ink-secondary">
-            Por defecto el Modo 3:00 AM se activa automáticamente de 20:00 a
+            Por defecto el Modo nocturno se activa automáticamente de 20:00 a
             07:00 h. Puedes ajustar las horas o cambiarlo manualmente en
             cualquier momento.
           </p>

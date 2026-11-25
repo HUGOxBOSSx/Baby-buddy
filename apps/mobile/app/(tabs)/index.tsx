@@ -43,7 +43,7 @@ export default function HoyScreen() {
               style={{ color: palette.brandText }}
             >
               {isNight
-                ? 'Modo 3:00 AM activo · Baja luminosidad'
+                ? 'Modo nocturno activo · Baja luminosidad'
                 : 'Modo Calma activo · Orientación diaria'}
             </Text>
             <Text
@@ -228,7 +228,7 @@ export default function HoyScreen() {
             accessibilityLabel={
               isNight
                 ? 'Cambiar a Modo Calma de día'
-                : 'Cambiar a Modo 3:00 AM'
+                : 'Cambiar a Modo nocturno'
             }
           >
             {iconsLoaded ? (
@@ -242,7 +242,7 @@ export default function HoyScreen() {
               className="text-xs font-bold"
               style={{ color: palette.onBrandPrimary }}
             >
-              {isNight ? 'Modo Calma' : 'Modo 3:00 AM'}
+              {isNight ? 'Modo Calma' : 'Modo nocturno'}
             </Text>
           </Pressable>
 

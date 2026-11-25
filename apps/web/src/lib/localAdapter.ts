@@ -381,7 +381,7 @@ export function setStoredThemeMode(mode: ThemeMode): void {
   applyThemeToDocument(mode, snapshot.onboardingAccepted);
   transientStatusMessage =
     mode === 'night_3am'
-      ? 'Modo 3:00 AM activado manualmente.'
+      ? 'Modo nocturno activado manualmente.'
       : 'Modo Día Calma activado manualmente.';
   notifyLocalStoreChange();
 }

@@ -86,7 +86,7 @@ export default function SaludScreen() {
         }}
       >
         <Text className="text-lg font-bold" style={{ color: palette.textPrimary }}>
-          Horario automático de Modo 3:00 AM
+          Horario automático de Modo nocturno
         </Text>
         <Text className="text-xs" style={{ color: palette.textSecondary }}>
           Por defecto se activa de {String(themeSchedule.nightStartHour).padStart(2, '0')}

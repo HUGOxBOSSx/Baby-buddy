@@ -28,8 +28,8 @@ function HeaderModeToggle() {
       accessibilityState={{ checked: isNight }}
       accessibilityLabel={
         isNight
-          ? 'Modo 3:00 AM activo. Toca para cambiar a Modo Calma de día'
-          : 'Modo Calma activo. Toca para activar Modo 3:00 AM'
+          ? 'Modo nocturno activo. Toca para cambiar a Modo Calma de día'
+          : 'Modo Calma activo. Toca para activar Modo nocturno'
       }
     >
       {iconsLoaded ? (
@@ -40,7 +40,7 @@ function HeaderModeToggle() {
         />
       ) : null}
       <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
-        {isNight ? 'Modo Calma' : 'Modo 3:00 AM'}
+        {isNight ? 'Modo Calma' : 'Modo nocturno'}
       </Text>
     </Pressable>
   );

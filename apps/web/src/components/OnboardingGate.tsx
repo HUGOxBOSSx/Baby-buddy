@@ -207,28 +207,6 @@ export function OnboardingGate() {
         )}
       </div>
 
-      <div
-        role="alert"
-        className="rounded-xl border-2 border-alert-red bg-alert-surface p-4 space-y-3"
-      >
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <StatusBadge severity="urgent_red" />
-          <span className="text-xs font-semibold text-alert-text">
-            Disponible siempre sin costo ni registro
-          </span>
-        </div>
-        <p className="text-sm font-semibold text-ink-primary">
-          {disclaimer.emergencyActionLabelMx}
-        </p>
-        <a
-          href={`tel:${disclaimer.emergencyNumber}`}
-          className="inline-flex min-h-12 min-w-12 items-center justify-center gap-2 rounded-xl bg-alert-text px-5 py-3 text-sm font-bold text-alert-on hover:opacity-95"
-        >
-          <PhoneCallIcon className="h-5 w-5 shrink-0" />
-          <span>Emergencias {disclaimer.emergencyNumber}</span>
-        </a>
-      </div>
-
       {errorMessage ? (
         <p role="alert" className="text-sm font-semibold text-alert-text">
           {errorMessage}
@@ -261,6 +239,28 @@ export function OnboardingGate() {
         {String(ETHICAL_GUARDRAILS.paywallOnEmergencyTriage)}) · Sin venta de datos (
         {String(ETHICAL_GUARDRAILS.dataSellingEnabled)})
       </p>
+
+      <div
+        role="alert"
+        className="rounded-xl border-2 border-alert-red bg-alert-surface p-4 space-y-3"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <StatusBadge severity="urgent_red" />
+          <span className="text-xs font-semibold text-alert-text">
+            Disponible siempre sin costo ni registro
+          </span>
+        </div>
+        <p className="text-sm font-semibold text-ink-primary">
+          {disclaimer.emergencyActionLabelMx}
+        </p>
+        <a
+          href={`tel:${disclaimer.emergencyNumber}`}
+          className="inline-flex min-h-12 min-w-12 items-center justify-center gap-2 rounded-xl bg-alert-text px-5 py-3 text-sm font-bold text-alert-on hover:opacity-95"
+        >
+          <PhoneCallIcon className="h-5 w-5 shrink-0" />
+          <span>Emergencias {disclaimer.emergencyNumber}</span>
+        </a>
+      </div>
     </section>
   );
 }

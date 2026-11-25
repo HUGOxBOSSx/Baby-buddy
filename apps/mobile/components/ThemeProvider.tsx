@@ -222,7 +222,7 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       setThemeScheduleState(manualSchedule);
       setStatusAnnouncement(
         nextMode === 'night_3am'
-          ? 'Modo 3:00 AM activado manualmente.'
+          ? 'Modo nocturno activado manualmente.'
           : 'Modo Calma de día activado manualmente.',
       );
       void savePersistedThemeMode(nextMode);

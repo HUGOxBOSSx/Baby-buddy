@@ -100,12 +100,6 @@ export function OnboardingGate() {
           <MascotAvatar variant="home" size="sm" />
           <View className="flex-1 gap-0.5">
             <Text
-              className="text-xs font-bold uppercase tracking-wide"
-              style={{ color: palette.brandText }}
-            >
-              Aviso obligatorio · Apple 1.4.1
-            </Text>
-            <Text
               className="text-2xl font-bold"
               style={{ color: palette.textPrimary }}
             >
@@ -129,8 +123,8 @@ export function OnboardingGate() {
             accessibilityState={{ checked: mode === 'night_3am' }}
             accessibilityLabel={
               mode === 'night_3am'
-                ? 'Modo 3:00 AM activo. Toca para cambiar a Modo Calma de día'
-                : 'Modo Calma activo. Toca para activar Modo 3:00 AM'
+                ? 'Modo nocturno activo. Toca para cambiar a Modo Calma de día'
+                : 'Modo Calma activo. Toca para activar Modo nocturno'
             }
           >
             {iconsLoaded ? (
@@ -144,7 +138,7 @@ export function OnboardingGate() {
               className="text-sm font-bold"
               style={{ color: palette.brandText }}
             >
-              {mode === 'night_3am' ? 'Modo Calma' : 'Modo 3:00 AM'}
+              {mode === 'night_3am' ? 'Modo Calma' : 'Modo nocturno'}
             </Text>
           </Pressable>
         </View>
@@ -199,6 +193,12 @@ export function OnboardingGate() {
           }}
         >
           <Text
+            className="text-xs font-bold uppercase tracking-wide"
+            style={{ color: palette.brandText }}
+          >
+            Aviso informativo obligatorio
+          </Text>
+          <Text
             className="text-lg font-bold"
             style={{ color: palette.textPrimary }}
           >
@@ -217,44 +217,6 @@ export function OnboardingGate() {
             Unidades métricas exclusivas (°C, kg, cm, ml) · Sin anuncios ni
             venta de datos.
           </Text>
-        </View>
-
-        <View
-          className="rounded-2xl border-2 p-4 gap-3"
-          style={{
-            backgroundColor: palette.alertRedSurface,
-            borderColor: palette.alertRed,
-          }}
-          accessibilityRole="alert"
-        >
-          <StatusBadge severity="urgent_red" />
-          <Text
-            className="text-sm font-semibold"
-            style={{ color: palette.textPrimary }}
-          >
-            {disclaimer.emergencyActionLabelMx}
-          </Text>
-          <Pressable
-            onPress={handleEmergencyCall}
-            className="min-h-[48px] min-w-[48px] flex-row items-center justify-center rounded-xl px-4 py-3 gap-2"
-            style={{
-              minHeight: MIN_TOUCH_TARGET_PX,
-              minWidth: MIN_TOUCH_TARGET_PX,
-              backgroundColor: palette.alertRedText,
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Llamar al 911 por emergencia médica sin costo"
-          >
-            {iconsLoaded ? (
-              <Feather name="phone" size={18} color={palette.onAlertRedButton} />
-            ) : null}
-            <Text
-              className="text-sm font-bold"
-              style={{ color: palette.onAlertRedButton }}
-            >
-              Emergencias 911 (Acceso gratuito)
-            </Text>
-          </Pressable>
         </View>
 
         <View
@@ -435,6 +397,44 @@ export function OnboardingGate() {
             {submitting ? 'Guardando aceptación...' : ackLabel}
           </Text>
         </Pressable>
+
+        <View
+          className="rounded-2xl border-2 p-4 gap-3"
+          style={{
+            backgroundColor: palette.alertRedSurface,
+            borderColor: palette.alertRed,
+          }}
+          accessibilityRole="alert"
+        >
+          <StatusBadge severity="urgent_red" />
+          <Text
+            className="text-sm font-semibold"
+            style={{ color: palette.textPrimary }}
+          >
+            {disclaimer.emergencyActionLabelMx}
+          </Text>
+          <Pressable
+            onPress={handleEmergencyCall}
+            className="min-h-[48px] min-w-[48px] flex-row items-center justify-center rounded-xl px-4 py-3 gap-2"
+            style={{
+              minHeight: MIN_TOUCH_TARGET_PX,
+              minWidth: MIN_TOUCH_TARGET_PX,
+              backgroundColor: palette.alertRedText,
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Llamar al 911 por emergencia médica sin costo"
+          >
+            {iconsLoaded ? (
+              <Feather name="phone" size={18} color={palette.onAlertRedButton} />
+            ) : null}
+            <Text
+              className="text-sm font-bold"
+              style={{ color: palette.onAlertRedButton }}
+            >
+              Emergencias 911 (Acceso gratuito)
+            </Text>
+          </Pressable>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

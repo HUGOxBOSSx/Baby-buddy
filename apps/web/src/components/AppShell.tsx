@@ -69,7 +69,7 @@ export function AppShell({ children }: { readonly children: ReactNode }) {
     ? `${childProfile.nicknameMx} · ${formatChildAgeMx(childProfile.ageMonths)} · ${CHILD_SEX_LABELS_MX[childProfile.sex ?? 'no_especificado']}`
     : null;
 
-  const themeToggleLabel = isNight ? 'Cambiar a Modo Día' : 'Activar Modo 3:00 AM';
+  const themeToggleLabel = isNight ? 'Cambiar a Modo Día' : 'Activar Modo nocturno';
 
   if (!onboardingAccepted) {
     return (
@@ -107,7 +107,7 @@ export function AppShell({ children }: { readonly children: ReactNode }) {
               ) : (
                 <MoonIcon className="h-5 w-5 shrink-0 text-brand-text" />
               )}
-              <span>{isNight ? 'Modo Día' : 'Modo 3:00 AM'}</span>
+              <span>{isNight ? 'Modo Día' : 'Modo nocturno'}</span>
             </button>
           </div>
         </header>
@@ -186,7 +186,7 @@ export function AppShell({ children }: { readonly children: ReactNode }) {
             ) : (
               <MoonIcon className="h-5 w-5 shrink-0 text-brand-text" />
             )}
-            <span>{isNight ? 'Modo Día' : 'Modo 3:00 AM'}</span>
+            <span>{isNight ? 'Modo Día' : 'Modo nocturno'}</span>
           </button>
 
           <p className="px-1 text-[11px] leading-snug text-ink-muted">
@@ -205,7 +205,7 @@ export function AppShell({ children }: { readonly children: ReactNode }) {
               {childProfile ? childProfile.nicknameMx : 'Baby Buddy MX'}
             </p>
             <p className="truncate text-xs text-ink-secondary">
-              {babyBarSummary ?? `${activeStage.label} · ${isNight ? 'Modo 3:00 AM' : 'Modo Día'}`}
+              {babyBarSummary ?? `${activeStage.label} · ${isNight ? 'Modo nocturno' : 'Modo Día'}`}
             </p>
           </div>
           <Link

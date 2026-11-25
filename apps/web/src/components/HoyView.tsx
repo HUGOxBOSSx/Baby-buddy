@@ -31,7 +31,7 @@ export function HoyView() {
         <MascotAvatar variant="home" size="lg" />
         <div className="space-y-1">
           <p className="text-xs font-semibold uppercase tracking-wide text-brand-text">
-            Hoy · {themeMode === 'night_3am' ? 'Modo 3:00 AM activo' : 'Modo Día Calma'}
+            Hoy · {themeMode === 'night_3am' ? 'Modo nocturno activo' : 'Modo Día Calma'}
           </p>
           <h1 className="text-2xl font-bold text-ink-primary sm:text-3xl">
             Registro diario
