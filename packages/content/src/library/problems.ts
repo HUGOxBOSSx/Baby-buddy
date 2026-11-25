@@ -327,7 +327,7 @@ export const PROBLEM_SOLUTIONS_GUIDES: readonly ClinicalGuideEntry[] = [
   problemItem(
     'dolor-agarre-lactancia',
     'problema_solucion',
-    ['0-3m'],
+    ['0-3m', '3-12m'],
     'Alimentación',
     'Dolor al amamantar o grietas en el pezón',
     'Amamantar no debería doler: revisa postura y agarre profundo (boca bien abierta abarcando areola).',
@@ -590,7 +590,7 @@ export const PROBLEM_SOLUTIONS_GUIDES: readonly ClinicalGuideEntry[] = [
     'Poca ganancia de peso o rechazo persistente de tomas',
     'Requiere valoración médica pronta: después del día 14 debe haber recuperado su peso de nacimiento y mojar pañales con regularidad.',
     'Perder más del 10% del peso inicial, no recuperar el peso al nacer a las 2 semanas, rechazar varias tomas seguidas o mojar pocos pañales (<4–6 al día tras el día 5) requiere revisión médica.',
-    'orange_urgent',
+    'yellow_pediatrician',
     [
       'Anota cuántas tomas acepta y cuántos pañales moja al día (pipí claro y popó).',
       'Acude a valoración médica hoy mismo para revisar peso, hidratación y técnica de lactancia o toma.',
@@ -633,7 +633,7 @@ export const PROBLEM_SOLUTIONS_GUIDES: readonly ClinicalGuideEntry[] = [
     'Dolor intenso en el pecho con zona roja caliente y fiebre (posible mastitis)',
     'Requiere valoración médica el mismo día; generalmente no es necesario suspender la lactancia.',
     'Una zona roja, endurecida, muy sensible y caliente en el seno acompañada de fiebre >= 38.0 °C, escalofríos o malestar tipo gripa en mamá requiere atención médica hoy.',
-    'orange_urgent',
+    'yellow_pediatrician',
     [
       'Consulta a tu médico hoy mismo para valoración y tratamiento seguro para lactancia.',
       'Continúa ofreciendo el pecho con tomas frecuentes (sin sobreestimular con extracciones excesivas) y aplica compresas frías suaves entre tomas para aliviar la inflamación.',

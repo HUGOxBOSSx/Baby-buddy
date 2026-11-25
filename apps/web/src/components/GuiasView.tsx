@@ -36,7 +36,7 @@ const SUB_FILTERS: readonly {
   { id: 'all', label: 'Todos' },
   { id: 'green_home', label: 'Verde' },
   { id: 'yellow_pediatrician', label: 'Amarillo' },
-  { id: 'orange_urgent', label: 'Naranja · Atención hoy' },
+  { id: 'orange_urgent', label: 'Naranja · Atención / Consulta hoy' },
   { id: 'red_911', label: 'Rojo · 911 / Inmediato' },
 ] as const;
 
@@ -277,7 +277,7 @@ export function GuiasView() {
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-alert-red bg-alert-surface p-4">
           <div className="space-y-0.5">
             <p className="text-sm font-bold text-alert-text">
-              Rojo: 911 / urgencias inmediatas · Naranja: atención médica hoy
+              Rojo: 911 / atención inmediata · Naranja: atención o consulta hoy
             </p>
             <p className="text-xs text-ink-primary">
               Ante cualquier señal roja o duda grave, no esperes.
@@ -364,7 +364,7 @@ export function GuiasView() {
                           →
                         </span>
                       </Link>
-                      {getRelatedGuideLinks(guide.slug).map((rel) => {
+                      {getRelatedGuideLinks(guide.slug, effectiveStage).map((rel) => {
                         const toneCls =
                           rel.tone === 'normal_green'
                             ? 'border-brand-primary bg-brand-surface text-brand-text'

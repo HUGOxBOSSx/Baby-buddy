@@ -121,33 +121,31 @@ export const RELATED_GUIDE_SLUGS: Readonly<Record<string, readonly string[]>> = 
   'infeccion-cordon-umbilical': ['cordon-umbilical'],
   'perdida-peso-inicial': ['baja-ganancia-peso-rechazo-tomas'],
   'alimentacion-en-racimo': ['baja-ganancia-peso-rechazo-tomas', 'dolor-agarre-lactancia'],
-  'dolor-agarre-lactancia': ['mastitis-seno-rojo-fiebre', 'alimentacion-en-racimo'],
-  'mastitis-seno-rojo-fiebre': ['dolor-agarre-lactancia'],
+  'baja-ganancia-peso-rechazo-tomas': ['perdida-peso-inicial', 'sin-mojar-panal-deshidratacion'],
+  'dolor-agarre-lactancia': ['alimentacion-en-racimo'],
+  'mastitis-seno-rojo-fiebre': ['alimentacion-en-racimo'],
   'respiracion-periodica': ['pausas-respiratorias-apnea', 'dificultad-respiratoria-grave-reposo'],
   'pausas-respiratorias-apnea': ['respiracion-periodica'],
   'pujidos-ruidos-al-dormir': ['dificultad-respiratoria-grave-reposo', 'estrenimiento-bebe-nino'],
-  'dificultad-respiratoria-grave-reposo': ['respiracion-periodica', 'pujidos-ruidos-al-dormir', 'congestion-nasal-lavado'],
-  'estornudos-recien-nacido': ['resfriado-y-tos', 'congestion-nasal-lavado'],
+  'estrenimiento-bebe-nino': ['pujidos-ruidos-al-dormir'],
+  'estornudos-recien-nacido': ['dificultad-respiratoria-grave-reposo'],
   'congestion-nasal-lavado': ['resfriado-y-tos', 'dificultad-respiratoria-grave-reposo'],
-  'resfriado-y-tos': ['dificultad-respiratoria-grave-reposo', 'estornudos-recien-nacido', 'congestion-nasal-lavado'],
-  'reflejo-de-moro-sobresalto': ['primeros-auxilios-convulsion-febril'],
-  'primeros-auxilios-convulsion-febril': ['reflejo-de-moro-sobresalto', 'fiebre-mayores-3-meses'],
-  'acne-neonatal-milia': ['sarpullido-con-fiebre-o-manchas-no-blanquean', 'dermatitis-atopica-resequedad'],
+  'resfriado-y-tos': ['congestion-nasal-lavado', 'dificultad-respiratoria-grave-reposo'],
+  'dificultad-respiratoria-grave-reposo': ['respiracion-periodica', 'pujidos-ruidos-al-dormir', 'congestion-nasal-lavado'],
+  'acne-neonatal-milia': ['dermatitis-atopica-resequedad', 'sarpullido-con-fiebre-o-manchas-no-blanquean'],
   'descamacion-piel-recien-nacido': ['dermatitis-atopica-resequedad'],
   'costra-lactea': ['dermatitis-atopica-resequedad'],
   'rozadura-de-panal': ['dermatitis-atopica-resequedad', 'sarpullido-con-fiebre-o-manchas-no-blanquean'],
-  'dermatitis-atopica-resequedad': ['acne-neonatal-milia', 'rozadura-de-panal'],
+  'dermatitis-atopica-resequedad': ['acne-neonatal-milia', 'rozadura-de-panal', 'sarpullido-con-fiebre-o-manchas-no-blanquean'],
   'sarpullido-con-fiebre-o-manchas-no-blanquean': ['acne-neonatal-milia', 'rozadura-de-panal'],
-  'hora-bruja-llanto-vespertino': ['colicos-y-gases', 'bebe-no-despierta-no-responde'],
-  'colicos-y-gases': ['hora-bruja-llanto-vespertino'],
+  'hora-bruja-llanto-vespertino': ['bebe-no-despierta-no-responde'],
   'bebe-no-despierta-no-responde': ['hora-bruja-llanto-vespertino'],
   'arcada-vs-atragantamiento-blw': ['primeros-auxilios-atragantamiento'],
   'primeros-auxilios-atragantamiento': ['arcada-vs-atragantamiento-blw'],
   'diarrea-y-deshidratacion': ['sin-mojar-panal-deshidratacion'],
   'sin-mojar-panal-deshidratacion': ['diarrea-y-deshidratacion', 'baja-ganancia-peso-rechazo-tomas'],
-  'baja-ganancia-peso-rechazo-tomas': ['perdida-peso-inicial', 'sin-mojar-panal-deshidratacion'],
-  'fiebre-mayores-3-meses': ['fiebre-menores-3-meses', 'primeros-auxilios-convulsion-febril'],
-  'fiebre-menores-3-meses': ['fiebre-mayores-3-meses'],
+  'fiebre-mayores-3-meses': ['primeros-auxilios-convulsion-febril'],
+  'primeros-auxilios-convulsion-febril': ['fiebre-mayores-3-meses'],
 };
 
 function getLinkMeta(level: TriageLevel): {
@@ -160,7 +158,7 @@ function getLinkMeta(level: TriageLevel): {
     case 'yellow_pediatrician':
       return { tone: 'not_normal_yellow', prefixMx: '¿Cuándo NO es normal?' };
     case 'orange_urgent':
-      return { tone: 'urgent_red', prefixMx: '¿Cuándo es urgencia hoy?' };
+      return { tone: 'urgent_red', prefixMx: '¿Cuándo requiere atención hoy?' };
     case 'red_911':
       return { tone: 'urgent_red', prefixMx: '¿Cuándo es urgencia (911)?' };
   }
@@ -168,6 +166,7 @@ function getLinkMeta(level: TriageLevel): {
 
 export function getRelatedGuideLinks(
   slug: string,
+  stageId?: StageId | 'all',
 ): readonly ClinicalGuideLink[] {
   const source = getClinicalGuideBySlug(slug);
   const targets = RELATED_GUIDE_SLUGS[slug] ?? [];
@@ -176,6 +175,9 @@ export function getRelatedGuideLinks(
     const target = getClinicalGuideBySlug(targetSlug);
     if (!target || target.slug === slug) continue;
     if (source && target.triageLevel === source.triageLevel) continue;
+    if (stageId && stageId !== 'all' && !target.stages.includes(stageId)) {
+      continue;
+    }
     const { tone, prefixMx } = getLinkMeta(target.triageLevel);
     links.push({
       slug: target.slug,

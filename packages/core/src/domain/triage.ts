@@ -31,9 +31,9 @@ export const TRIAGE_LEVEL_SPECS: Record<TriageLevel, TriageLevelSpec> = {
     level: 'orange_urgent',
     severity: 'urgent_red',
     iconName: 'alert-triangle',
-    labelMx: 'Naranja — Urgencias hoy',
+    labelMx: 'Naranja — Atención / Consulta hoy',
     timeframeMx: 'Hoy mismo',
-    actionSummaryMx: 'Acude a valoración médica de urgencias el mismo día.',
+    actionSummaryMx: 'Acude a valoración o consulta médica el mismo día.',
     paywallProtected: false,
   },
   yellow_pediatrician: {

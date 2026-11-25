@@ -44,7 +44,7 @@ const SUB_FILTERS: readonly {
   { id: 'all', label: 'Todos' },
   { id: 'green_home', label: 'Verde' },
   { id: 'yellow_pediatrician', label: 'Amarillo' },
-  { id: 'orange_urgent', label: 'Naranja · Hoy' },
+  { id: 'orange_urgent', label: 'Naranja · Consulta hoy' },
   { id: 'red_911', label: 'Rojo · 911' },
 ] as const;
 
@@ -489,7 +489,7 @@ export default function GuiasScreen() {
           }}
         >
           <Text className="text-xs font-bold" style={{ color: palette.alertRedText }}>
-            Rojo: 911 / urgencias inmediatas · Naranja: atención médica hoy
+            Rojo: 911 / atención inmediata · Naranja: atención o consulta hoy
           </Text>
           <Pressable
             onPress={() => {
@@ -582,7 +582,7 @@ export default function GuiasScreen() {
                         </Text>
                       </Pressable>
 
-                      {getRelatedGuideLinks(guide.slug).map((rel) => {
+                      {getRelatedGuideLinks(guide.slug, effectiveStage).map((rel) => {
                         const bg =
                           rel.tone === 'normal_green'
                             ? palette.brandSurface
