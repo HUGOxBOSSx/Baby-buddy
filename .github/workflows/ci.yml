@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    name: Typecheck, Lint, Test & Builds
+    runs-on: ubuntu-latest
+    env:
+      APP_ENV: local
+      NEXT_PUBLIC_APP_MODE: offline
+      EXPO_PUBLIC_APP_MODE: offline
+      BABY_BUDDY_AI_ENABLED: "false"
+      EXPO_NO_TELEMETRY: "1"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck all workspaces
+        run: npm run typecheck
+
+      - name: Lint all workspaces
+        run: npm run lint
+
+      - name: Run unit tests
+        run: npm run test
+
+      - name: Build web app (Next.js)
+        run: npm run build:web
+
+      - name: Export mobile web bundle (Expo + NativeWind)
+        run: npm run export:mobile

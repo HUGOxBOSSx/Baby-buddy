@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "Baby Buddy MX",
+    "slug": "baby-buddy-mx",
+    "version": "0.1.0",
+    "scheme": "babybuddymx",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
