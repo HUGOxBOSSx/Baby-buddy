@@ -11,18 +11,20 @@ export default function GuiasPage() {
 
   return (
     <div className="space-y-6">
-      <GuideDisclaimerHeader />
-      <section aria-label="Estado editorial del catálogo de guías">
-        <ClinicalMetadataBlock
-          metadata={{
-            version: guideMetadata.version,
-            reviewed_at: guideMetadata.reviewed_at,
-            reviewed_by: guideMetadata.reviewed_by,
-            sources: guideMetadata.sources,
-          }}
-        />
-      </section>
       <GuiasView />
+      <div className="space-y-4 pt-2 border-t border-border-subtle">
+        <GuideDisclaimerHeader />
+        <section aria-label="Estado editorial del catálogo de guías">
+          <ClinicalMetadataBlock
+            metadata={{
+              version: guideMetadata.version,
+              reviewed_at: guideMetadata.reviewed_at,
+              reviewed_by: guideMetadata.reviewed_by,
+              sources: guideMetadata.sources,
+            }}
+          />
+        </section>
+      </div>
     </div>
   );
 }

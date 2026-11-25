@@ -2,63 +2,85 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { STAGE_SPECS, type StageId } from '@baby-buddy/core';
-import { searchClinicalGuides, type GuideKind } from '@baby-buddy/content';
+import {
+  STAGE_SPECS,
+  type StageId,
+  type TriageLevel,
+} from '@baby-buddy/core';
+import {
+  GUIDE_CATEGORIES_MX,
+  searchClinicalGuides,
+  type ClinicalGuideEntry,
+  type NormalityFilter,
+} from '@baby-buddy/content';
 import { PoopColorChart } from '@/components/PoopColorChart';
 import { QuickTriageChecker } from '@/components/QuickTriageChecker';
 import { StageSelector } from '@/components/StageSelector';
 import { useAppState } from '@/components/ThemeProvider';
 import { TriageBadge } from '@/components/TriageBadge';
 
-type ViewTab =
-  | 'all'
-  | 'es_normal'
-  | 'problema_solucion'
-  | 'primeros_auxilios'
-  | 'popo'
-  | 'semaforo';
+type ViewTab = NormalityFilter | 'popo';
 
 const TABS: readonly { readonly id: ViewTab; readonly label: string }[] = [
   { id: 'all', label: 'Todo' },
-  { id: 'es_normal', label: '¿Es normal?' },
-  { id: 'problema_solucion', label: 'Soluciones' },
-  { id: 'primeros_auxilios', label: 'Auxilios' },
+  { id: 'es_normal', label: 'Es normal' },
+  { id: 'no_es_normal', label: 'No es normal' },
+  { id: 'primeros_auxilios', label: 'Primeros auxilios' },
   { id: 'popo', label: 'Tabla popó' },
-  { id: 'semaforo', label: 'Semáforo 3 AM' },
 ] as const;
+
+const COLOR_FILTERS: readonly {
+  readonly id: TriageLevel | 'all';
+  readonly label: string;
+}[] = [
+  { id: 'all', label: 'Todos los colores' },
+  { id: 'green_home', label: 'Verde' },
+  { id: 'yellow_pediatrician', label: 'Amarillo' },
+  { id: 'orange_urgent', label: 'Naranja' },
+  { id: 'red_911', label: 'Rojo' },
+] as const;
+
+const TRIAGE_GROUP_ORDER: readonly TriageLevel[] = [
+  'red_911',
+  'orange_urgent',
+  'yellow_pediatrician',
+  'green_home',
+];
 
 export function GuiasView() {
   const { childProfile } = useAppState();
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState<ViewTab>('all');
+  const [triageFilter, setTriageFilter] = useState<TriageLevel | 'all'>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string | 'all'>('all');
   const [stageFilter, setStageFilter] = useState<StageId | 'all'>('all');
   const [includeOtherAges, setIncludeOtherAges] = useState(false);
 
   const effectiveStage: StageId | 'all' =
     childProfile && !includeOtherAges ? childProfile.stageId : stageFilter;
 
-  const kindFilter: GuideKind | 'all' =
-    tab === 'es_normal' ||
-    tab === 'problema_solucion' ||
-    tab === 'primeros_auxilios'
-      ? tab
-      : 'all';
-
   const guides = searchClinicalGuides({
     query,
     stageId: effectiveStage,
-    kind: kindFilter,
+    normality: tab === 'popo' ? 'all' : tab,
+    triageLevel: triageFilter,
+    categoryMx: categoryFilter,
   });
+
+  const groupedGuides = TRIAGE_GROUP_ORDER.map((level) => ({
+    level,
+    items: guides.filter((g) => g.triageLevel === level),
+  })).filter((group) => group.items.length > 0);
 
   return (
     <div className="space-y-6">
       <header className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-wide text-brand-text">
-          Buscador 3:00 AM · ¿Es normal? · Problemas y Soluciones
+          Buscador 3:00 AM · Orientación por síntomas y etapa
         </p>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-2xl font-bold text-ink-primary sm:text-3xl">
-            Guías y Semáforo de Triaje
+            ¿Es normal?
           </h1>
           {childProfile ? (
             <Link
@@ -104,24 +126,99 @@ export function GuiasView() {
           })}
         </div>
 
+        {tab !== 'popo' ? (
+          <div className="space-y-3 rounded-2xl border border-border-subtle bg-bg-elevated p-3">
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por color de semáforo">
+              {COLOR_FILTERS.map((c) => {
+                const active = triageFilter === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setTriageFilter(c.id)}
+                    aria-pressed={active}
+                    className={`inline-flex min-h-10 items-center rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                      active
+                        ? 'border-brand-primary bg-brand-primary text-brand-on'
+                        : 'border-border-interactive bg-bg-card text-ink-primary'
+                    }`}
+                  >
+                    {c.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtrar por tema">
+              <button
+                type="button"
+                onClick={() => setCategoryFilter('all')}
+                aria-pressed={categoryFilter === 'all'}
+                className={`inline-flex min-h-9 items-center rounded-full border px-3 py-1 text-xs font-semibold ${
+                  categoryFilter === 'all'
+                    ? 'border-brand-primary bg-brand-surface text-brand-text'
+                    : 'border-border-interactive bg-bg-card text-ink-secondary'
+                }`}
+              >
+                Todos los temas
+              </button>
+              {GUIDE_CATEGORIES_MX.map((cat) => {
+                const active = categoryFilter === cat;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setCategoryFilter(cat)}
+                    aria-pressed={active}
+                    className={`inline-flex min-h-9 items-center rounded-full border px-3 py-1 text-xs font-semibold ${
+                      active
+                        ? 'border-brand-primary bg-brand-surface text-brand-text'
+                        : 'border-border-interactive bg-bg-card text-ink-secondary'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+
         {childProfile ? (
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-ink-secondary">
-            <span>
-              Mostrando etapa automática:{' '}
-              <strong className="text-ink-primary">
-                {STAGE_SPECS[childProfile.stageId].label}
-              </strong>
-            </span>
-            <button
-              type="button"
-              onClick={() => setIncludeOtherAges((v) => !v)}
-              aria-pressed={includeOtherAges}
-              className="inline-flex min-h-12 items-center rounded-xl border border-border-interactive bg-bg-elevated px-3 py-1.5 font-semibold text-brand-text"
-            >
-              {includeOtherAges
-                ? 'Solo etapa de mi bebé'
-                : 'Incluir todas las edades'}
-            </button>
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-ink-secondary">
+              <span>
+                {includeOtherAges ? (
+                  'Mostrando todas las edades'
+                ) : (
+                  <>
+                    Mostrando etapa automática:{' '}
+                    <strong className="text-ink-primary">
+                      {STAGE_SPECS[childProfile.stageId].label}
+                    </strong>
+                  </>
+                )}
+              </span>
+              <button
+                type="button"
+                onClick={() => setIncludeOtherAges((v) => !v)}
+                aria-pressed={includeOtherAges}
+                className="inline-flex min-h-12 items-center rounded-xl border border-border-interactive bg-bg-elevated px-3 py-1.5 font-semibold text-brand-text"
+              >
+                {includeOtherAges
+                  ? 'Solo etapa de mi bebé'
+                  : 'Incluir todas las edades'}
+              </button>
+            </div>
+            {includeOtherAges ? (
+              <StageSelector
+                selectedStage={stageFilter}
+                onSelectStage={(stage) => setStageFilter(stage)}
+                includeAllOption
+                onSelectAll={() => setStageFilter('all')}
+                label="Filtrar guías por edad"
+              />
+            ) : null}
           </div>
         ) : (
           <StageSelector
@@ -134,9 +231,9 @@ export function GuiasView() {
         )}
       </div>
 
-      {tab === 'semaforo' ? (
-        <QuickTriageChecker />
-      ) : tab === 'popo' ? (
+      {tab === 'no_es_normal' ? <QuickTriageChecker /> : null}
+
+      {tab === 'popo' ? (
         <PoopColorChart />
       ) : guides.length === 0 ? (
         <section
@@ -147,51 +244,70 @@ export function GuiasView() {
             Sin resultados para &ldquo;{query}&rdquo;
           </h2>
           <p className="text-sm text-ink-secondary">
-            Prueba otra palabra (ej. fiebre, cólicos, popó, berrinche) o abre
-            el Semáforo 3 AM.
+            Prueba otra palabra (ej. fiebre, cólicos, popó, berrinche) o limpia
+            los filtros activos.
           </p>
           <button
             type="button"
             onClick={() => {
               setQuery('');
               setTab('all');
+              setTriageFilter('all');
+              setCategoryFilter('all');
             }}
             className="inline-flex min-h-12 items-center rounded-xl bg-brand-primary px-4 py-2 text-sm font-bold text-brand-on"
           >
-            Limpiar búsqueda
+            Limpiar filtros
           </button>
         </section>
       ) : (
-        <div className="space-y-4">
-          {guides.map((guide) => (
-            <article
-              key={guide.slug}
-              className="rounded-2xl border border-border-interactive bg-bg-card p-5 space-y-3 shadow-sm"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <TriageBadge level={guide.triageLevel} />
-                <span className="rounded-full border border-border-interactive bg-bg-elevated px-3 py-1 text-xs font-semibold text-brand-text">
-                  {guide.categoryMx}
+        <div className="space-y-6">
+          {groupedGuides.map((group) => (
+            <section key={group.level} className="space-y-3">
+              <div className="flex items-center justify-between gap-2 border-b border-border-subtle pb-2">
+                <TriageBadge level={group.level} />
+                <span className="text-xs font-semibold text-ink-secondary">
+                  {group.items.length}{' '}
+                  {group.items.length === 1 ? 'guía' : 'guías'}
                 </span>
               </div>
+              <div className="space-y-3">
+                {group.items.map((guide: ClinicalGuideEntry) => (
+                  <article
+                    key={guide.slug}
+                    className="rounded-2xl border border-border-interactive bg-bg-card p-5 space-y-3 shadow-sm"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h2 className="text-lg font-bold text-ink-primary">
+                        {guide.titleMx}
+                      </h2>
+                      <span className="rounded-full border border-border-interactive bg-bg-elevated px-3 py-1 text-xs font-semibold text-brand-text">
+                        {guide.categoryMx}
+                      </span>
+                    </div>
 
-              <div className="space-y-1">
-                <h2 className="text-lg font-bold text-ink-primary">
-                  {guide.titleMx}
-                </h2>
-                <p className="text-sm font-semibold text-brand-text">
-                  {guide.quickAnswerMx}
-                </p>
-                <p className="text-sm text-ink-secondary">{guide.summaryMx}</p>
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-brand-text">
+                        {guide.quickAnswerMx}
+                      </p>
+                      <p className="text-sm text-ink-secondary">
+                        {guide.summaryMx}
+                      </p>
+                    </div>
+
+                    <Link
+                      href={`/guias/${guide.slug}`}
+                      className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-brand-primary bg-brand-surface px-4 py-2 text-xs font-bold text-brand-text hover:opacity-90"
+                    >
+                      <span>Qué SÍ hacer y qué NO hacer</span>
+                      <span aria-hidden="true" className="text-xl leading-none">
+                        →
+                      </span>
+                    </Link>
+                  </article>
+                ))}
               </div>
-
-              <Link
-                href={`/guias/${guide.slug}`}
-                className="inline-flex min-h-12 items-center rounded-xl border border-brand-primary bg-brand-surface px-4 py-2 text-xs font-bold text-brand-text hover:opacity-90"
-              >
-                Ver guía completa (Qué SÍ / Qué NO hacer) →
-              </Link>
-            </article>
+            </section>
           ))}
         </div>
       )}

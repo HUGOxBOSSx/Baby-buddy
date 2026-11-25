@@ -3,11 +3,14 @@ import {
   MIN_TOUCH_TARGET_PX,
   STAGE_SPECS,
   evaluateTriageHardGates,
+  type StageId,
+  type TriageLevel,
 } from '@baby-buddy/core';
 import {
   ALL_CLINICAL_GUIDES,
+  GUIDE_CATEGORIES_MX,
   searchClinicalGuides,
-  type GuideKind,
+  type NormalityFilter,
 } from '@baby-buddy/content';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -25,22 +28,33 @@ import { StageSelector } from '../../components/StageSelector';
 import { useThemeContext } from '../../components/ThemeProvider';
 import { TriageBadge } from '../../components/TriageBadge';
 
-type ViewTab =
-  | 'all'
-  | 'es_normal'
-  | 'problema_solucion'
-  | 'primeros_auxilios'
-  | 'popo'
-  | 'semaforo';
+type ViewTab = NormalityFilter | 'popo';
 
 const TABS: readonly { readonly id: ViewTab; readonly label: string }[] = [
   { id: 'all', label: 'Todo' },
-  { id: 'es_normal', label: '¿Es normal?' },
-  { id: 'problema_solucion', label: 'Soluciones' },
+  { id: 'es_normal', label: 'Es normal' },
+  { id: 'no_es_normal', label: 'No es normal' },
   { id: 'primeros_auxilios', label: 'Auxilios' },
-  { id: 'popo', label: 'Popó' },
-  { id: 'semaforo', label: 'Semáforo' },
+  { id: 'popo', label: 'Tabla popó' },
 ] as const;
+
+const COLOR_FILTERS: readonly {
+  readonly id: TriageLevel | 'all';
+  readonly label: string;
+}[] = [
+  { id: 'all', label: 'Todos' },
+  { id: 'green_home', label: 'Verde' },
+  { id: 'yellow_pediatrician', label: 'Amarillo' },
+  { id: 'orange_urgent', label: 'Naranja' },
+  { id: 'red_911', label: 'Rojo' },
+] as const;
+
+const TRIAGE_GROUP_ORDER: readonly TriageLevel[] = [
+  'red_911',
+  'orange_urgent',
+  'yellow_pediatrician',
+  'green_home',
+];
 
 export default function GuiasScreen() {
   const router = useRouter();
@@ -48,6 +62,9 @@ export default function GuiasScreen() {
     useThemeContext();
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState<ViewTab>('all');
+  const [triageFilter, setTriageFilter] = useState<TriageLevel | 'all'>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string | 'all'>('all');
+  const [stageFilter, setStageFilter] = useState<StageId | 'all'>('all');
   const [includeOtherAges, setIncludeOtherAges] = useState(false);
   const [expandedSlug, setExpandedSlug] = useState<string | null>(null);
 
@@ -59,22 +76,22 @@ export default function GuiasScreen() {
 
   const effectiveStage = childProfile
     ? includeOtherAges
-      ? 'all'
+      ? stageFilter
       : childProfile.stageId
     : selectedStage;
-
-  const kindFilter: GuideKind | 'all' =
-    tab === 'es_normal' ||
-    tab === 'problema_solucion' ||
-    tab === 'primeros_auxilios'
-      ? tab
-      : 'all';
 
   const guides = searchClinicalGuides({
     query,
     stageId: effectiveStage,
-    kind: kindFilter,
+    normality: tab === 'popo' ? 'all' : tab,
+    triageLevel: triageFilter,
+    categoryMx: categoryFilter,
   });
+
+  const groupedGuides = TRIAGE_GROUP_ORDER.map((level) => ({
+    level,
+    items: guides.filter((g) => g.triageLevel === level),
+  })).filter((group) => group.items.length > 0);
 
   const parsedTemp = Number.parseFloat(tempInput);
   const triageRes = evaluateTriageHardGates({
@@ -102,10 +119,10 @@ export default function GuiasScreen() {
           className="text-2xl font-bold"
           style={{ color: palette.textPrimary }}
         >
-          Guías y Semáforo 3 AM
+          ¿Es normal?
         </Text>
         <Text className="text-xs" style={{ color: palette.textSecondary }}>
-          ¿Es normal?, soluciones rápidas, primeros auxilios y tabla de popó.
+          Orientación por síntomas, etapa, primeros auxilios y tabla de popó.
         </Text>
       </View>
 
@@ -154,30 +171,102 @@ export default function GuiasScreen() {
         })}
       </View>
 
+      {tab !== 'popo' ? (
+        <View className="gap-2">
+          <View className="flex-row flex-wrap gap-1.5">
+            {COLOR_FILTERS.map((c) => {
+              const active = triageFilter === c.id;
+              return (
+                <Pressable
+                  key={c.id}
+                  onPress={() => setTriageFilter(c.id)}
+                  className="rounded-full border px-3 py-1.5 justify-center"
+                  style={{
+                    minHeight: 38,
+                    backgroundColor: active
+                      ? palette.brandPrimary
+                      : palette.bgCard,
+                    borderColor: active
+                      ? palette.brandPrimary
+                      : palette.borderInteractive,
+                  }}
+                >
+                  <Text
+                    className="text-xs font-semibold"
+                    style={{
+                      color: active
+                        ? palette.onBrandPrimary
+                        : palette.textPrimary,
+                    }}
+                  >
+                    {c.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View className="flex-row gap-1.5">
+              {(['all', ...GUIDE_CATEGORIES_MX] as const).map((cat) => {
+                const active = categoryFilter === cat;
+                return (
+                  <Pressable
+                    key={cat}
+                    onPress={() => setCategoryFilter(cat)}
+                    className="rounded-full border px-3 py-1.5 justify-center"
+                    style={{
+                      minHeight: 36,
+                      backgroundColor: active
+                        ? palette.brandSurface
+                        : palette.bgCard,
+                      borderColor: active
+                        ? palette.brandPrimary
+                        : palette.borderInteractive,
+                    }}
+                  >
+                    <Text
+                      className="text-xs font-semibold"
+                      style={{
+                        color: active ? palette.brandText : palette.textSecondary,
+                      }}
+                    >
+                      {cat === 'all' ? 'Todos los temas' : cat}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </ScrollView>
+        </View>
+      ) : null}
+
       {childProfile ? (
-        <View className="flex-row items-center justify-between flex-wrap gap-2">
-          <Text className="text-xs font-semibold" style={{ color: palette.textSecondary }}>
-            Etapa: {STAGE_SPECS[childProfile.stageId].label}
-          </Text>
-          <View className="flex-row gap-2">
-            <Pressable
-              onPress={() => setIncludeOtherAges((v) => !v)}
-              className="rounded-xl border px-3 py-2 justify-center"
-              style={{
-                minHeight: MIN_TOUCH_TARGET_PX,
-                backgroundColor: palette.bgElevated,
-                borderColor: palette.borderInteractive,
-              }}
-            >
-              <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
-                {includeOtherAges ? 'Solo su etapa' : 'Todas las edades'}
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => router.push('/(tabs)/salud')}
-              className="rounded-xl border px-3 py-2 justify-center"
-              style={{
-                minHeight: MIN_TOUCH_TARGET_PX,
+        <View className="gap-2">
+          <View className="flex-row items-center justify-between flex-wrap gap-2">
+            <Text className="text-xs font-semibold" style={{ color: palette.textSecondary }}>
+              {includeOtherAges
+                ? 'Mostrando todas las edades'
+                : `Etapa: ${STAGE_SPECS[childProfile.stageId].label}`}
+            </Text>
+            <View className="flex-row gap-2">
+              <Pressable
+                onPress={() => setIncludeOtherAges((v) => !v)}
+                className="rounded-xl border px-3 py-2 justify-center"
+                style={{
+                  minHeight: MIN_TOUCH_TARGET_PX,
+                  backgroundColor: palette.bgElevated,
+                  borderColor: palette.borderInteractive,
+                }}
+              >
+                <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
+                  {includeOtherAges ? 'Solo su etapa' : 'Todas las edades'}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => router.push('/(tabs)/salud')}
+                className="rounded-xl border px-3 py-2 justify-center"
+                style={{
+                  minHeight: MIN_TOUCH_TARGET_PX,
                 backgroundColor: palette.bgCard,
                 borderColor: palette.borderInteractive,
               }}
@@ -188,11 +277,13 @@ export default function GuiasScreen() {
             </Pressable>
           </View>
         </View>
+        {includeOtherAges ? <StageSelector /> : null}
+        </View>
       ) : (
         <StageSelector />
       )}
 
-      {tab === 'semaforo' ? (
+      {tab === 'no_es_normal' ? (
         <View
           className="rounded-2xl border p-4 gap-3"
           style={{
@@ -308,69 +399,118 @@ export default function GuiasScreen() {
             </Pressable>
           ) : null}
         </View>
-      ) : tab === 'popo' ? (
+      ) : null}
+
+      {tab === 'popo' ? (
         <PoopColorChart />
       ) : (
-        <View className="gap-3">
-          {guides.map((guide) => {
-            const isExpanded = expandedSlug === guide.slug;
-            return (
+        <View className="gap-4">
+          {groupedGuides.map((group) => (
+            <View key={group.level} className="gap-3">
               <View
-                key={guide.slug}
-                className="rounded-2xl border p-4 gap-2"
-                style={{
-                  backgroundColor: palette.bgCard,
-                  borderColor: palette.borderInteractive,
-                }}
+                className="flex-row items-center justify-between border-b pb-2"
+                style={{ borderBottomColor: palette.borderInteractive }}
               >
-                <TriageBadge level={guide.triageLevel} />
-                <Text className="text-base font-bold" style={{ color: palette.textPrimary }}>
-                  {guide.titleMx}
-                </Text>
-                <Text className="text-xs font-semibold" style={{ color: palette.brandText }}>
-                  {guide.quickAnswerMx}
-                </Text>
-                <Text className="text-xs" style={{ color: palette.textSecondary }}>
-                  {guide.summaryMx}
-                </Text>
-
-                <Pressable
-                  onPress={() =>
-                    setExpandedSlug(isExpanded ? null : guide.slug)
-                  }
-                  className="rounded-xl border px-3 py-2 self-start justify-center"
-                  style={{
-                    minHeight: MIN_TOUCH_TARGET_PX,
-                    backgroundColor: palette.brandSurface,
-                    borderColor: palette.brandPrimary,
-                  }}
+                <TriageBadge level={group.level} />
+                <Text
+                  className="text-xs font-semibold"
+                  style={{ color: palette.textSecondary }}
                 >
-                  <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
-                    {isExpanded ? 'Ocultar detalle ▴' : 'Ver Qué SÍ / Qué NO ▾'}
-                  </Text>
-                </Pressable>
-
-                {isExpanded ? (
-                  <View className="gap-2 pt-2 border-t" style={{ borderTopColor: palette.borderInteractive }}>
-                    <Text className="text-xs font-bold uppercase" style={{ color: palette.textPrimary }}>
-                      Qué SÍ hacer
-                    </Text>
-                    {guide.doStepsMx.map((s) => (
-                      <Text key={s} className="text-xs" style={{ color: palette.textPrimary }}>
-                        • {s}
+                  {group.items.length}{' '}
+                  {group.items.length === 1 ? 'guía' : 'guías'}
+                </Text>
+              </View>
+              {group.items.map((guide) => {
+                const isExpanded = expandedSlug === guide.slug;
+                return (
+                  <View
+                    key={guide.slug}
+                    className="rounded-2xl border p-4 gap-2"
+                    style={{
+                      backgroundColor: palette.bgCard,
+                      borderColor: palette.borderInteractive,
+                    }}
+                  >
+                    <View className="flex-row items-center justify-between gap-2 flex-wrap">
+                      <Text
+                        className="text-base font-bold flex-1"
+                        style={{ color: palette.textPrimary }}
+                      >
+                        {guide.titleMx}
                       </Text>
-                    ))}
-                    <View
-                      className="rounded-xl border p-3 gap-1"
+                      <Text
+                        className="text-xs font-semibold px-2.5 py-1 rounded-full border"
+                        style={{
+                          color: palette.brandText,
+                          backgroundColor: palette.bgElevated,
+                          borderColor: palette.borderInteractive,
+                        }}
+                      >
+                        {guide.categoryMx}
+                      </Text>
+                    </View>
+                    <Text className="text-xs font-semibold" style={{ color: palette.brandText }}>
+                      {guide.quickAnswerMx}
+                    </Text>
+                    <Text className="text-xs" style={{ color: palette.textSecondary }}>
+                      {guide.summaryMx}
+                    </Text>
+
+                    <Pressable
+                      onPress={() =>
+                        setExpandedSlug(isExpanded ? null : guide.slug)
+                      }
+                      className="rounded-xl border px-3 py-2 self-start flex-row items-center gap-2"
                       style={{
-                        backgroundColor: palette.alertRedSurface,
-                        borderColor: palette.alertRed,
+                        minHeight: MIN_TOUCH_TARGET_PX,
+                        backgroundColor: palette.brandSurface,
+                        borderColor: palette.brandPrimary,
                       }}
                     >
-                      <Text className="text-xs font-bold uppercase" style={{ color: palette.alertRedText }}>
-                        Qué NO hacer
+                      <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
+                        {isExpanded
+                          ? 'Ocultar detalle ▴'
+                          : 'Qué SÍ hacer y qué NO hacer'}
                       </Text>
-                      {guide.doNotDoMx.map((n) => (
+                      {!isExpanded ? (
+                        <Text
+                          className="text-lg font-bold"
+                          style={{ color: palette.brandText }}
+                        >
+                          →
+                        </Text>
+                      ) : null}
+                    </Pressable>
+
+                    {isExpanded ? (
+                      <View className="gap-2 pt-2 border-t" style={{ borderTopColor: palette.borderInteractive }}>
+                        <View
+                          className="rounded-xl border p-3 gap-1"
+                          style={{
+                            backgroundColor: palette.brandSurface,
+                            borderColor: palette.brandPrimary,
+                          }}
+                        >
+                          <Text className="text-xs font-bold uppercase" style={{ color: palette.brandText }}>
+                            Qué SÍ hacer
+                          </Text>
+                          {guide.doStepsMx.map((s) => (
+                            <Text key={s} className="text-xs" style={{ color: palette.textPrimary }}>
+                              • {s}
+                            </Text>
+                          ))}
+                        </View>
+                        <View
+                          className="rounded-xl border p-3 gap-1"
+                          style={{
+                            backgroundColor: palette.alertRedSurface,
+                            borderColor: palette.alertRed,
+                          }}
+                        >
+                          <Text className="text-xs font-bold uppercase" style={{ color: palette.alertRedText }}>
+                            Qué NO hacer
+                          </Text>
+                          {guide.doNotDoMx.map((n) => (
                         <Text key={n} className="text-xs" style={{ color: palette.textPrimary }}>
                           • {n}
                         </Text>
@@ -381,6 +521,8 @@ export default function GuiasScreen() {
               </View>
             );
           })}
+            </View>
+          ))}
         </View>
       )}
 

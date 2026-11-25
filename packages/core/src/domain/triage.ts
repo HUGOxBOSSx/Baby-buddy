@@ -101,7 +101,7 @@ export function evaluateTriageHardGates(
   }
   if (input.severeBreathingDistress) {
     redRules.push(
-      'Dificultad respiratoria grave (hundimiento de costillas, aleteo nasal o quejido): llama al 911.',
+      'Dificultad respiratoria grave (esfuerzo visible al respirar: hundimiento de costillas, aleteo nasal o quejido constante en cada respiración, no pujidos ocasionales): llama al 911.',
     );
   }
   if (input.blueLips) {

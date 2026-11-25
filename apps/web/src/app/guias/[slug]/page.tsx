@@ -68,8 +68,8 @@ export default async function GuideDetailPage({
           <p className="text-sm text-ink-secondary">{guide.summaryMx}</p>
         </div>
 
-        <div className="space-y-2">
-          <h2 className="text-sm font-bold uppercase text-ink-primary">
+        <div className="rounded-2xl border border-brand-primary bg-brand-surface p-4 space-y-1.5">
+          <h2 className="text-sm font-bold uppercase text-brand-text">
             Qué SÍ hacer
           </h2>
           <ul className="list-disc pl-5 space-y-1 text-sm text-ink-primary">

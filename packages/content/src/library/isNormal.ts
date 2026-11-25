@@ -6,6 +6,29 @@ const meta = () =>
     sources: [M1_CLINICAL_SOURCES.whoChildCare, M1_CLINICAL_SOURCES.nom031],
   });
 
+const CATEGORY_BY_SLUG: Record<string, string> = {
+  'hipo-recien-nacido': 'Digestivo',
+  'estornudos-recien-nacido': 'Respiratorio',
+  'respiracion-periodica': 'Respiratorio',
+  'pujidos-ruidos-al-dormir': 'Sueño',
+  'reflejo-de-moro-sobresalto': 'Recién nacido',
+  'descamacion-piel-recien-nacido': 'Piel',
+  'acne-neonatal-milia': 'Piel',
+  'costra-lactea': 'Piel',
+  'cordon-umbilical': 'Recién nacido',
+  'ictericia-leve': 'Recién nacido',
+  'perdida-peso-inicial': 'Alimentación',
+  'hora-bruja-llanto-vespertino': 'Conducta',
+  'alimentacion-en-racimo': 'Alimentación',
+  'babeo-y-regresion-4-meses': 'Sueño',
+  'ansiedad-de-separacion': 'Conducta',
+  'berrinches-evolutivos': 'Conducta',
+  'selectividad-alimentaria-neofobia': 'Alimentación',
+  'terrores-nocturnos-vs-pesadillas': 'Sueño',
+  'miedos-nocturnos-imaginacion': 'Sueño',
+  'tartamudeo-evolutivo': 'Conducta',
+};
+
 function normalItem(
   slug: string,
   stages: ClinicalGuideEntry['stages'],
@@ -21,7 +44,7 @@ function normalItem(
     slug,
     kind: 'es_normal',
     stages,
-    categoryMx: '¿Es normal?',
+    categoryMx: CATEGORY_BY_SLUG[slug] ?? 'Recién nacido',
     titleMx,
     quickAnswerMx,
     summaryMx,

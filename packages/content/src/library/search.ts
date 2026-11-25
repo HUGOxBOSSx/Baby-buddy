@@ -1,12 +1,33 @@
-import { normalizeSearchText, type StageId } from '@baby-buddy/core';
+import {
+  normalizeSearchText,
+  type StageId,
+  type TriageLevel,
+} from '@baby-buddy/core';
 import type { ClinicalGuideEntry, GuideKind } from '../schema';
 import { IS_NORMAL_GUIDES } from './isNormal';
 import { PROBLEM_SOLUTIONS_GUIDES } from './problems';
+
+export type NormalityFilter =
+  | 'all'
+  | 'es_normal'
+  | 'no_es_normal'
+  | 'primeros_auxilios';
 
 export const ALL_CLINICAL_GUIDES: readonly ClinicalGuideEntry[] = [
   ...IS_NORMAL_GUIDES,
   ...PROBLEM_SOLUTIONS_GUIDES,
 ] as const;
+
+export const GUIDE_CATEGORIES_MX: readonly string[] = Array.from(
+  new Set(ALL_CLINICAL_GUIDES.map((g) => g.categoryMx)),
+).sort((a, b) => a.localeCompare(b, 'es-MX'));
+
+export function isGuideNormal(guide: ClinicalGuideEntry): boolean {
+  return (
+    guide.triageLevel === 'green_home' ||
+    guide.triageLevel === 'yellow_pediatrician'
+  );
+}
 
 export function getClinicalGuideBySlug(
   slug: string,
@@ -18,12 +39,22 @@ export interface GuideSearchOptions {
   readonly query?: string;
   readonly stageId?: StageId | 'all';
   readonly kind?: GuideKind | 'all';
+  readonly normality?: NormalityFilter;
+  readonly triageLevel?: TriageLevel | 'all';
+  readonly categoryMx?: string | 'all';
 }
 
 export function searchClinicalGuides(
   options: GuideSearchOptions = {},
 ): readonly ClinicalGuideEntry[] {
-  const { query = '', stageId = 'all', kind = 'all' } = options;
+  const {
+    query = '',
+    stageId = 'all',
+    kind = 'all',
+    normality = 'all',
+    triageLevel = 'all',
+    categoryMx = 'all',
+  } = options;
   const normalizedQuery = normalizeSearchText(query);
 
   return ALL_CLINICAL_GUIDES.filter((guide) => {
@@ -31,6 +62,25 @@ export function searchClinicalGuides(
       return false;
     }
     if (kind !== 'all' && guide.kind !== kind) {
+      return false;
+    }
+    if (normality === 'es_normal') {
+      if (!isGuideNormal(guide) || guide.kind === 'primeros_auxilios') {
+        return false;
+      }
+    } else if (normality === 'no_es_normal') {
+      if (isGuideNormal(guide) || guide.kind === 'primeros_auxilios') {
+        return false;
+      }
+    } else if (normality === 'primeros_auxilios') {
+      if (guide.kind !== 'primeros_auxilios') {
+        return false;
+      }
+    }
+    if (triageLevel !== 'all' && guide.triageLevel !== triageLevel) {
+      return false;
+    }
+    if (categoryMx !== 'all' && guide.categoryMx !== categoryMx) {
       return false;
     }
     if (!normalizedQuery) {

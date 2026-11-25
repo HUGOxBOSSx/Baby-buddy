@@ -148,4 +148,31 @@ describe('@baby-buddy/content M1 scaffolds & clinical metadata', () => {
       assertValidClinicalMetadata({ ...validMeta, reviewed_by: '' }),
     ).toThrow();
   });
+
+  it('filters clinical guides by normality, triageLevel, and thematic categoryMx', async () => {
+    const {
+      GUIDE_CATEGORIES_MX,
+      isGuideNormal,
+      searchClinicalGuides,
+    } = await import('../library/search');
+
+    expect(GUIDE_CATEGORIES_MX.length).toBeGreaterThan(3);
+    expect(GUIDE_CATEGORIES_MX).not.toContain('¿Es normal?');
+
+    const normal = searchClinicalGuides({ normality: 'es_normal' });
+    expect(normal.length).toBeGreaterThan(0);
+    expect(normal.every((g) => isGuideNormal(g) && g.kind !== 'primeros_auxilios')).toBe(true);
+
+    const notNormal = searchClinicalGuides({ normality: 'no_es_normal' });
+    expect(notNormal.length).toBeGreaterThan(0);
+    expect(notNormal.every((g) => !isGuideNormal(g) && g.kind !== 'primeros_auxilios')).toBe(true);
+
+    const firstAid = searchClinicalGuides({ normality: 'primeros_auxilios' });
+    expect(firstAid.length).toBeGreaterThan(0);
+    expect(firstAid.every((g) => g.kind === 'primeros_auxilios')).toBe(true);
+
+    const redOnly = searchClinicalGuides({ triageLevel: 'red_911' });
+    expect(redOnly.length).toBeGreaterThan(0);
+    expect(redOnly.every((g) => g.triageLevel === 'red_911')).toBe(true);
+  });
 });
