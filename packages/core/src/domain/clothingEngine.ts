@@ -18,6 +18,8 @@ export type ComfortZone = 'cold' | 'optimal' | 'overheat' | 'unsafe_sleep';
 export type BabyHealthStatus = 'termino_sano' | 'prematuro' | 'fiebre';
 export type WallEffectMode = 'auto' | 'frio' | 'caliente';
 export type OutdoorWeatherCondition = 'soleado' | 'nublado' | 'lluvia';
+export type IndoorLocation = 'cuna' | 'cama_colecho' | 'despierto_casa' | 'ninguno';
+export type OutdoorTransport = 'ninguno' | 'portabebe' | 'carriola' | 'silla_auto';
 
 export type BaseLayerId =
   | 'ninguna'
@@ -223,6 +225,8 @@ export interface ClothingContextFlags {
   readonly wallEffectMode: WallEffectMode;
   readonly weatherCondition: OutdoorWeatherCondition;
   readonly isWindy: boolean;
+  readonly indoorLocation: IndoorLocation;
+  readonly outdoorTransport: OutdoorTransport;
 }
 
 export const DEFAULT_CLOTHING_CONTEXT: ClothingContextFlags = {
@@ -237,6 +241,8 @@ export const DEFAULT_CLOTHING_CONTEXT: ClothingContextFlags = {
   wallEffectMode: 'auto',
   weatherCondition: 'soleado',
   isWindy: false,
+  indoorLocation: 'cuna',
+  outdoorTransport: 'ninguno',
 };
 
 export interface ClothingRecommendationInput {
@@ -285,36 +291,39 @@ function resolveWallAdjustment(
   if (environment !== 'cuarto' || !ctx.coldWalls) {
     return {
       wallAdjustmentC: 0,
-      wallEffectLabelMx: 'Sin ajuste por muro exterior',
+      wallEffectLabelMx: 'Sin ajuste por pared exterior',
     };
   }
   if (outdoorTempC !== undefined) {
-    if (outdoorTempC <= tempC - 3) {
+    const delta = outdoorTempC - tempC;
+    if (Math.abs(delta) < 3) {
       return {
-        wallAdjustmentC: -1.5,
-        wallEffectLabelMx: `−1.5 °C por muro exterior frío (${outdoorTempC} °C afuera)`,
+        wallAdjustmentC: 0,
+        wallEffectLabelMx: `0 °C (exterior ${outdoorTempC} °C similar al cuarto)`,
       };
     }
-    if (outdoorTempC >= tempC + 3) {
-      return {
-        wallAdjustmentC: 1.5,
-        wallEffectLabelMx: `+1.5 °C por muro exterior caliente (${outdoorTempC} °C afuera)`,
-      };
+    const raw = delta * 0.15;
+    let rounded = Math.round(raw * 2) / 2;
+    if (rounded === 0) {
+      rounded = delta > 0 ? 0.5 : -0.5;
     }
+    const clamped = Math.max(-3.0, Math.min(3.0, rounded));
+    const signStr = clamped > 0 ? `+${clamped}` : `−${Math.abs(clamped)}`;
+    const kind = clamped > 0 ? 'caliente' : 'fría';
     return {
-      wallAdjustmentC: 0,
-      wallEffectLabelMx: `0 °C (exterior ${outdoorTempC} °C similar al cuarto)`,
+      wallAdjustmentC: clamped,
+      wallEffectLabelMx: `${signStr} °C por pared exterior ${kind} (${outdoorTempC} °C afuera)`,
     };
   }
   if (ctx.wallEffectMode === 'caliente') {
     return {
       wallAdjustmentC: 1.5,
-      wallEffectLabelMx: '+1.5 °C por muro exterior caliente',
+      wallEffectLabelMx: '+1.5 °C por pared exterior caliente',
     };
   }
   return {
     wallAdjustmentC: -1.5,
-    wallEffectLabelMx: '−1.5 °C por muro exterior frío',
+    wallEffectLabelMx: '−1.5 °C por pared exterior fría',
   };
 }
 
@@ -389,7 +398,11 @@ function getRecommendedTogRange(
     min += 0.3;
     max += 0.3;
   }
-  if (ctx.inCarrierOrStroller) {
+  if (ctx.inCarrierOrStroller || (environment === 'exterior' && ctx.outdoorTransport === 'portabebe')) {
+    min = Math.max(0, min - 0.35);
+    max = Math.max(0.2, max - 0.35);
+  }
+  if (environment === 'cuarto' && ctx.indoorLocation === 'cama_colecho') {
     min = Math.max(0, min - 0.35);
     max = Math.max(0.2, max - 0.35);
   }
@@ -756,14 +769,24 @@ export function recommendClothing(
       'Con clima o ventilador: evita que el aire pegue directo al bebé.',
     );
   }
-  if (ctx.inCarrierOrStroller) {
+  if (ctx.inCarrierOrStroller || (environment === 'exterior' && ctx.outdoorTransport === 'portabebe')) {
     actionsMx.push(
-      'En portabebé o carriola: quita 1 capa (−1 capa) por el calor que retiene.',
+      'En portabebé o fular: quita 1 capa (−1 capa) por el calor corporal que retiene.',
     );
   }
-  if (ctx.inCarSeat) {
+  if (environment === 'exterior' && ctx.outdoorTransport === 'carriola') {
+    doNotDoMx.push(
+      'En carriola: nunca la cubras con mantas o pañales porque elevan rápidamente la temperatura interior.',
+    );
+  }
+  if (ctx.inCarSeat || (environment === 'exterior' && ctx.outdoorTransport === 'silla_auto')) {
     actionsMx.push(
       'En silla del auto: quita la chamarra gruesa o inflada antes de abrochar el arnés.',
+    );
+  }
+  if (environment === 'cuarto' && ctx.indoorLocation === 'cama_colecho') {
+    actionsMx.push(
+      'En cama/colecho: el calor corporal del adulto suma abrigo (−0.35 TOG). Evita edredones pesados y almohadas cerca del bebé; en <12m la recomendación más segura es superficie firme separada en la misma habitación.',
     );
   }
   if (environment === 'exterior') {

@@ -16,7 +16,9 @@ import {
   type BaseLayerId,
   type ClothingContextFlags,
   type ClothingEnvironment,
+  type IndoorLocation,
   type MidLayerId,
+  type OutdoorTransport,
   type OutdoorWeatherCondition,
   type OuterLayerId,
   type SelectedLayersInput,
@@ -42,17 +44,31 @@ const HEALTH_OPTIONS: readonly {
   { id: 'fiebre', label: 'Fiebre (−1)' },
 ] as const;
 
-const CONTEXT_CHIPS: readonly {
-  readonly key:
-    | 'hasAcOrFan'
-    | 'inCarrierOrStroller'
-    | 'inCarSeat'
-    | 'canRollOver';
+const INDOOR_LOCATIONS: readonly {
+  readonly id: IndoorLocation;
+  readonly label: string;
+}[] = [
+  { id: 'cuna', label: 'Cuna / moisés' },
+  { id: 'cama_colecho', label: 'Cama / colecho (−1)' },
+  { id: 'despierto_casa', label: 'Despierto en casa' },
+  { id: 'ninguno', label: 'Ninguno' },
+] as const;
+
+const OUTDOOR_TRANSPORTS: readonly {
+  readonly id: OutdoorTransport;
+  readonly label: string;
+}[] = [
+  { id: 'ninguno', label: 'Ninguno / en brazos' },
+  { id: 'portabebe', label: 'Portabebé (−1)' },
+  { id: 'carriola', label: 'Carriola' },
+  { id: 'silla_auto', label: 'Silla de auto' },
+] as const;
+
+const INDOOR_EXTRAS: readonly {
+  readonly key: 'hasAcOrFan' | 'canRollOver';
   readonly label: string;
 }[] = [
   { key: 'hasAcOrFan', label: 'Clima / ventilador' },
-  { key: 'inCarrierOrStroller', label: 'Portabebé (−1)' },
-  { key: 'inCarSeat', label: 'Silla de auto' },
   { key: 'canRollOver', label: 'Ya se voltea' },
 ] as const;
 
@@ -290,7 +306,7 @@ export default function RopaYClimaScreen() {
               }}
             >
               <Text className="text-xs font-bold" style={{ color: palette.textPrimary }}>
-                Cuna cerca de muro exterior
+                Pared que da a la calle o ventana
               </Text>
               <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
                 {context.coldWalls ? rec.wallEffectLabelMx : 'Desactivado'}
@@ -441,24 +457,183 @@ export default function RopaYClimaScreen() {
               </View>
             </View>
 
-            <View className="gap-2">
-              <Text className="text-xs font-bold uppercase" style={{ color: palette.textSecondary }}>
-                Contexto adicional
-              </Text>
-              <View className="flex-row flex-wrap gap-2">
-                {CONTEXT_CHIPS.map((chip) => {
-                  const active = context[chip.key];
-                  return (
+            {environment === 'cuarto' ? (
+              <>
+                <View className="gap-2">
+                  <Text className="text-xs font-bold uppercase" style={{ color: palette.textSecondary }}>
+                    Dónde está el bebé
+                  </Text>
+                  <View className="flex-row flex-wrap gap-2">
+                    {INDOOR_LOCATIONS.map((loc) => {
+                      const selected = context.indoorLocation === loc.id;
+                      return (
+                        <Pressable
+                          key={loc.id}
+                          onPress={() =>
+                            setContext((prev) => ({
+                              ...prev,
+                              indoorLocation: loc.id,
+                            }))
+                          }
+                          className="rounded-full border px-3 py-2 justify-center"
+                          style={{
+                            minHeight: MIN_TOUCH_TARGET_PX,
+                            backgroundColor: selected
+                              ? palette.brandPrimary
+                              : palette.bgElevated,
+                            borderColor: selected
+                              ? palette.brandPrimary
+                              : palette.borderInteractive,
+                          }}
+                        >
+                          <Text
+                            className="text-xs font-semibold"
+                            style={{
+                              color: selected
+                                ? palette.onBrandPrimary
+                                : palette.textPrimary,
+                            }}
+                          >
+                            {loc.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                <View className="gap-2">
+                  <Text className="text-xs font-bold uppercase" style={{ color: palette.textSecondary }}>
+                    Extras de interior
+                  </Text>
+                  <View className="flex-row flex-wrap gap-2">
+                    {INDOOR_EXTRAS.map((chip) => {
+                      const active = context[chip.key];
+                      return (
+                        <Pressable
+                          key={chip.key}
+                          onPress={() => toggleFlag(chip.key)}
+                          className="rounded-full border px-3 py-2 justify-center"
+                          style={{
+                            minHeight: MIN_TOUCH_TARGET_PX,
+                            backgroundColor: active
+                              ? palette.brandPrimary
+                              : palette.bgElevated,
+                            borderColor: active
+                              ? palette.brandPrimary
+                              : palette.borderInteractive,
+                          }}
+                        >
+                          <Text
+                            className="text-xs font-semibold"
+                            style={{
+                              color: active
+                                ? palette.onBrandPrimary
+                                : palette.textPrimary,
+                            }}
+                          >
+                            {chip.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              </>
+            ) : (
+              <>
+                <View className="gap-2">
+                  <Text className="text-xs font-bold uppercase" style={{ color: palette.textSecondary }}>
+                    Cómo van en el paseo
+                  </Text>
+                  <View className="flex-row flex-wrap gap-2">
+                    {OUTDOOR_TRANSPORTS.map((tr) => {
+                      const selected = context.outdoorTransport === tr.id;
+                      return (
+                        <Pressable
+                          key={tr.id}
+                          onPress={() =>
+                            setContext((prev) => ({
+                              ...prev,
+                              outdoorTransport: tr.id,
+                            }))
+                          }
+                          className="rounded-full border px-3 py-2 justify-center"
+                          style={{
+                            minHeight: MIN_TOUCH_TARGET_PX,
+                            backgroundColor: selected
+                              ? palette.brandPrimary
+                              : palette.bgElevated,
+                            borderColor: selected
+                              ? palette.brandPrimary
+                              : palette.borderInteractive,
+                          }}
+                        >
+                          <Text
+                            className="text-xs font-semibold"
+                            style={{
+                              color: selected
+                                ? palette.onBrandPrimary
+                                : palette.textPrimary,
+                            }}
+                          >
+                            {tr.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                <View className="gap-2">
+                  <Text className="text-xs font-bold uppercase" style={{ color: palette.textSecondary }}>
+                    Condiciones del exterior
+                  </Text>
+                  <View className="flex-row flex-wrap gap-2">
+                    {WEATHER_CONDITIONS.map((w) => {
+                      const selected = context.weatherCondition === w.id;
+                      return (
+                        <Pressable
+                          key={w.id}
+                          onPress={() =>
+                            setContext((prev) => ({
+                              ...prev,
+                              weatherCondition: w.id,
+                            }))
+                          }
+                          className="rounded-full border px-3 py-2 justify-center"
+                          style={{
+                            minHeight: MIN_TOUCH_TARGET_PX,
+                            backgroundColor: selected
+                              ? palette.brandPrimary
+                              : palette.bgElevated,
+                            borderColor: selected
+                              ? palette.brandPrimary
+                              : palette.borderInteractive,
+                          }}
+                        >
+                          <Text
+                            className="text-xs font-semibold"
+                            style={{
+                              color: selected
+                                ? palette.onBrandPrimary
+                                : palette.textPrimary,
+                            }}
+                          >
+                            {w.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
                     <Pressable
-                      key={chip.key}
-                      onPress={() => toggleFlag(chip.key)}
+                      onPress={() => toggleFlag('isWindy')}
                       className="rounded-full border px-3 py-2 justify-center"
                       style={{
                         minHeight: MIN_TOUCH_TARGET_PX,
-                        backgroundColor: active
+                        backgroundColor: context.isWindy
                           ? palette.brandPrimary
                           : palette.bgElevated,
-                        borderColor: active
+                        borderColor: context.isWindy
                           ? palette.brandPrimary
                           : palette.borderInteractive,
                       }}
@@ -466,87 +641,18 @@ export default function RopaYClimaScreen() {
                       <Text
                         className="text-xs font-semibold"
                         style={{
-                          color: active
+                          color: context.isWindy
                             ? palette.onBrandPrimary
                             : palette.textPrimary,
                         }}
                       >
-                        {chip.label}
+                        Con viento
                       </Text>
                     </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-
-            {environment === 'exterior' ? (
-              <View className="gap-2">
-                <Text className="text-xs font-bold uppercase" style={{ color: palette.textSecondary }}>
-                  Condiciones del exterior
-                </Text>
-                <View className="flex-row flex-wrap gap-2">
-                  {WEATHER_CONDITIONS.map((w) => {
-                    const selected = context.weatherCondition === w.id;
-                    return (
-                      <Pressable
-                        key={w.id}
-                        onPress={() =>
-                          setContext((prev) => ({
-                            ...prev,
-                            weatherCondition: w.id,
-                          }))
-                        }
-                        className="rounded-full border px-3 py-2 justify-center"
-                        style={{
-                          minHeight: MIN_TOUCH_TARGET_PX,
-                          backgroundColor: selected
-                            ? palette.brandPrimary
-                            : palette.bgElevated,
-                          borderColor: selected
-                            ? palette.brandPrimary
-                            : palette.borderInteractive,
-                        }}
-                      >
-                        <Text
-                          className="text-xs font-semibold"
-                          style={{
-                            color: selected
-                              ? palette.onBrandPrimary
-                              : palette.textPrimary,
-                          }}
-                        >
-                          {w.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                  <Pressable
-                    onPress={() => toggleFlag('isWindy')}
-                    className="rounded-full border px-3 py-2 justify-center"
-                    style={{
-                      minHeight: MIN_TOUCH_TARGET_PX,
-                      backgroundColor: context.isWindy
-                        ? palette.brandPrimary
-                        : palette.bgElevated,
-                      borderColor: context.isWindy
-                        ? palette.brandPrimary
-                        : palette.borderInteractive,
-                    }}
-                  >
-                    <Text
-                      className="text-xs font-semibold"
-                      style={{
-                        color: context.isWindy
-                          ? palette.onBrandPrimary
-                          : palette.textPrimary,
-                      }}
-                    >
-                      Con viento
-                    </Text>
-                  </Pressable>
+                  </View>
                 </View>
-              </View>
-            ) : null}
+              </>
+            )}
 
             <View className="gap-2">
               <Text className="text-xs font-bold uppercase" style={{ color: palette.textSecondary }}>
@@ -849,17 +955,6 @@ export default function RopaYClimaScreen() {
           <Text className="text-xs leading-5" style={{ color: palette.textPrimary }}>
             {rec.togDeltaMx}
           </Text>
-        </View>
-
-        <View className="gap-1">
-          <Text className="text-xs font-bold uppercase" style={{ color: palette.textPrimary }}>
-            Capas sugeridas (incluye opciones sin saco)
-          </Text>
-          {rec.layersMx.map((layer) => (
-            <Text key={layer} className="text-sm" style={{ color: palette.textPrimary }}>
-              • {layer}
-            </Text>
-          ))}
         </View>
 
         {rec.doNotDoMx.length > 0 ? (

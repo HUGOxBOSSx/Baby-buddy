@@ -26,26 +26,51 @@ describe('recommendClothing (-5 °C a 50 °C)', () => {
     ).toThrow(RangeError);
   });
 
-  it('calcula muro exterior frío (-1.5 °C) y muro exterior caliente (+1.5 °C) según outdoorTempC', () => {
-    const muroFrio = recommendClothing({
+  it('calcula ajuste proporcional de pared exterior según diferencia de temperatura (ΔT)', () => {
+    const similar = recommendClothing({
       tempC: 21,
-      outdoorTempC: 10,
+      outdoorTempC: 19,
       environment: 'cuarto',
       stageId: '0-3m',
       context: { coldWalls: true },
     });
-    expect(muroFrio.wallAdjustmentC).toBe(-1.5);
-    expect(muroFrio.effectiveTempC).toBe(19.5);
+    expect(similar.wallAdjustmentC).toBe(0);
 
-    const muroCaliente = recommendClothing({
-      tempC: 24,
-      outdoorTempC: 36,
+    const fresco = recommendClothing({
+      tempC: 21,
+      outdoorTempC: 14,
       environment: 'cuarto',
       stageId: '0-3m',
       context: { coldWalls: true },
     });
-    expect(muroCaliente.wallAdjustmentC).toBe(1.5);
-    expect(muroCaliente.effectiveTempC).toBe(25.5);
+    expect(fresco.wallAdjustmentC).toBe(-1.0);
+    expect(fresco.effectiveTempC).toBe(20);
+
+    const muyFrio = recommendClothing({
+      tempC: 21,
+      outdoorTempC: 5,
+      environment: 'cuarto',
+      stageId: '0-3m',
+      context: { coldWalls: true },
+    });
+    expect(muyFrio.wallAdjustmentC).toBe(-2.5);
+
+    const muyCaliente = recommendClothing({
+      tempC: 24,
+      outdoorTempC: 44,
+      environment: 'cuarto',
+      stageId: '0-3m',
+      context: { coldWalls: true },
+    });
+    expect(muyCaliente.wallAdjustmentC).toBe(3.0);
+
+    const colecho = recommendClothing({
+      tempC: 21,
+      environment: 'cuarto',
+      stageId: '0-3m',
+      context: { indoorLocation: 'cama_colecho' },
+    });
+    expect(colecho.actionsMx.join(' ')).toContain('cama/colecho');
   });
 
   it('permite multi-selección por capa, accesorios y detecta gorro bajo techo o doble saco', () => {

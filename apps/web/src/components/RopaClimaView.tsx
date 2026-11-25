@@ -18,7 +18,9 @@ import {
   type BaseLayerId,
   type ClothingContextFlags,
   type ClothingEnvironment,
+  type IndoorLocation,
   type MidLayerId,
+  type OutdoorTransport,
   type OutdoorWeatherCondition,
   type OuterLayerId,
   type SelectedLayersInput,
@@ -46,17 +48,31 @@ const HEALTH_OPTIONS: readonly {
   { id: 'fiebre', label: 'Fiebre (−1 capa)' },
 ] as const;
 
-const CONTEXT_CHIPS: readonly {
-  readonly key:
-    | 'hasAcOrFan'
-    | 'inCarrierOrStroller'
-    | 'inCarSeat'
-    | 'canRollOver';
+const INDOOR_LOCATIONS: readonly {
+  readonly id: IndoorLocation;
+  readonly label: string;
+}[] = [
+  { id: 'cuna', label: 'Cuna / moisés' },
+  { id: 'cama_colecho', label: 'Cama / colecho (−1)' },
+  { id: 'despierto_casa', label: 'Despierto en casa' },
+  { id: 'ninguno', label: 'Ninguno' },
+] as const;
+
+const OUTDOOR_TRANSPORTS: readonly {
+  readonly id: OutdoorTransport;
+  readonly label: string;
+}[] = [
+  { id: 'ninguno', label: 'Ninguno / en brazos' },
+  { id: 'portabebe', label: 'Portabebé / fular (−1)' },
+  { id: 'carriola', label: 'Carriola' },
+  { id: 'silla_auto', label: 'Silla de auto' },
+] as const;
+
+const INDOOR_EXTRAS: readonly {
+  readonly key: 'hasAcOrFan' | 'canRollOver';
   readonly label: string;
 }[] = [
   { key: 'hasAcOrFan', label: 'Clima / ventilador' },
-  { key: 'inCarrierOrStroller', label: 'Portabebé / carriola (−1)' },
-  { key: 'inCarSeat', label: 'Silla de auto' },
   { key: 'canRollOver', label: 'Ya se voltea' },
 ] as const;
 
@@ -344,8 +360,16 @@ export function RopaClimaView() {
                   : 'border-border-interactive bg-bg-card text-ink-primary'
               }`}
             >
-              <span>Cuna cerca de muro exterior (frío o caliente)</span>
-              <span className="tabular-nums">
+              <div className="space-y-0.5">
+                <span className="block">
+                  Cuna pegada a pared que da a la calle o ventana
+                </span>
+                <span className="block text-[11px] font-normal text-ink-secondary">
+                  Las paredes que dan al exterior transmiten frío o calor según
+                  la diferencia de temperatura con afuera.
+                </span>
+              </div>
+              <span className="shrink-0 tabular-nums">
                 {context.coldWalls ? rec.wallEffectLabelMx : 'Desactivado'}
               </span>
             </button>
@@ -478,76 +502,142 @@ export function RopaClimaView() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
-                Contexto adicional
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {CONTEXT_CHIPS.map((chip) => {
-                  const active = context[chip.key];
-                  return (
+            {environment === 'cuarto' ? (
+              <>
+                <div className="space-y-2">
+                  <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
+                    Dónde está el bebé
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {INDOOR_LOCATIONS.map((loc) => {
+                      const selected = context.indoorLocation === loc.id;
+                      return (
+                        <button
+                          key={loc.id}
+                          type="button"
+                          onClick={() =>
+                            setContext((prev) => ({
+                              ...prev,
+                              indoorLocation: loc.id,
+                            }))
+                          }
+                          aria-pressed={selected}
+                          className={`inline-flex min-h-12 items-center rounded-full border px-3.5 py-2 text-xs font-semibold ${
+                            selected
+                              ? 'border-brand-primary bg-brand-primary text-brand-on'
+                              : 'border-border-interactive bg-bg-elevated text-ink-primary'
+                          }`}
+                        >
+                          {loc.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
+                    Extras de interior
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {INDOOR_EXTRAS.map((chip) => {
+                      const active = context[chip.key];
+                      return (
+                        <button
+                          key={chip.key}
+                          type="button"
+                          onClick={() => toggleFlag(chip.key)}
+                          aria-pressed={active}
+                          className={`inline-flex min-h-12 items-center rounded-full border px-3.5 py-2 text-xs font-semibold ${
+                            active
+                              ? 'border-brand-primary bg-brand-primary text-brand-on'
+                              : 'border-border-interactive bg-bg-elevated text-ink-primary'
+                          }`}
+                        >
+                          {chip.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
+                    Cómo van en el paseo
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {OUTDOOR_TRANSPORTS.map((tr) => {
+                      const selected = context.outdoorTransport === tr.id;
+                      return (
+                        <button
+                          key={tr.id}
+                          type="button"
+                          onClick={() =>
+                            setContext((prev) => ({
+                              ...prev,
+                              outdoorTransport: tr.id,
+                            }))
+                          }
+                          aria-pressed={selected}
+                          className={`inline-flex min-h-12 items-center rounded-full border px-3.5 py-2 text-xs font-semibold ${
+                            selected
+                              ? 'border-brand-primary bg-brand-primary text-brand-on'
+                              : 'border-border-interactive bg-bg-elevated text-ink-primary'
+                          }`}
+                        >
+                          {tr.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
+                    Condiciones del exterior
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {WEATHER_CONDITIONS.map((w) => {
+                      const selected = context.weatherCondition === w.id;
+                      return (
+                        <button
+                          key={w.id}
+                          type="button"
+                          onClick={() =>
+                            setContext((prev) => ({
+                              ...prev,
+                              weatherCondition: w.id,
+                            }))
+                          }
+                          aria-pressed={selected}
+                          className={`inline-flex min-h-12 items-center rounded-full border px-3.5 py-2 text-xs font-semibold ${
+                            selected
+                              ? 'border-brand-primary bg-brand-primary text-brand-on'
+                              : 'border-border-interactive bg-bg-elevated text-ink-primary'
+                          }`}
+                        >
+                          {w.label}
+                        </button>
+                      );
+                    })}
                     <button
-                      key={chip.key}
                       type="button"
-                      onClick={() => toggleFlag(chip.key)}
-                      aria-pressed={active}
+                      onClick={() => toggleFlag('isWindy')}
+                      aria-pressed={context.isWindy}
                       className={`inline-flex min-h-12 items-center rounded-full border px-3.5 py-2 text-xs font-semibold ${
-                        active
+                        context.isWindy
                           ? 'border-brand-primary bg-brand-primary text-brand-on'
                           : 'border-border-interactive bg-bg-elevated text-ink-primary'
                       }`}
                     >
-                      {chip.label}
+                      Con viento
                     </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {environment === 'exterior' ? (
-              <div className="space-y-2">
-                <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
-                  Condiciones del exterior
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {WEATHER_CONDITIONS.map((w) => {
-                    const selected = context.weatherCondition === w.id;
-                    return (
-                      <button
-                        key={w.id}
-                        type="button"
-                        onClick={() =>
-                          setContext((prev) => ({
-                            ...prev,
-                            weatherCondition: w.id,
-                          }))
-                        }
-                        aria-pressed={selected}
-                        className={`inline-flex min-h-12 items-center rounded-full border px-3.5 py-2 text-xs font-semibold ${
-                          selected
-                            ? 'border-brand-primary bg-brand-primary text-brand-on'
-                            : 'border-border-interactive bg-bg-elevated text-ink-primary'
-                        }`}
-                      >
-                        {w.label}
-                      </button>
-                    );
-                  })}
-                  <button
-                    type="button"
-                    onClick={() => toggleFlag('isWindy')}
-                    aria-pressed={context.isWindy}
-                    className={`inline-flex min-h-12 items-center rounded-full border px-3.5 py-2 text-xs font-semibold ${
-                      context.isWindy
-                        ? 'border-brand-primary bg-brand-primary text-brand-on'
-                        : 'border-border-interactive bg-bg-elevated text-ink-primary'
-                    }`}
-                  >
-                    Con viento
-                  </button>
+                  </div>
                 </div>
-              </div>
-            ) : null}
+              </>
+            )}
 
             {/* Multi-selección por capa */}
             <div className="space-y-2">
@@ -797,17 +887,6 @@ export function RopaClimaView() {
               : rec.headlineMx}
           </p>
           <p className="text-sm text-ink-primary">{rec.togDeltaMx}</p>
-        </div>
-
-        <div className="space-y-2">
-          <h2 className="text-sm font-bold text-ink-primary">
-            Recomendación por capas (incluye opciones sin saco)
-          </h2>
-          <ul className="list-disc pl-5 space-y-1 text-sm text-ink-primary">
-            {rec.layersMx.map((layer) => (
-              <li key={layer}>{layer}</li>
-            ))}
-          </ul>
         </div>
 
         {rec.actionsMx.length > 0 ? (
