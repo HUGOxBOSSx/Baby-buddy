@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Build & export outputs
+.next/
+out/
+dist/
+build/
+coverage/
+.expo/
+*.tsbuildinfo
+next-env.d.ts
+
+# Native folders (not generated in M1)
+apps/mobile/android/
+apps/mobile/ios/
+
+# Environment & secrets (keep .env.example committed)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*

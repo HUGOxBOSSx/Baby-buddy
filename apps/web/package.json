@@ -1,0 +1,29 @@
+{
+  "name": "@baby-buddy/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@baby-buddy/content": "*",
+    "@baby-buddy/core": "*",
+    "next": "^16.4.6",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "@types/react": "~19.2.0",
+    "@types/react-dom": "~19.2.0",
+    "autoprefixer": "^10.4.20",
+    "eslint-config-next": "^16.4.6",
+    "postcss": "^8.5.23",
+    "tailwindcss": "3.4.17",
+    "typescript": "~5.9.3"
+  }
+}

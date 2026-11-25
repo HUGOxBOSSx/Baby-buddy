@@ -1,0 +1,38 @@
+{
+  "name": "@baby-buddy/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "export": "expo export --platform web --clear",
+    "export:all": "expo export --platform android --platform ios --platform web --clear"
+  },
+  "dependencies": {
+    "@baby-buddy/content": "*",
+    "@baby-buddy/core": "*",
+    "expo": "~55.0.32",
+    "expo-constants": "~55.0.17",
+    "expo-linking": "~55.0.17",
+    "expo-router": "~55.0.18",
+    "expo-status-bar": "~55.0.6",
+    "nativewind": "~4.2.5",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "react-native": "0.83.10",
+    "react-native-css-interop": "~0.2.5",
+    "react-native-reanimated": "4.2.1",
+    "react-native-safe-area-context": "~5.6.2",
+    "react-native-screens": "~4.23.0",
+    "react-native-web": "~0.21.0",
+    "react-native-worklets": "0.7.4"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.0",
+    "eslint-config-expo": "~55.0.1",
+    "tailwindcss": "3.4.17",
+    "typescript": "~5.9.3"
+  }
+}
