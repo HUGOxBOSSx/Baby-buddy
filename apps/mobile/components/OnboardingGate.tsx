@@ -101,7 +101,8 @@ export function OnboardingGate() {
           <MascotAvatar variant="home" size="sm" />
           <View className="flex-1 gap-0.5">
             <Text
-              className="text-2xl font-bold"
+              numberOfLines={1}
+              className="text-xl font-bold"
               style={{ color: palette.textPrimary }}
             >
               Baby Buddy MX

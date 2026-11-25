@@ -609,14 +609,14 @@ export default function GuiasScreen() {
                           <Pressable
                             key={rel.slug}
                             onPress={() => openGuide(rel.slug)}
-                            className="rounded-xl border px-3 py-2 self-start flex-row items-center gap-1.5"
+                            className="w-full rounded-xl border px-3 py-2 flex-row items-center justify-between gap-2"
                             style={{
                               minHeight: MIN_TOUCH_TARGET_PX,
                               backgroundColor: bg,
                               borderColor: border,
                             }}
                           >
-                            <Text className="text-xs font-bold" style={{ color: text }}>
+                            <Text className="text-xs font-bold flex-1" style={{ color: text }}>
                               {rel.prefixMx} {rel.titleMx}
                             </Text>
                             <Text className="text-base font-bold" style={{ color: text }}>

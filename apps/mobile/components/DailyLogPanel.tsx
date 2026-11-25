@@ -12,7 +12,7 @@ import {
   type DiaperKind,
   type PoopColorTag,
 } from '@baby-buddy/core';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { useThemeContext } from './ThemeProvider';
 
@@ -67,6 +67,26 @@ export function DailyLogPanel() {
   const [customEnd, setCustomEnd] = useState<string>(() =>
     toLocalDateKey(new Date()),
   );
+  const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
+  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flashFeedback = useCallback((msg: string) => {
+    setSaveFeedback(msg);
+    if (feedbackTimerRef.current !== null) {
+      clearTimeout(feedbackTimerRef.current);
+    }
+    feedbackTimerRef.current = setTimeout(() => {
+      setSaveFeedback(null);
+    }, 3500);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (feedbackTimerRef.current !== null) {
+        clearTimeout(feedbackTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!activeFeedTimer || activeFeedTimer.paused) {
@@ -108,6 +128,7 @@ export function DailyLogPanel() {
       volumeMl: safeMl,
     });
     setShowBottlePicker(false);
+    flashFeedback(`✓ Biberón (${safeMl} ml) guardado`);
   };
 
   const handleQuickWetDiaper = () => {
@@ -119,6 +140,7 @@ export function DailyLogPanel() {
       diaperKind: 'wet',
     });
     setPendingDiaperKind(null);
+    flashFeedback('✓ Pipí guardado');
   };
 
   const handleSaveDirtyDiaper = () => {
@@ -131,6 +153,11 @@ export function DailyLogPanel() {
       diaperKind: pendingDiaperKind,
       poopColor: selectedPoopColor,
     });
+    flashFeedback(
+      pendingDiaperKind === 'both'
+        ? '✓ Pipí + Popó guardados'
+        : '✓ Popó guardada',
+    );
     setPendingDiaperKind(null);
   };
 
@@ -147,6 +174,20 @@ export function DailyLogPanel() {
         <Text className="text-lg font-bold" style={{ color: palette.textPrimary }}>
           Registro rápido (1 toque)
         </Text>
+
+        {saveFeedback ? (
+          <View
+            className="rounded-xl border px-3 py-2"
+            style={{
+              backgroundColor: palette.brandSurface,
+              borderColor: palette.brandPrimary,
+            }}
+          >
+            <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
+              {saveFeedback}
+            </Text>
+          </View>
+        ) : null}
 
         {activeFeedTimer ? (
           <View
@@ -213,7 +254,7 @@ export function DailyLogPanel() {
         <View className="flex-row flex-wrap gap-2">
           <Pressable
             onPress={() => startFeedTimer('breast_left')}
-            className="flex-1 min-w-[140px] rounded-2xl border-2 px-3 py-3 items-center justify-center"
+            className="flex-1 min-w-[100px] rounded-2xl border-2 px-3 py-3 items-center justify-center"
             style={{
               minHeight: 56,
               backgroundColor: palette.brandSurface,
@@ -230,7 +271,7 @@ export function DailyLogPanel() {
 
           <Pressable
             onPress={() => startFeedTimer('breast_right')}
-            className="flex-1 min-w-[140px] rounded-2xl border-2 px-3 py-3 items-center justify-center"
+            className="flex-1 min-w-[100px] rounded-2xl border-2 px-3 py-3 items-center justify-center"
             style={{
               minHeight: 56,
               backgroundColor: palette.brandSurface,
@@ -247,7 +288,7 @@ export function DailyLogPanel() {
 
           <Pressable
             onPress={() => setShowBottlePicker((v) => !v)}
-            className="flex-1 min-w-[140px] rounded-2xl border-2 px-3 py-3 items-center justify-center"
+            className="flex-1 min-w-[100px] rounded-2xl border-2 px-3 py-3 items-center justify-center"
             style={{
               minHeight: 56,
               backgroundColor: palette.bgElevated,

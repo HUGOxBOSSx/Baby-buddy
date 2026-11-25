@@ -200,7 +200,7 @@ export function HealthJournalPanel() {
               className="flex-row items-center justify-between rounded-xl border px-3 py-2"
               style={{ backgroundColor: palette.bgElevated, borderColor: palette.borderInteractive }}
             >
-              <Text className="text-xs" style={{ color: palette.textPrimary }}>
+              <Text className="text-xs flex-1 pr-2" style={{ color: palette.textPrimary }}>
                 {t.tempC.toFixed(1)} °C · {t.timestampIso.slice(0, 16).replace('T', ' ')}
               </Text>
               <Pressable onPress={() => deleteTemperatureLog(t.id)}>
@@ -352,7 +352,7 @@ export function HealthJournalPanel() {
               className="flex-row items-center justify-between rounded-xl border px-3 py-2"
               style={{ backgroundColor: palette.bgElevated, borderColor: palette.borderInteractive }}
             >
-              <Text className="text-xs" style={{ color: palette.textPrimary }}>
+              <Text className="text-xs flex-1 pr-2" style={{ color: palette.textPrimary }}>
                 {g.weightKg !== undefined ? `${g.weightKg} kg` : '—'} ·{' '}
                 {g.heightCm !== undefined ? `${g.heightCm} cm` : '—'} ({g.timestampIso.slice(0, 10)})
               </Text>

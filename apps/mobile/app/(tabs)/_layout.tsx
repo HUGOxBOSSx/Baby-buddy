@@ -101,7 +101,7 @@ export default function TabsLayout() {
           minWidth: MIN_TOUCH_TARGET_PX,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: '600',
         },
         sceneStyle: {

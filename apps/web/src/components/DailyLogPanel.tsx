@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   BOTTLE_PRESET_ML,
   POOP_COLOR_TAG_OPTIONS,
@@ -67,6 +67,26 @@ export function DailyLogPanel() {
   const [customEnd, setCustomEnd] = useState<string>(() =>
     toLocalDateKey(new Date()),
   );
+  const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
+  const feedbackTimerRef = useRef<number | null>(null);
+
+  const flashFeedback = useCallback((msg: string) => {
+    setSaveFeedback(msg);
+    if (feedbackTimerRef.current !== null) {
+      window.clearTimeout(feedbackTimerRef.current);
+    }
+    feedbackTimerRef.current = window.setTimeout(() => {
+      setSaveFeedback(null);
+    }, 3500);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (feedbackTimerRef.current !== null) {
+        window.clearTimeout(feedbackTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!activeFeedTimer || activeFeedTimer.paused) {
@@ -109,8 +129,9 @@ export function DailyLogPanel() {
         volumeMl: safeMl,
       });
       setShowBottlePicker(false);
+      flashFeedback(`✓ Biberón (${safeMl} ml) guardado`);
     },
-    [addDailyLogEntry],
+    [addDailyLogEntry, flashFeedback],
   );
 
   const handleQuickWetDiaper = useCallback(() => {
@@ -122,7 +143,8 @@ export function DailyLogPanel() {
       diaperKind: 'wet',
     });
     setPendingDiaperKind(null);
-  }, [addDailyLogEntry]);
+    flashFeedback('✓ Pipí guardado');
+  }, [addDailyLogEntry, flashFeedback]);
 
   const handleSaveDirtyDiaper = useCallback(() => {
     if (!pendingDiaperKind) return;
@@ -134,8 +156,13 @@ export function DailyLogPanel() {
       diaperKind: pendingDiaperKind,
       poopColor: selectedPoopColor,
     });
+    flashFeedback(
+      pendingDiaperKind === 'both'
+        ? '✓ Pipí + Popó guardados'
+        : '✓ Popó guardada',
+    );
     setPendingDiaperKind(null);
-  }, [addDailyLogEntry, pendingDiaperKind, selectedPoopColor]);
+  }, [addDailyLogEntry, flashFeedback, pendingDiaperKind, selectedPoopColor]);
 
   return (
     <section className="space-y-5">
@@ -150,6 +177,16 @@ export function DailyLogPanel() {
             biberón y pañales al instante.
           </p>
         </div>
+
+        {saveFeedback ? (
+          <div
+            role="status"
+            aria-live="polite"
+            className="rounded-xl border border-brand-primary bg-brand-surface px-3 py-2 text-xs font-bold text-brand-text"
+          >
+            {saveFeedback}
+          </div>
+        ) : null}
 
         {/* Active Timer Banner */}
         {activeFeedTimer ? (
