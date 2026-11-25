@@ -15,11 +15,13 @@ import {
   loadOfflineEnvConfig,
   parseActiveFeedTimer,
   parseDailyLogEntries,
+  parseHealthLogState,
   resolveLiveChildProfile,
   type ActiveFeedTimer,
   type ChildProfileSummary,
   type CreateChildProfileInput,
   type DailyLogEntry,
+  type HealthLogState,
   type KeyValueStoragePort,
   type StageId,
   type ThemeMode,
@@ -205,6 +207,20 @@ export async function savePersistedActiveFeedTimer(
   await mobileStorage.setItem(
     LOCAL_STORAGE_KEYS.activeFeedTimer,
     JSON.stringify(timer),
+  );
+}
+
+export async function loadPersistedHealthState(): Promise<HealthLogState> {
+  const raw = await mobileStorage.getItem(LOCAL_STORAGE_KEYS.healthState);
+  return parseHealthLogState(raw);
+}
+
+export async function savePersistedHealthState(
+  state: HealthLogState,
+): Promise<void> {
+  await mobileStorage.setItem(
+    LOCAL_STORAGE_KEYS.healthState,
+    JSON.stringify(state),
   );
 }
 

@@ -4,6 +4,7 @@ export * from './domain/profile';
 export * from './domain/clothingEngine';
 export * from './domain/triage';
 export * from './domain/dailyLog';
+export * from './domain/healthLog';
 
 export * from './theme/tokens';
 export * from './theme/status';

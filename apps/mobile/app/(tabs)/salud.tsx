@@ -8,6 +8,8 @@ import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { AccountDeletionSheet } from '../../components/AccountDeletionSheet';
 import { ChildProfileEditor } from '../../components/ChildProfileEditor';
+import { HealthJournalPanel } from '../../components/HealthJournalPanel';
+import { MascotAvatar } from '../../components/MascotAvatar';
 import { StatusBadge } from '../../components/StatusBadge';
 import { useThemeContext } from '../../components/ThemeProvider';
 import { TriageDisclaimerBanner } from '../../components/TriageDisclaimerBanner';

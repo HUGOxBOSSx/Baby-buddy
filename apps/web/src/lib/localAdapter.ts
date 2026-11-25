@@ -3,6 +3,7 @@
 import {
   DEFAULT_APP_PREFERENCES,
   DEFAULT_THEME_SCHEDULE,
+  EMPTY_HEALTH_LOG_STATE,
   LOCAL_STORAGE_KEYS,
   LOCAL_STORAGE_PREFIX,
   LocalAccountLifecycleAdapter,
@@ -11,6 +12,7 @@ import {
   isValidHour,
   parseActiveFeedTimer,
   parseDailyLogEntries,
+  parseHealthLogState,
   resolveEffectiveThemeMode,
   resolveLiveChildProfile,
   type AccountDeletionResult,
@@ -19,9 +21,13 @@ import {
   type ChildSex,
   type CreateChildProfileInput,
   type DailyLogEntry,
+  type GrowthLogEntry,
+  type HealthLogState,
   type KeyValueStoragePort,
+  type MedicationLogEntry,
   type StageId,
   type StoredSnapshotSummary,
+  type TemperatureLogEntry,
   type ThemeMode,
   type ThemeScheduleConfig,
 } from '@baby-buddy/core';
@@ -115,6 +121,7 @@ export interface LocalAppSnapshot {
   readonly childProfile: ChildProfileSummary | null;
   readonly dailyLogs: readonly DailyLogEntry[];
   readonly activeFeedTimer: ActiveFeedTimer | null;
+  readonly healthState: HealthLogState;
   readonly snapshotSummary: StoredSnapshotSummary;
   readonly statusMessage: string;
   readonly lastDeletionResult: AccountDeletionResult | null;
@@ -128,6 +135,7 @@ export const SERVER_APP_SNAPSHOT: LocalAppSnapshot = {
   childProfile: null,
   dailyLogs: [],
   activeFeedTimer: null,
+  healthState: EMPTY_HEALTH_LOG_STATE,
   snapshotSummary: {
     hasActiveProfile: false,
     onboardingAccepted: false,
@@ -287,6 +295,9 @@ export function getLocalAppSnapshot(): LocalAppSnapshot {
   const rawActiveTimer = browserStorage.getItemSync(
     LOCAL_STORAGE_KEYS.activeFeedTimer,
   );
+  const rawHealthState = browserStorage.getItemSync(
+    LOCAL_STORAGE_KEYS.healthState,
+  );
   const rawProfile = browserStorage.getItemSync(
     LOCAL_STORAGE_KEYS.childProfile,
   );
@@ -341,6 +352,7 @@ export function getLocalAppSnapshot(): LocalAppSnapshot {
     childProfile,
     dailyLogs: parseDailyLogEntries(rawDailyLogs),
     activeFeedTimer: parseActiveFeedTimer(rawActiveTimer),
+    healthState: parseHealthLogState(rawHealthState),
     snapshotSummary: {
       hasActiveProfile: rawProfile !== null && rawProfile.trim().length > 0,
       onboardingAccepted,
@@ -528,4 +540,73 @@ export function saveStoredActiveFeedTimer(): void {
 export function cancelStoredActiveFeedTimer(): void {
   browserStorage.removeItemSync(LOCAL_STORAGE_KEYS.activeFeedTimer);
   notifyLocalStoreChange();
+}
+
+function saveStoredHealthState(next: HealthLogState, msg: string): void {
+  browserStorage.setItemSync(
+    LOCAL_STORAGE_KEYS.healthState,
+    JSON.stringify(next),
+  );
+  transientStatusMessage = msg;
+  notifyLocalStoreChange();
+}
+
+export function addStoredTemperatureLog(entry: TemperatureLogEntry): void {
+  const cur = getLocalAppSnapshot().healthState;
+  saveStoredHealthState(
+    { ...cur, temperatures: [entry, ...cur.temperatures] },
+    'Temperatura registrada.',
+  );
+}
+
+export function deleteStoredTemperatureLog(id: string): void {
+  const cur = getLocalAppSnapshot().healthState;
+  saveStoredHealthState(
+    { ...cur, temperatures: cur.temperatures.filter((t) => t.id !== id) },
+    'Temperatura eliminada.',
+  );
+}
+
+export function addStoredMedicationLog(entry: MedicationLogEntry): void {
+  const cur = getLocalAppSnapshot().healthState;
+  saveStoredHealthState(
+    { ...cur, medications: [entry, ...cur.medications] },
+    'Medicamento registrado.',
+  );
+}
+
+export function deleteStoredMedicationLog(id: string): void {
+  const cur = getLocalAppSnapshot().healthState;
+  saveStoredHealthState(
+    { ...cur, medications: cur.medications.filter((m) => m.id !== id) },
+    'Medicamento eliminado.',
+  );
+}
+
+export function addStoredGrowthLog(entry: GrowthLogEntry): void {
+  const cur = getLocalAppSnapshot().healthState;
+  saveStoredHealthState(
+    { ...cur, growth: [entry, ...cur.growth] },
+    'Crecimiento registrado.',
+  );
+}
+
+export function deleteStoredGrowthLog(id: string): void {
+  const cur = getLocalAppSnapshot().healthState;
+  saveStoredHealthState(
+    { ...cur, growth: cur.growth.filter((g) => g.id !== id) },
+    'Registro de crecimiento eliminado.',
+  );
+}
+
+export function toggleStoredVaccineCompleted(vaccineId: string): void {
+  const cur = getLocalAppSnapshot().healthState;
+  const exists = cur.completedVaccineIds.includes(vaccineId);
+  const nextIds = exists
+    ? cur.completedVaccineIds.filter((id) => id !== vaccineId)
+    : [...cur.completedVaccineIds, vaccineId];
+  saveStoredHealthState(
+    { ...cur, completedVaccineIds: nextIds },
+    exists ? 'Vacuna desmarcada.' : 'Vacuna marcada como aplicada.',
+  );
 }

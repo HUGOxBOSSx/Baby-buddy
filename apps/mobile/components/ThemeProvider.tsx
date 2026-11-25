@@ -2,6 +2,7 @@ import Feather from '@expo/vector-icons/Feather';
 import {
   DEFAULT_APP_PREFERENCES,
   DEFAULT_THEME_SCHEDULE,
+  EMPTY_HEALTH_LOG_STATE,
   ETHICAL_GUARDRAILS,
   STAGE_SPECS,
   assertEthicalComplianceConfig,
@@ -12,8 +13,12 @@ import {
   type ChildProfileSummary,
   type CreateChildProfileInput,
   type DailyLogEntry,
+  type GrowthLogEntry,
+  type HealthLogState,
+  type MedicationLogEntry,
   type StageId,
   type StoredSnapshotSummary,
+  type TemperatureLogEntry,
   type ThemeMode,
   type ThemePalette,
   type ThemeScheduleConfig,
@@ -32,12 +37,14 @@ import {
   loadPersistedActiveFeedTimer,
   loadPersistedChildProfile,
   loadPersistedDailyLogs,
+  loadPersistedHealthState,
   loadPersistedStageId,
   loadPersistedThemeMode,
   loadPersistedThemeSchedule,
   savePersistedActiveFeedTimer,
   savePersistedChildProfile,
   savePersistedDailyLogs,
+  savePersistedHealthState,
   savePersistedStageId,
   savePersistedThemeMode,
   savePersistedThemeSchedule,
@@ -82,6 +89,14 @@ export interface ThemeContextValue {
   readonly togglePauseFeedTimer: () => void;
   readonly saveActiveFeedTimer: () => void;
   readonly cancelActiveFeedTimer: () => void;
+  readonly healthState: HealthLogState;
+  readonly addTemperatureLog: (entry: TemperatureLogEntry) => void;
+  readonly deleteTemperatureLog: (id: string) => void;
+  readonly addMedicationLog: (entry: MedicationLogEntry) => void;
+  readonly deleteMedicationLog: (id: string) => void;
+  readonly addGrowthLog: (entry: GrowthLogEntry) => void;
+  readonly deleteGrowthLog: (id: string) => void;
+  readonly toggleVaccineCompleted: (vaccineId: string) => void;
   readonly statusAnnouncement: string;
   readonly hydrated: boolean;
   readonly iconsLoaded: boolean;
@@ -110,6 +125,9 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
   const [dailyLogs, setDailyLogs] = useState<readonly DailyLogEntry[]>([]);
   const [activeFeedTimer, setActiveFeedTimer] =
     useState<ActiveFeedTimer | null>(null);
+  const [healthState, setHealthState] = useState<HealthLogState>(
+    EMPTY_HEALTH_LOG_STATE,
+  );
   const [statusAnnouncement, setStatusAnnouncement] = useState('');
   const [hydrated, setHydrated] = useState(false);
   const [iconsLoaded, setIconsLoaded] = useState(false);
@@ -146,25 +164,43 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       accountLifecycleAdapter.hasAcceptedOnboardingDisclaimer(),
       accountLifecycleAdapter.getStoredSnapshotSummary(),
       loadPersistedChildProfile(),
+      loadPersistedDailyLogs(),
+      loadPersistedActiveFeedTimer(),
+      loadPersistedHealthState(),
     ])
-      .then(([savedMode, savedSchedule, savedStage, accepted, summary, profile]) => {
-        if (!active) {
-          return;
-        }
-        setThemeScheduleState(savedSchedule);
-        setModeState(
-          resolveEffectiveThemeMode(
-            savedSchedule,
-            savedMode,
-            new Date().getHours(),
-          ),
-        );
-        setSelectedStageState(profile ? profile.stageId : savedStage);
-        setOnboardingAccepted(accepted);
-        setSnapshotSummary(summary);
-        setChildProfile(profile);
-        setHydrated(true);
-      })
+      .then(
+        ([
+          savedMode,
+          savedSchedule,
+          savedStage,
+          accepted,
+          summary,
+          profile,
+          savedLogs,
+          savedTimer,
+          savedHealth,
+        ]) => {
+          if (!active) {
+            return;
+          }
+          setThemeScheduleState(savedSchedule);
+          setModeState(
+            resolveEffectiveThemeMode(
+              savedSchedule,
+              savedMode,
+              new Date().getHours(),
+            ),
+          );
+          setSelectedStageState(profile ? profile.stageId : savedStage);
+          setOnboardingAccepted(accepted);
+          setSnapshotSummary(summary);
+          setChildProfile(profile);
+          setDailyLogs(savedLogs);
+          setActiveFeedTimer(savedTimer);
+          setHealthState(savedHealth);
+          setHydrated(true);
+        },
+      )
       .catch(() => {
         if (active) {
           setHydrated(true);
@@ -353,6 +389,86 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
     void savePersistedActiveFeedTimer(null);
   }, []);
 
+  const addTemperatureLog = useCallback((entry: TemperatureLogEntry) => {
+    setHealthState((prev) => {
+      const next: HealthLogState = {
+        ...prev,
+        temperatures: [entry, ...prev.temperatures],
+      };
+      void savePersistedHealthState(next);
+      return next;
+    });
+  }, []);
+
+  const deleteTemperatureLog = useCallback((id: string) => {
+    setHealthState((prev) => {
+      const next: HealthLogState = {
+        ...prev,
+        temperatures: prev.temperatures.filter((t) => t.id !== id),
+      };
+      void savePersistedHealthState(next);
+      return next;
+    });
+  }, []);
+
+  const addMedicationLog = useCallback((entry: MedicationLogEntry) => {
+    setHealthState((prev) => {
+      const next: HealthLogState = {
+        ...prev,
+        medications: [entry, ...prev.medications],
+      };
+      void savePersistedHealthState(next);
+      return next;
+    });
+  }, []);
+
+  const deleteMedicationLog = useCallback((id: string) => {
+    setHealthState((prev) => {
+      const next: HealthLogState = {
+        ...prev,
+        medications: prev.medications.filter((m) => m.id !== id),
+      };
+      void savePersistedHealthState(next);
+      return next;
+    });
+  }, []);
+
+  const addGrowthLog = useCallback((entry: GrowthLogEntry) => {
+    setHealthState((prev) => {
+      const next: HealthLogState = {
+        ...prev,
+        growth: [entry, ...prev.growth],
+      };
+      void savePersistedHealthState(next);
+      return next;
+    });
+  }, []);
+
+  const deleteGrowthLog = useCallback((id: string) => {
+    setHealthState((prev) => {
+      const next: HealthLogState = {
+        ...prev,
+        growth: prev.growth.filter((g) => g.id !== id),
+      };
+      void savePersistedHealthState(next);
+      return next;
+    });
+  }, []);
+
+  const toggleVaccineCompleted = useCallback((vaccineId: string) => {
+    setHealthState((prev) => {
+      const exists = prev.completedVaccineIds.includes(vaccineId);
+      const next: HealthLogState = {
+        ...prev,
+        completedVaccineIds: exists
+          ? prev.completedVaccineIds.filter((id) => id !== vaccineId)
+          : [...prev.completedVaccineIds, vaccineId],
+      };
+      void savePersistedHealthState(next);
+      return next;
+    });
+  }, []);
+
   const palette = useMemo(() => getThemePalette(mode), [mode]);
 
   const value = useMemo<ThemeContextValue>(
@@ -382,6 +498,14 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       togglePauseFeedTimer,
       saveActiveFeedTimer,
       cancelActiveFeedTimer,
+      healthState,
+      addTemperatureLog,
+      deleteTemperatureLog,
+      addMedicationLog,
+      deleteMedicationLog,
+      addGrowthLog,
+      deleteGrowthLog,
+      toggleVaccineCompleted,
       statusAnnouncement,
       hydrated,
       iconsLoaded,
@@ -412,6 +536,14 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       togglePauseFeedTimer,
       saveActiveFeedTimer,
       cancelActiveFeedTimer,
+      healthState,
+      addTemperatureLog,
+      deleteTemperatureLog,
+      addMedicationLog,
+      deleteMedicationLog,
+      addGrowthLog,
+      deleteGrowthLog,
+      toggleVaccineCompleted,
       statusAnnouncement,
       hydrated,
       iconsLoaded,

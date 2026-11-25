@@ -9,6 +9,8 @@ import {
 } from '@baby-buddy/core';
 import { AccountDeletionDialog } from '@/components/AccountDeletionDialog';
 import { ChildProfileEditor } from '@/components/ChildProfileEditor';
+import { HealthJournalPanel } from '@/components/HealthJournalPanel';
+import { MascotAvatar } from '@/components/MascotAvatar';
 import { useAppState } from '@/components/ThemeProvider';
 
 const envConfig = loadOfflineEnvConfig();
@@ -39,6 +41,13 @@ export function SaludView() {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <MascotAvatar variant="salud" size="md" />
+        <p className="text-xs text-ink-secondary">
+          Bitácora clínica local, Cartilla MX y datos de tu bebé en un solo lugar.
+        </p>
+      </div>
+      <HealthJournalPanel />
       <header className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-wide text-alert-text">
           Orientación de salud y privacidad local

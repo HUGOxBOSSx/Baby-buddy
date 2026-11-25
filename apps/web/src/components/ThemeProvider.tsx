@@ -14,18 +14,28 @@ import type {
   ChildProfileSummary,
   CreateChildProfileInput,
   DailyLogEntry,
+  GrowthLogEntry,
+  HealthLogState,
+  MedicationLogEntry,
   StageId,
   StoredSnapshotSummary,
+  TemperatureLogEntry,
   ThemeMode,
   ThemeScheduleConfig,
 } from '@baby-buddy/core';
 import {
   acceptStoredOnboarding,
   addStoredDailyLogEntry,
+  addStoredGrowthLog,
+  addStoredMedicationLog,
+  addStoredTemperatureLog,
   applyThemeToDocument,
   cancelStoredActiveFeedTimer,
   deleteStoredAccountAndData,
   deleteStoredDailyLogEntry,
+  deleteStoredGrowthLog,
+  deleteStoredMedicationLog,
+  deleteStoredTemperatureLog,
   getLocalAppSnapshot,
   getServerAppSnapshot,
   notifyLocalStoreChange,
@@ -39,6 +49,7 @@ import {
   subscribeLocalStore,
   togglePauseStoredFeedTimer,
   toggleStoredThemeMode,
+  toggleStoredVaccineCompleted,
 } from '@/lib/localAdapter';
 
 export interface AppStateContextValue {
@@ -49,6 +60,7 @@ export interface AppStateContextValue {
   readonly childProfile: ChildProfileSummary | null;
   readonly dailyLogs: readonly DailyLogEntry[];
   readonly activeFeedTimer: ActiveFeedTimer | null;
+  readonly healthState: HealthLogState;
   readonly snapshotSummary: StoredSnapshotSummary;
   readonly statusMessage: string;
   readonly lastDeletionResult: AccountDeletionResult | null;
@@ -70,6 +82,13 @@ export interface AppStateContextValue {
   readonly togglePauseFeedTimer: () => void;
   readonly saveActiveFeedTimer: () => void;
   readonly cancelActiveFeedTimer: () => void;
+  readonly addTemperatureLog: (entry: TemperatureLogEntry) => void;
+  readonly deleteTemperatureLog: (id: string) => void;
+  readonly addMedicationLog: (entry: MedicationLogEntry) => void;
+  readonly deleteMedicationLog: (id: string) => void;
+  readonly addGrowthLog: (entry: GrowthLogEntry) => void;
+  readonly deleteGrowthLog: (id: string) => void;
+  readonly toggleVaccineCompleted: (vaccineId: string) => void;
 }
 
 const AppStateContext = createContext<AppStateContextValue | null>(null);
@@ -104,6 +123,7 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       childProfile: snapshot.childProfile,
       dailyLogs: snapshot.dailyLogs,
       activeFeedTimer: snapshot.activeFeedTimer,
+      healthState: snapshot.healthState,
       snapshotSummary: snapshot.snapshotSummary,
       statusMessage: snapshot.statusMessage,
       lastDeletionResult: snapshot.lastDeletionResult,
@@ -121,6 +141,13 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       togglePauseFeedTimer: togglePauseStoredFeedTimer,
       saveActiveFeedTimer: saveStoredActiveFeedTimer,
       cancelActiveFeedTimer: cancelStoredActiveFeedTimer,
+      addTemperatureLog: addStoredTemperatureLog,
+      deleteTemperatureLog: deleteStoredTemperatureLog,
+      addMedicationLog: addStoredMedicationLog,
+      deleteMedicationLog: deleteStoredMedicationLog,
+      addGrowthLog: addStoredGrowthLog,
+      deleteGrowthLog: deleteStoredGrowthLog,
+      toggleVaccineCompleted: toggleStoredVaccineCompleted,
     }),
     [snapshot],
   );

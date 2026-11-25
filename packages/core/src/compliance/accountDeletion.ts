@@ -12,6 +12,7 @@ export const LOCAL_STORAGE_KEYS = {
   demoNotes: 'baby_buddy_mx:demo_notes',
   dailyLogs: 'baby_buddy_mx:daily_logs',
   activeFeedTimer: 'baby_buddy_mx:active_feed_timer',
+  healthState: 'baby_buddy_mx:health_state',
 } as const;
 
 export interface AccountDeletionRequest {
