@@ -432,7 +432,7 @@ export default function RopaYClimaScreen() {
           <View className="gap-2">
             <Pressable
               onPress={() => toggleFlag('coldWalls')}
-              className="rounded-xl border px-4 py-2 flex-row items-center justify-between"
+              className="rounded-xl border px-4 py-2 flex-row items-center justify-between gap-2"
               style={{
                 minHeight: MIN_TOUCH_TARGET_PX,
                 backgroundColor: context.coldWalls
@@ -443,16 +443,16 @@ export default function RopaYClimaScreen() {
                   : palette.borderInteractive,
               }}
             >
-              <Text className="text-xs font-bold" style={{ color: palette.textPrimary }}>
+              <Text className="text-xs font-bold flex-1" style={{ color: palette.textPrimary }}>
                 Pared que da a la calle o ventana
               </Text>
-              <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
+              <Text className="text-xs font-bold text-right flex-shrink" style={{ color: palette.brandText }}>
                 {context.coldWalls ? rec.wallEffectLabelMx : 'Desactivado'}
               </Text>
             </Pressable>
             {context.coldWalls ? (
-              <View className="flex-row items-center justify-between gap-2">
-                <Text className="text-xs font-semibold" style={{ color: palette.textSecondary }}>
+              <View className="flex-row flex-wrap items-center justify-between gap-2">
+                <Text className="text-xs font-semibold flex-1" style={{ color: palette.textSecondary }}>
                   Temp. afuera: {outdoorTempC !== undefined ? `${outdoorTempC} °C` : 'Auto'}
                 </Text>
                 <View className="flex-row gap-2">
@@ -986,7 +986,7 @@ export default function RopaYClimaScreen() {
             <Text className="text-[11px] font-bold uppercase" style={{ color: palette.textMuted }}>
               Temp. efectiva
             </Text>
-            <Text className="text-2xl font-bold" style={{ color: palette.textPrimary }}>
+            <Text className="text-xl font-bold" style={{ color: palette.textPrimary }}>
               {rec.effectiveTempC} °C
             </Text>
             <Text className="text-[11px]" style={{ color: palette.textSecondary }}>
@@ -1004,7 +1004,7 @@ export default function RopaYClimaScreen() {
             <Text className="text-[11px] font-bold uppercase" style={{ color: palette.textMuted }}>
               Abrigo actual
             </Text>
-            <Text className="text-2xl font-bold" style={{ color: palette.textPrimary }}>
+            <Text className="text-xl font-bold" style={{ color: palette.textPrimary }}>
               {rec.currentTog === null ? 'Inseguro' : `${rec.currentTog} TOG`}
             </Text>
             <Text className="text-[11px] font-bold" style={{ color: palette.brandText }}>

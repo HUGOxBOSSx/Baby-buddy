@@ -17,7 +17,7 @@ function HeaderModeToggle() {
   return (
     <Pressable
       onPress={toggleMode}
-      className="min-h-[48px] min-w-[48px] mr-3 flex-row items-center justify-center rounded-xl border px-3 py-2 gap-1.5"
+      className="min-h-[48px] min-w-[48px] mr-2 flex-row items-center justify-center rounded-xl border px-2.5 py-1.5 gap-1.5"
       style={{
         minHeight: MIN_TOUCH_TARGET_PX,
         minWidth: MIN_TOUCH_TARGET_PX,
@@ -39,8 +39,12 @@ function HeaderModeToggle() {
           color={palette.brandText}
         />
       ) : null}
-      <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
-        {isNight ? 'Modo Calma' : 'Modo nocturno'}
+      <Text
+        numberOfLines={1}
+        className="text-xs font-bold"
+        style={{ color: palette.brandText }}
+      >
+        {isNight ? 'Día' : 'Nocturno'}
       </Text>
     </Pressable>
   );

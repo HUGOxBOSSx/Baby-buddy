@@ -137,7 +137,8 @@ export function OnboardingGate() {
               />
             ) : null}
             <Text
-              className="text-sm font-bold"
+              numberOfLines={1}
+              className="text-xs font-bold"
               style={{ color: palette.brandText }}
             >
               {mode === 'night_3am' ? 'Modo Calma' : 'Modo nocturno'}
