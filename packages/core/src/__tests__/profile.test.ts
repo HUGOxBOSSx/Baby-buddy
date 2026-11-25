@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_THEME_SCHEDULE,
+  calculateAgeMonthsFromBirthDate,
   createChildProfileSummary,
   formatChildAgeMx,
   resolveEffectiveThemeMode,
+  resolveLiveChildProfile,
 } from '../domain/profile';
 
 describe('profile & theme schedule helpers', () => {
@@ -43,5 +45,29 @@ describe('profile & theme schedule helpers', () => {
         23,
       ),
     ).toBe('day');
+  });
+
+  it('calcula edad en meses y etapa automáticamente desde la fecha de nacimiento', () => {
+    const refNow = new Date(2026, 10, 24); // 2026-11-24
+    expect(calculateAgeMonthsFromBirthDate('2026-09-24', refNow)).toBe(2);
+    expect(calculateAgeMonthsFromBirthDate('2025-11-24', refNow)).toBe(12);
+    expect(() =>
+      calculateAgeMonthsFromBirthDate('2027-01-01', refNow),
+    ).toThrow(RangeError);
+
+    const live = resolveLiveChildProfile(
+      {
+        id: 'bebe-2',
+        nicknameMx: 'Sofía',
+        ageMonths: 2,
+        stageId: '0-3m',
+        birthDateIso: '2026-06-24',
+        createdAtIso: '2026-06-24T00:00:00.000Z',
+        updatedAtIso: '2026-06-24T00:00:00.000Z',
+      },
+      refNow,
+    );
+    expect(live.ageMonths).toBe(5);
+    expect(live.stageId).toBe('3-12m');
   });
 });

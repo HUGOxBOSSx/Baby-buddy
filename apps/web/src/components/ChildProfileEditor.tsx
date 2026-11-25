@@ -4,6 +4,8 @@ import { useState, type FormEvent } from 'react';
 import {
   CHILD_SEX_LABELS_MX,
   STAGE_SPECS,
+  calculateAgeMonthsFromBirthDate,
+  formatChildAgeMx,
   getStageForAgeMonths,
   type ChildSex,
 } from '@baby-buddy/core';
@@ -11,22 +13,34 @@ import { useAppState } from '@/components/ThemeProvider';
 
 const SEX_OPTIONS: readonly ChildSex[] = ['niño', 'niña', 'no_especificado'];
 
+function getTodayYmd(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 export function ChildProfileEditor() {
   const { childProfile, saveChildProfile } = useAppState();
+  const todayYmd = getTodayYmd();
   const [nickname, setNickname] = useState(childProfile?.nicknameMx ?? '');
-  const [ageMonths, setAgeMonths] = useState(
-    String(childProfile?.ageMonths ?? 2),
+  const [birthDate, setBirthDate] = useState(
+    childProfile?.birthDateIso?.slice(0, 10) ?? todayYmd,
   );
   const [sex, setSex] = useState<ChildSex>(
     childProfile?.sex ?? 'no_especificado',
   );
   const [feedback, setFeedback] = useState('');
 
-  const parsedAge = Number.parseInt(ageMonths, 10);
-  const previewStage =
-    Number.isFinite(parsedAge) && parsedAge >= 0 && parsedAge <= 72
-      ? STAGE_SPECS[getStageForAgeMonths(parsedAge)].label
-      : 'Edad fuera de rango (0 a 72 meses)';
+  let previewText = 'Fecha fuera de rango (0 a 6 años)';
+  let computedMonths: number | null = null;
+  try {
+    computedMonths = calculateAgeMonthsFromBirthDate(birthDate);
+    previewText = `${formatChildAgeMx(computedMonths)} · ${STAGE_SPECS[getStageForAgeMonths(computedMonths)].label}`;
+  } catch {
+    computedMonths = null;
+  }
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -35,17 +49,18 @@ export function ChildProfileEditor() {
       setFeedback('Escribe el nombre o apodo de tu bebé.');
       return;
     }
-    if (!Number.isFinite(parsedAge) || parsedAge < 0 || parsedAge > 72) {
-      setFeedback('La edad debe estar entre 0 y 72 meses.');
+    if (computedMonths === null) {
+      setFeedback('Elige una fecha de nacimiento válida (0 a 6 años).');
       return;
     }
     const saved = saveChildProfile({
       nicknameMx: trimmed,
-      ageMonths: parsedAge,
+      birthDateIso: birthDate,
+      ageMonths: computedMonths,
       sex,
     });
     setFeedback(
-      `Guardado: ${saved.nicknameMx} (${STAGE_SPECS[saved.stageId].label}). La app ya muestra solo su etapa.`,
+      `Guardado: ${saved.nicknameMx} (${formatChildAgeMx(saved.ageMonths)} · ${STAGE_SPECS[saved.stageId].label}).`,
     );
   };
 
@@ -60,11 +75,11 @@ export function ChildProfileEditor() {
           id="perfil-bebe-titulo"
           className="text-lg font-bold text-ink-primary"
         >
-          Datos del bebé (etapa automática)
+          Datos del bebé (etapa automática por fecha de nacimiento)
         </h2>
         <p className="text-sm text-ink-secondary">
-          Al guardar estos datos, la app calcula la etapa en automático, oculta
-          las demás etapas y muestra su resumen en la barra superior.
+          Al guardar su fecha de nacimiento, su edad y etapa se actualizan en
+          automático y se ocultan las demás etapas.
         </p>
       </div>
 
@@ -82,17 +97,16 @@ export function ChildProfileEditor() {
           </label>
 
           <label className="block space-y-1 text-sm font-semibold text-ink-primary">
-            <span>Edad en meses (0 a 72)</span>
+            <span>Fecha de nacimiento</span>
             <input
-              type="number"
-              min={0}
-              max={72}
-              value={ageMonths}
-              onChange={(e) => setAgeMonths(e.target.value)}
+              type="date"
+              max={todayYmd}
+              value={birthDate}
+              onChange={(e) => setBirthDate(e.target.value)}
               className="mt-1 block min-h-12 w-full rounded-xl border border-border-interactive bg-bg-elevated px-3 py-2 text-sm text-ink-primary"
             />
             <span className="block text-xs font-normal text-brand-text">
-              Etapa automática: {previewStage}
+              {previewText}
             </span>
           </label>
         </div>

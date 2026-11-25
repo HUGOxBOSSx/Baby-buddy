@@ -2,6 +2,8 @@ import {
   CHILD_SEX_LABELS_MX,
   MIN_TOUCH_TARGET_PX,
   STAGE_SPECS,
+  calculateAgeMonthsFromBirthDate,
+  formatChildAgeMx,
   getStageForAgeMonths,
   type ChildSex,
 } from '@baby-buddy/core';
@@ -11,22 +13,30 @@ import { useThemeContext } from './ThemeProvider';
 
 const SEX_OPTIONS: readonly ChildSex[] = ['niño', 'niña', 'no_especificado'];
 
+function getTodayYmd(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
 export function ChildProfileEditor() {
   const { palette, childProfile, saveChildProfile } = useThemeContext();
   const [nickname, setNickname] = useState(childProfile?.nicknameMx ?? '');
-  const [ageMonths, setAgeMonths] = useState(
-    String(childProfile?.ageMonths ?? 2),
+  const [birthDate, setBirthDate] = useState(
+    childProfile?.birthDateIso?.slice(0, 10) ?? getTodayYmd(),
   );
   const [sex, setSex] = useState<ChildSex>(
     childProfile?.sex ?? 'no_especificado',
   );
   const [feedback, setFeedback] = useState('');
 
-  const parsedAge = Number.parseInt(ageMonths, 10);
-  const previewStage =
-    Number.isFinite(parsedAge) && parsedAge >= 0 && parsedAge <= 72
-      ? STAGE_SPECS[getStageForAgeMonths(parsedAge)].label
-      : 'Edad fuera de rango (0 a 72 meses)';
+  let previewText = 'Usa formato AAAA-MM-DD (0 a 6 años)';
+  let computedMonths: number | null = null;
+  try {
+    computedMonths = calculateAgeMonthsFromBirthDate(birthDate);
+    previewText = `${formatChildAgeMx(computedMonths)} · ${STAGE_SPECS[getStageForAgeMonths(computedMonths)].label}`;
+  } catch {
+    computedMonths = null;
+  }
 
   const handleSave = async () => {
     const trimmed = nickname.trim();
@@ -34,17 +44,18 @@ export function ChildProfileEditor() {
       setFeedback('Escribe el nombre o apodo de tu bebé.');
       return;
     }
-    if (!Number.isFinite(parsedAge) || parsedAge < 0 || parsedAge > 72) {
-      setFeedback('La edad debe estar entre 0 y 72 meses.');
+    if (computedMonths === null) {
+      setFeedback('Fecha inválida. Usa AAAA-MM-DD (0 a 6 años).');
       return;
     }
     const saved = await saveChildProfile({
       nicknameMx: trimmed,
-      ageMonths: parsedAge,
+      birthDateIso: birthDate,
+      ageMonths: computedMonths,
       sex,
     });
     setFeedback(
-      `Guardado: ${saved.nicknameMx} (${STAGE_SPECS[saved.stageId].label}).`,
+      `Guardado: ${saved.nicknameMx} (${formatChildAgeMx(saved.ageMonths)}).`,
     );
   };
 
@@ -60,8 +71,7 @@ export function ChildProfileEditor() {
         Datos del bebé (etapa automática)
       </Text>
       <Text className="text-xs" style={{ color: palette.textSecondary }}>
-        Al guardar, la app calcula la etapa en automático, oculta las demás
-        etapas y muestra su resumen arriba.
+        Con la fecha de nacimiento, su edad y etapa se actualizan en automático.
       </Text>
 
       <View className="gap-1">
@@ -85,12 +95,13 @@ export function ChildProfileEditor() {
 
       <View className="gap-1">
         <Text className="text-xs font-bold" style={{ color: palette.textPrimary }}>
-          Edad en meses (0 a 72)
+          Fecha de nacimiento (AAAA-MM-DD)
         </Text>
         <TextInput
-          value={ageMonths}
-          onChangeText={setAgeMonths}
-          keyboardType="number-pad"
+          value={birthDate}
+          onChangeText={setBirthDate}
+          placeholder="2026-08-15"
+          placeholderTextColor={palette.textMuted}
           className="rounded-xl border px-3 py-2 text-sm"
           style={{
             minHeight: MIN_TOUCH_TARGET_PX,
@@ -100,7 +111,7 @@ export function ChildProfileEditor() {
           }}
         />
         <Text className="text-xs font-semibold" style={{ color: palette.brandText }}>
-          Etapa automática: {previewStage}
+          {previewText}
         </Text>
       </View>
 

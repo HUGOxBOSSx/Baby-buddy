@@ -79,6 +79,68 @@ export function formatChildAgeMx(ageMonths: number): string {
   return `${yearLabel} y ${monthLabel}`;
 }
 
+const YMD_DATE_REGEX = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+export function calculateAgeMonthsFromBirthDate(
+  birthDateYmd: string,
+  now: Date = new Date(),
+): number {
+  const match = YMD_DATE_REGEX.exec(birthDateYmd.trim());
+  if (!match) {
+    throw new RangeError('La fecha de nacimiento debe tener formato AAAA-MM-DD.');
+  }
+  const year = Number.parseInt(match[1] ?? '', 10);
+  const month = Number.parseInt(match[2] ?? '', 10);
+  const day = Number.parseInt(match[3] ?? '', 10);
+  const utcCheck = new Date(Date.UTC(year, month - 1, day));
+  if (
+    utcCheck.getUTCFullYear() !== year ||
+    utcCheck.getUTCMonth() !== month - 1 ||
+    utcCheck.getUTCDate() !== day
+  ) {
+    throw new RangeError('La fecha de nacimiento no es una fecha válida.');
+  }
+
+  let months =
+    (now.getFullYear() - year) * 12 + (now.getMonth() + 1 - month);
+  if (now.getDate() < day) {
+    months -= 1;
+  }
+  if (months < 0 || months > 72) {
+    throw new RangeError(
+      'La fecha de nacimiento debe corresponder a una edad entre 0 y 72 meses.',
+    );
+  }
+  return months;
+}
+
+export function resolveLiveChildProfile(
+  profile: ChildProfileSummary,
+  now: Date = new Date(),
+): ChildProfileSummary {
+  if (!profile.birthDateIso) {
+    return profile;
+  }
+  const ymd = profile.birthDateIso.slice(0, 10);
+  if (!YMD_DATE_REGEX.test(ymd)) {
+    return profile;
+  }
+  try {
+    const ageMonths = calculateAgeMonthsFromBirthDate(ymd, now);
+    const stageId = getStageForAgeMonths(ageMonths);
+    if (ageMonths === profile.ageMonths && stageId === profile.stageId) {
+      return profile;
+    }
+    return {
+      ...profile,
+      ageMonths,
+      stageId,
+    };
+  } catch {
+    return profile;
+  }
+}
+
 export interface ChildProfileSummary {
   readonly id: string;
   readonly nicknameMx: string;
@@ -109,7 +171,7 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
 export interface CreateChildProfileInput {
   readonly id: string;
   readonly nicknameMx: string;
-  readonly ageMonths: number;
+  readonly ageMonths?: number;
   readonly sex?: ChildSex;
   readonly birthDateIso?: string;
   readonly nowIso?: string;
@@ -128,13 +190,18 @@ export function createChildProfileSummary(
     throw new Error('El nombre o apodo del bebé no puede estar vacío.');
   }
 
-  const stageId = getStageForAgeMonths(input.ageMonths);
   const nowIso = input.nowIso ?? new Date().toISOString();
+  const resolvedAgeMonths =
+    input.birthDateIso !== undefined
+      ? calculateAgeMonthsFromBirthDate(input.birthDateIso.slice(0, 10))
+      : input.ageMonths ?? 0;
+
+  const stageId = getStageForAgeMonths(resolvedAgeMonths);
 
   return {
     id: trimmedId,
     nicknameMx: trimmedNickname,
-    ageMonths: input.ageMonths,
+    ageMonths: resolvedAgeMonths,
     stageId,
     sex: input.sex ?? 'no_especificado',
     ...(input.birthDateIso !== undefined

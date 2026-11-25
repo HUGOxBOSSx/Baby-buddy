@@ -10,6 +10,7 @@ import {
   isStageId,
   isValidHour,
   resolveEffectiveThemeMode,
+  resolveLiveChildProfile,
   type AccountDeletionResult,
   type ChildProfileSummary,
   type ChildSex,
@@ -162,7 +163,7 @@ function parseChildProfile(raw: string | null): ChildProfileSummary | null {
       candidate.sex === 'no_especificado'
         ? candidate.sex
         : 'no_especificado';
-    return {
+    return resolveLiveChildProfile({
       id: candidate.id,
       nicknameMx: candidate.nicknameMx,
       ageMonths: candidate.ageMonths,
@@ -174,7 +175,7 @@ function parseChildProfile(raw: string | null): ChildProfileSummary | null {
           : undefined,
       createdAtIso: candidate.createdAtIso,
       updatedAtIso: candidate.updatedAtIso,
-    };
+    });
   } catch {
     return null;
   }

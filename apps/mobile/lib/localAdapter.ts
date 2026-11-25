@@ -13,6 +13,7 @@ import {
   isStageId,
   isValidHour,
   loadOfflineEnvConfig,
+  resolveLiveChildProfile,
   type ChildProfileSummary,
   type CreateChildProfileInput,
   type KeyValueStoragePort,
@@ -150,7 +151,7 @@ export async function loadPersistedChildProfile(): Promise<ChildProfileSummary |
       typeof parsed.stageId === 'string' &&
       isStageId(parsed.stageId)
     ) {
-      return parsed as ChildProfileSummary;
+      return resolveLiveChildProfile(parsed as ChildProfileSummary);
     }
     return null;
   } catch {

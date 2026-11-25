@@ -17,6 +17,7 @@ export type ThermalBand =
 export type ComfortZone = 'cold' | 'optimal' | 'overheat' | 'unsafe_sleep';
 export type BabyHealthStatus = 'termino_sano' | 'prematuro' | 'fiebre';
 export type WallEffectMode = 'auto' | 'frio' | 'caliente';
+export type OutdoorWeatherCondition = 'soleado' | 'nublado' | 'lluvia';
 
 export type BaseLayerId =
   | 'ninguna'
@@ -220,6 +221,8 @@ export interface ClothingContextFlags {
   readonly canRollOver: boolean;
   readonly coldWalls: boolean;
   readonly wallEffectMode: WallEffectMode;
+  readonly weatherCondition: OutdoorWeatherCondition;
+  readonly isWindy: boolean;
 }
 
 export const DEFAULT_CLOTHING_CONTEXT: ClothingContextFlags = {
@@ -232,6 +235,8 @@ export const DEFAULT_CLOTHING_CONTEXT: ClothingContextFlags = {
   canRollOver: false,
   coldWalls: false,
   wallEffectMode: 'auto',
+  weatherCondition: 'soleado',
+  isWindy: false,
 };
 
 export interface ClothingRecommendationInput {
@@ -315,40 +320,83 @@ function resolveWallAdjustment(
 
 function getRecommendedTogRange(
   effectiveTempC: number,
+  environment: ClothingEnvironment,
   isPremature: boolean,
   hasFever: boolean,
+  ctx: ClothingContextFlags,
 ): TogRange {
   let min = 1.0;
   let max = 1.9;
-  if (effectiveTempC >= 28) {
-    min = 0;
-    max = 0.2;
-  } else if (effectiveTempC >= 24) {
-    min = 0.2;
-    max = 0.7;
-  } else if (effectiveTempC >= 20) {
-    min = 1.0;
-    max = 1.9;
-  } else if (effectiveTempC >= 18) {
-    min = 1.8;
-    max = 2.8;
-  } else if (effectiveTempC >= 14) {
-    min = 2.5;
-    max = 3.8;
+  if (environment === 'cuarto') {
+    if (effectiveTempC >= 28) {
+      min = 0;
+      max = 0.2;
+    } else if (effectiveTempC >= 24) {
+      min = 0.2;
+      max = 0.7;
+    } else if (effectiveTempC >= 20) {
+      min = 1.0;
+      max = 1.9;
+    } else if (effectiveTempC >= 18) {
+      min = 1.8;
+      max = 2.8;
+    } else if (effectiveTempC >= 14) {
+      min = 2.5;
+      max = 3.8;
+    } else {
+      min = 3.5;
+      max = 4.5;
+    }
   } else {
-    min = 3.5;
-    max = 4.5;
+    if (effectiveTempC >= 30) {
+      min = 0;
+      max = 0.2;
+    } else if (effectiveTempC >= 24) {
+      min = 0.1;
+      max = 0.5;
+    } else if (effectiveTempC >= 19) {
+      min = 0.5;
+      max = 1.1;
+    } else if (effectiveTempC >= 14) {
+      min = 1.0;
+      max = 1.9;
+    } else if (effectiveTempC >= 8) {
+      min = 1.6;
+      max = 2.6;
+    } else {
+      min = 2.2;
+      max = 3.5;
+    }
+    if (ctx.isWindy) {
+      min += 0.35;
+      max += 0.35;
+    }
+    if (ctx.weatherCondition === 'lluvia') {
+      min += 0.25;
+      max += 0.25;
+    }
+    if (ctx.weatherCondition === 'soleado' && effectiveTempC >= 20) {
+      min = Math.max(0, min - 0.15);
+      max = Math.max(0.2, max - 0.15);
+    }
   }
 
   if (hasFever) {
-    min = Math.max(0, Number((min - 0.5).toFixed(2)));
-    max = Math.max(0.2, Number((max - 0.5).toFixed(2)));
+    min = Math.max(0, min - 0.4);
+    max = Math.max(0.2, max - 0.4);
   }
   if (isPremature) {
-    min = Number((min + 0.3).toFixed(2));
-    max = Number((max + 0.3).toFixed(2));
+    min += 0.3;
+    max += 0.3;
   }
-  return { min, max };
+  if (ctx.inCarrierOrStroller) {
+    min = Math.max(0, min - 0.35);
+    max = Math.max(0.2, max - 0.35);
+  }
+  return {
+    min: Number(min.toFixed(2)),
+    max: Number(max.toFixed(2)),
+  };
 }
 
 function computeCurrentTog(
@@ -384,6 +432,33 @@ function computeCurrentTog(
   return Number(total.toFixed(2));
 }
 
+const INDOOR_PRESETS: readonly SelectedLayersInput[] = [
+  { base: ['ninguna'], mid: [], outer: [], accessories: [] }, // 0
+  { base: ['panalero_sin_mangas'], mid: [], outer: [], accessories: [] }, // 0.1
+  { base: ['panalero_corta'], mid: [], outer: [], accessories: [] }, // 0.2
+  { base: ['panalero_corta'], mid: [], outer: ['saco_05'], accessories: [] }, // 0.7
+  { base: ['panalero_larga'], mid: ['mameluco_algodon'], outer: [], accessories: [] }, // 0.85
+  { base: ['panalero_larga'], mid: ['mameluco_algodon'], outer: ['saco_05'], accessories: [] }, // 1.35
+  { base: ['panalero_larga'], mid: ['mameluco_algodon'], outer: ['saco_10'], accessories: [] }, // 1.85
+  { base: ['panalero_larga'], mid: ['mameluco_afelpado'], outer: ['saco_10'], accessories: ['calcetines'] }, // 2.3
+  { base: ['panalero_larga'], mid: ['mameluco_algodon'], outer: ['saco_25'], accessories: [] }, // 3.35
+  { base: ['panalero_larga'], mid: ['mameluco_afelpado'], outer: ['saco_25'], accessories: ['calcetines'] }, // 3.8
+  { base: ['termica_interior'], mid: ['mameluco_termico'], outer: ['saco_25'], accessories: ['calcetines'] }, // 4.45
+];
+
+const OUTDOOR_PRESETS: readonly SelectedLayersInput[] = [
+  { base: ['ninguna'], mid: [], outer: [], accessories: [] }, // 0
+  { base: ['panalero_sin_mangas'], mid: [], outer: [], accessories: [] }, // 0.1
+  { base: ['panalero_corta'], mid: [], outer: [], accessories: [] }, // 0.2
+  { base: ['panalero_larga'], mid: [], outer: [], accessories: [] }, // 0.35
+  { base: ['panalero_corta'], mid: ['pijama_ligera'], outer: [], accessories: [] }, // 0.6
+  { base: ['panalero_larga'], mid: ['mameluco_algodon'], outer: [], accessories: [] }, // 0.85
+  { base: ['panalero_larga'], mid: ['mameluco_afelpado'], outer: [], accessories: ['calcetines'] }, // 1.3
+  { base: ['panalero_larga'], mid: ['mameluco_algodon', 'sueter_chamarra'], outer: [], accessories: ['calcetines'] }, // 2.0
+  { base: ['termica_interior'], mid: ['mameluco_afelpado', 'sueter_chamarra'], outer: [], accessories: ['gorro', 'calcetines'] }, // 2.85
+  { base: ['termica_interior'], mid: ['mameluco_termico', 'sueter_chamarra'], outer: [], accessories: ['gorro', 'guantes', 'calcetines'] }, // 3.4
+];
+
 export function getDefaultOptimalLayers(
   input: Omit<ClothingRecommendationInput, 'selectedLayers'>,
 ): SelectedLayersInput {
@@ -391,6 +466,10 @@ export function getDefaultOptimalLayers(
     ...DEFAULT_CLOTHING_CONTEXT,
     ...input.context,
   };
+  const isPremature =
+    ctx.prematureOrLowWeight || ctx.babyHealthStatus === 'prematuro';
+  const hasFever = ctx.hasFever || ctx.babyHealthStatus === 'fiebre';
+
   const { wallAdjustmentC } = resolveWallAdjustment(
     input.tempC,
     input.outdoorTempC,
@@ -404,65 +483,30 @@ export function getDefaultOptimalLayers(
       Number((input.tempC + wallAdjustmentC).toFixed(1)),
     ),
   );
+  const range = getRecommendedTogRange(
+    eff,
+    input.environment,
+    isPremature,
+    hasFever,
+    ctx,
+  );
+  const targetMid = (range.min + range.max) / 2;
+  const presets =
+    input.environment === 'cuarto' ? INDOOR_PRESETS : OUTDOOR_PRESETS;
 
-  if (eff >= 35) {
-    return { base: ['ninguna'], mid: [], outer: [], accessories: [] };
+  let best = presets[0]!;
+  let bestDist = Number.POSITIVE_INFINITY;
+  for (const preset of presets) {
+    const tog =
+      computeCurrentTog(preset, true, input.environment) ?? 0;
+    const inRange = tog >= range.min && tog <= range.max;
+    const dist = Math.abs(tog - targetMid) + (inRange ? 0 : 10);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = preset;
+    }
   }
-  if (eff >= 28) {
-    return {
-      base: ['panalero_sin_mangas'],
-      mid: [],
-      outer: [],
-      accessories: [],
-    };
-  }
-  if (eff >= 24) {
-    return {
-      base: ['panalero_corta'],
-      mid: [],
-      outer: input.environment === 'cuarto' ? ['saco_05'] : [],
-      accessories: [],
-    };
-  }
-  if (eff >= 20) {
-    return {
-      base: ['panalero_larga'],
-      mid: ['mameluco_algodon'],
-      outer: input.environment === 'cuarto' ? ['saco_10'] : [],
-      accessories: [],
-    };
-  }
-  if (eff >= 18) {
-    return {
-      base: ['panalero_larga'],
-      mid: ['mameluco_algodon'],
-      outer: input.environment === 'cuarto' ? ['saco_10'] : [],
-      accessories: ['calcetines'],
-    };
-  }
-  if (eff >= 14) {
-    return {
-      base: ['panalero_larga'],
-      mid: ['mameluco_afelpado'],
-      outer: input.environment === 'cuarto' ? ['saco_25'] : ['ninguna'],
-      accessories:
-        input.environment === 'exterior' ? ['gorro', 'calcetines'] : ['calcetines'],
-    };
-  }
-  if (input.environment === 'exterior') {
-    return {
-      base: ['termica_interior'],
-      mid: ['mameluco_termico', 'sueter_chamarra'],
-      outer: [],
-      accessories: ['gorro', 'guantes', 'calcetines'],
-    };
-  }
-  return {
-    base: ['termica_interior'],
-    mid: ['mameluco_termico'],
-    outer: ['saco_25'],
-    accessories: ['calcetines'],
-  };
+  return best;
 }
 
 export function recommendClothing(
@@ -722,6 +766,25 @@ export function recommendClothing(
       'En silla del auto: quita la chamarra gruesa o inflada antes de abrochar el arnés.',
     );
   }
+  if (environment === 'exterior') {
+    if (ctx.isWindy) {
+      actionsMx.push(
+        'Con viento: agrega capa cortavientos o chamarra ligera y protege oídos.',
+      );
+    }
+    if (ctx.weatherCondition === 'lluvia') {
+      actionsMx.push(
+        'Con lluvia: usa impermeable o protector de lluvia para carriola dejando ventilación lateral.',
+      );
+    }
+    if (ctx.weatherCondition === 'soleado' && effectiveTempC >= 20) {
+      actionsMx.push(
+        stageId === '0-3m'
+          ? 'Con sol: prioriza sombra total y evita protector solar en menores de 6 meses.'
+          : 'Con sol: prioriza sombra, sombrero de ala ancha y protector solar mineral desde los 6 meses.',
+      );
+    }
+  }
 
   const outerSelected = input.selectedLayers?.outer ?? [];
   const accessoriesSelected = input.selectedLayers?.accessories ?? [];
@@ -773,8 +836,10 @@ export function recommendClothing(
 
   const recommendedTogRange = getRecommendedTogRange(
     effectiveTempC,
+    environment,
     isPremature,
     hasFever,
+    ctx,
   );
   const currentTog = computeCurrentTog(
     input.selectedLayers,

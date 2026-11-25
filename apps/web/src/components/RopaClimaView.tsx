@@ -19,6 +19,7 @@ import {
   type ClothingContextFlags,
   type ClothingEnvironment,
   type MidLayerId,
+  type OutdoorWeatherCondition,
   type OuterLayerId,
   type SelectedLayersInput,
   type StageId,
@@ -57,6 +58,15 @@ const CONTEXT_CHIPS: readonly {
   { key: 'inCarrierOrStroller', label: 'Portabebé / carriola (−1)' },
   { key: 'inCarSeat', label: 'Silla de auto' },
   { key: 'canRollOver', label: 'Ya se voltea' },
+] as const;
+
+const WEATHER_CONDITIONS: readonly {
+  readonly id: OutdoorWeatherCondition;
+  readonly label: string;
+}[] = [
+  { id: 'soleado', label: 'Soleado' },
+  { id: 'nublado', label: 'Nublado' },
+  { id: 'lluvia', label: 'Lluvia' },
 ] as const;
 
 function toggleMulti<T extends string>(
@@ -125,10 +135,15 @@ export function RopaClimaView() {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         try {
-          const url = `https://api.open-meteo.com/v1/forecast?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&current=temperature_2m`;
+          const url = `https://api.open-meteo.com/v1/forecast?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&current=temperature_2m,wind_speed_10m,rain,weather_code`;
           const res = await fetch(url);
           const data = (await res.json()) as {
-            current?: { temperature_2m?: number };
+            current?: {
+              temperature_2m?: number;
+              wind_speed_10m?: number;
+              rain?: number;
+              weather_code?: number;
+            };
           };
           const t = data.current?.temperature_2m;
           if (typeof t === 'number' && Number.isFinite(t)) {
@@ -136,8 +151,21 @@ export function RopaClimaView() {
               CLOTHING_MAX_TEMP_C,
               Math.max(CLOTHING_MIN_TEMP_C, Math.round(t)),
             );
+            const wind = (data.current?.wind_speed_10m ?? 0) >= 18;
+            const rain = (data.current?.rain ?? 0) > 0;
+            const code = data.current?.weather_code ?? 0;
+            const cond: OutdoorWeatherCondition =
+              rain || code >= 51 ? 'lluvia' : code >= 2 ? 'nublado' : 'soleado';
             setOutdoorTempC(clamped);
-            setWeatherNote(`Clima exterior detectado: ${clamped} °C (Open-Meteo).`);
+            setContext((prev) => ({
+              ...prev,
+              weatherCondition: cond,
+              isWindy: wind,
+            }));
+            if (environment === 'exterior') {
+              setTempC(clamped);
+            }
+            setWeatherNote(`Clima exterior actualizado: ${clamped} °C (Open-Meteo).`);
           } else {
             setWeatherNote('No se pudo leer la temperatura exterior; usa el control manual.');
           }
@@ -185,6 +213,30 @@ export function RopaClimaView() {
         />
       )}
 
+      {/* Franja compacta de clima exterior siempre visible arriba */}
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border-interactive bg-bg-elevated px-4 py-2 text-xs">
+        <span className="font-semibold text-ink-secondary tabular-nums">
+          Clima exterior:{' '}
+          <strong className="text-ink-primary">
+            {outdoorTempC !== undefined
+              ? `${outdoorTempC} °C · ${
+                  WEATHER_CONDITIONS.find((w) => w.id === context.weatherCondition)?.label
+                } · ${context.isWindy ? 'Con viento' : 'Sin viento'}`
+              : 'Sin detectar (manual)'}
+          </strong>
+        </span>
+        <button
+          type="button"
+          onClick={handleDetectWeather}
+          className="inline-flex min-h-12 items-center rounded-xl border border-brand-primary bg-brand-surface px-3 py-1.5 text-xs font-bold text-brand-text"
+        >
+          Detectar clima
+        </button>
+      </div>
+      {weatherNote ? (
+        <p className="text-xs text-ink-secondary px-1">{weatherNote}</p>
+      ) : null}
+
       {/* 1. Hasta arriba fuera del desplegable: Temperatura y Entorno */}
       <section
         aria-label="Selector de temperatura y entorno"
@@ -197,7 +249,12 @@ export function RopaClimaView() {
               <button
                 key={env}
                 type="button"
-                onClick={() => setEnvironment(env)}
+                onClick={() => {
+                  setEnvironment(env);
+                  if (env === 'exterior' && outdoorTempC !== undefined) {
+                    setTempC(outdoorTempC);
+                  }
+                }}
                 aria-pressed={active}
                 className={`inline-flex min-h-12 items-center justify-center rounded-xl border px-4 py-2 text-sm font-bold ${
                   active
@@ -447,6 +504,51 @@ export function RopaClimaView() {
               </div>
             </div>
 
+            {environment === 'exterior' ? (
+              <div className="space-y-2">
+                <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
+                  Condiciones del exterior
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {WEATHER_CONDITIONS.map((w) => {
+                    const selected = context.weatherCondition === w.id;
+                    return (
+                      <button
+                        key={w.id}
+                        type="button"
+                        onClick={() =>
+                          setContext((prev) => ({
+                            ...prev,
+                            weatherCondition: w.id,
+                          }))
+                        }
+                        aria-pressed={selected}
+                        className={`inline-flex min-h-12 items-center rounded-full border px-3.5 py-2 text-xs font-semibold ${
+                          selected
+                            ? 'border-brand-primary bg-brand-primary text-brand-on'
+                            : 'border-border-interactive bg-bg-elevated text-ink-primary'
+                        }`}
+                      >
+                        {w.label}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => toggleFlag('isWindy')}
+                    aria-pressed={context.isWindy}
+                    className={`inline-flex min-h-12 items-center rounded-full border px-3.5 py-2 text-xs font-semibold ${
+                      context.isWindy
+                        ? 'border-brand-primary bg-brand-primary text-brand-on'
+                        : 'border-border-interactive bg-bg-elevated text-ink-primary'
+                    }`}
+                  >
+                    Con viento
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
             {/* Multi-selección por capa */}
             <div className="space-y-2">
               <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
@@ -478,6 +580,9 @@ export function RopaClimaView() {
                     >
                       <GarmentIcon kind={opt.visualKind} className="h-4 w-4" />
                       <span>{opt.labelMx}</span>
+                      <span className="text-[11px] opacity-75 tabular-nums">
+                        {opt.tog === null ? '' : opt.tog === 0 ? '0 TOG' : `+${opt.tog} TOG`}
+                      </span>
                     </button>
                   );
                 })}
@@ -514,6 +619,9 @@ export function RopaClimaView() {
                     >
                       <GarmentIcon kind={opt.visualKind} className="h-4 w-4" />
                       <span>{opt.labelMx}</span>
+                      <span className="text-[11px] opacity-75 tabular-nums">
+                        {opt.tog === null ? '' : opt.tog === 0 ? '0 TOG' : `+${opt.tog} TOG`}
+                      </span>
                     </button>
                   );
                 })}
@@ -550,6 +658,9 @@ export function RopaClimaView() {
                     >
                       <GarmentIcon kind={opt.visualKind} className="h-4 w-4" />
                       <span>{opt.labelMx}</span>
+                      <span className="text-[11px] opacity-75 tabular-nums">
+                        {opt.tog === null ? '' : opt.tog === 0 ? '0 TOG' : `+${opt.tog} TOG`}
+                      </span>
                     </button>
                   );
                 })}
@@ -586,6 +697,9 @@ export function RopaClimaView() {
                     >
                       <GarmentIcon kind={opt.visualKind} className="h-4 w-4" />
                       <span>{opt.labelMx}</span>
+                      <span className="text-[11px] opacity-75 tabular-nums">
+                        {opt.tog === null ? '' : opt.tog === 0 ? '0 TOG' : `+${opt.tog} TOG`}
+                      </span>
                     </button>
                   );
                 })}

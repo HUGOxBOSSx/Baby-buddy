@@ -77,20 +77,35 @@ describe('recommendClothing (-5 °C a 50 °C)', () => {
     expect(gorroEnCuarto.severity).toBe('caution');
   });
 
-  it('genera combinación óptima por defecto con getDefaultOptimalLayers', () => {
-    for (const t of [16, 21, 25]) {
-      const defaults = getDefaultOptimalLayers({
-        tempC: t,
-        environment: 'cuarto',
-        stageId: '0-3m',
-      });
-      const rec = recommendClothing({
-        tempC: t,
-        environment: 'cuarto',
-        stageId: '0-3m',
-        selectedLayers: defaults,
-      });
-      expect(rec.comfortZone).toBe('optimal');
+  it('genera combinación óptima por defecto con getDefaultOptimalLayers en cuarto y exterior', () => {
+    for (const environment of ['cuarto', 'exterior'] as const) {
+      for (const tempC of [-2, 8, 16, 21, 26, 32]) {
+        const ctx = {
+          inCarrierOrStroller: tempC === 21,
+          isWindy: environment === 'exterior' && tempC === 16,
+          weatherCondition:
+            environment === 'exterior' && tempC === 8
+              ? ('lluvia' as const)
+              : ('soleado' as const),
+        };
+        const defaults = getDefaultOptimalLayers({
+          tempC,
+          environment,
+          stageId: '0-3m',
+          context: ctx,
+        });
+        const rec = recommendClothing({
+          tempC,
+          environment,
+          stageId: '0-3m',
+          context: ctx,
+          selectedLayers: defaults,
+        });
+        expect(
+          rec.comfortZone,
+          `Falló óptimo en ${environment} a ${tempC}°C (TOG ${rec.currentTog} vs ${rec.recommendedTogRange.min}-${rec.recommendedTogRange.max})`,
+        ).toBe('optimal');
+      }
     }
   });
 

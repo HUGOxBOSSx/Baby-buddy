@@ -17,6 +17,7 @@ import {
   type ClothingContextFlags,
   type ClothingEnvironment,
   type MidLayerId,
+  type OutdoorWeatherCondition,
   type OuterLayerId,
   type SelectedLayersInput,
 } from '@baby-buddy/core';
@@ -53,6 +54,15 @@ const CONTEXT_CHIPS: readonly {
   { key: 'inCarrierOrStroller', label: 'Portabebé (−1)' },
   { key: 'inCarSeat', label: 'Silla de auto' },
   { key: 'canRollOver', label: 'Ya se voltea' },
+] as const;
+
+const WEATHER_CONDITIONS: readonly {
+  readonly id: OutdoorWeatherCondition;
+  readonly label: string;
+}[] = [
+  { id: 'soleado', label: 'Soleado' },
+  { id: 'nublado', label: 'Nublado' },
+  { id: 'lluvia', label: 'Lluvia' },
 ] as const;
 
 function toggleMulti<T extends string>(
@@ -147,6 +157,24 @@ export default function RopaYClimaScreen() {
       ) : (
         <StageSelector />
       )}
+
+      {/* Franja compacta de clima exterior siempre visible arriba */}
+      <View
+        className="rounded-2xl border px-3 py-2 flex-row items-center justify-between flex-wrap gap-2"
+        style={{
+          backgroundColor: palette.bgElevated,
+          borderColor: palette.borderInteractive,
+        }}
+      >
+        <Text className="text-xs font-semibold" style={{ color: palette.textSecondary }}>
+          Exterior:{' '}
+          {outdoorTempC !== undefined
+            ? `${outdoorTempC} °C · ${
+                WEATHER_CONDITIONS.find((w) => w.id === context.weatherCondition)?.label
+              } · ${context.isWindy ? 'Viento' : 'Sin viento'}`
+            : 'Sin detectar (manual)'}
+        </Text>
+      </View>
 
       {/* 1. Hasta arriba fuera del desplegable: Temperatura y Entorno */}
       <View
@@ -451,6 +479,75 @@ export default function RopaYClimaScreen() {
               </View>
             </View>
 
+            {environment === 'exterior' ? (
+              <View className="gap-2">
+                <Text className="text-xs font-bold uppercase" style={{ color: palette.textSecondary }}>
+                  Condiciones del exterior
+                </Text>
+                <View className="flex-row flex-wrap gap-2">
+                  {WEATHER_CONDITIONS.map((w) => {
+                    const selected = context.weatherCondition === w.id;
+                    return (
+                      <Pressable
+                        key={w.id}
+                        onPress={() =>
+                          setContext((prev) => ({
+                            ...prev,
+                            weatherCondition: w.id,
+                          }))
+                        }
+                        className="rounded-full border px-3 py-2 justify-center"
+                        style={{
+                          minHeight: MIN_TOUCH_TARGET_PX,
+                          backgroundColor: selected
+                            ? palette.brandPrimary
+                            : palette.bgElevated,
+                          borderColor: selected
+                            ? palette.brandPrimary
+                            : palette.borderInteractive,
+                        }}
+                      >
+                        <Text
+                          className="text-xs font-semibold"
+                          style={{
+                            color: selected
+                              ? palette.onBrandPrimary
+                              : palette.textPrimary,
+                          }}
+                        >
+                          {w.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                  <Pressable
+                    onPress={() => toggleFlag('isWindy')}
+                    className="rounded-full border px-3 py-2 justify-center"
+                    style={{
+                      minHeight: MIN_TOUCH_TARGET_PX,
+                      backgroundColor: context.isWindy
+                        ? palette.brandPrimary
+                        : palette.bgElevated,
+                      borderColor: context.isWindy
+                        ? palette.brandPrimary
+                        : palette.borderInteractive,
+                    }}
+                  >
+                    <Text
+                      className="text-xs font-semibold"
+                      style={{
+                        color: context.isWindy
+                          ? palette.onBrandPrimary
+                          : palette.textPrimary,
+                      }}
+                    >
+                      Con viento
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
+
             <View className="gap-2">
               <Text className="text-xs font-bold uppercase" style={{ color: palette.textSecondary }}>
                 1. Capa base (multi-selección)
@@ -483,7 +580,10 @@ export default function RopaYClimaScreen() {
                       }}
                     >
                       <Text className="text-xs font-semibold" style={{ color: palette.textPrimary }}>
-                        {opt.labelMx}
+                        {opt.labelMx}{' '}
+                        <Text style={{ color: palette.textMuted }}>
+                          {opt.tog === null ? '' : opt.tog === 0 ? '(0 TOG)' : `(+${opt.tog} TOG)`}
+                        </Text>
                       </Text>
                     </Pressable>
                   );
@@ -523,7 +623,10 @@ export default function RopaYClimaScreen() {
                       }}
                     >
                       <Text className="text-xs font-semibold" style={{ color: palette.textPrimary }}>
-                        {opt.labelMx}
+                        {opt.labelMx}{' '}
+                        <Text style={{ color: palette.textMuted }}>
+                          {opt.tog === null ? '' : opt.tog === 0 ? '(0 TOG)' : `(+${opt.tog} TOG)`}
+                        </Text>
                       </Text>
                     </Pressable>
                   );
@@ -563,7 +666,10 @@ export default function RopaYClimaScreen() {
                       }}
                     >
                       <Text className="text-xs font-semibold" style={{ color: palette.textPrimary }}>
-                        {opt.labelMx}
+                        {opt.labelMx}{' '}
+                        <Text style={{ color: palette.textMuted }}>
+                          {opt.tog === null ? '' : opt.tog === 0 ? '(0 TOG)' : `(+${opt.tog} TOG)`}
+                        </Text>
                       </Text>
                     </Pressable>
                   );
@@ -603,7 +709,10 @@ export default function RopaYClimaScreen() {
                       }}
                     >
                       <Text className="text-xs font-semibold" style={{ color: palette.textPrimary }}>
-                        {opt.labelMx}
+                        {opt.labelMx}{' '}
+                        <Text style={{ color: palette.textMuted }}>
+                          {opt.tog === null ? '' : opt.tog === 0 ? '(0 TOG)' : `(+${opt.tog} TOG)`}
+                        </Text>
                       </Text>
                     </Pressable>
                   );
