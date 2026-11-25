@@ -51,6 +51,18 @@ export type GuideKind =
   | 'problema_solucion'
   | 'primeros_auxilios';
 
+export type ClinicalGuideLinkTone =
+  | 'normal_green'
+  | 'not_normal_yellow'
+  | 'urgent_red';
+
+export interface ClinicalGuideLink {
+  readonly slug: string;
+  readonly prefixMx: string;
+  readonly titleMx: string;
+  readonly tone: ClinicalGuideLinkTone;
+}
+
 export interface ClinicalGuideEntry {
   readonly slug: string;
   readonly kind: GuideKind;

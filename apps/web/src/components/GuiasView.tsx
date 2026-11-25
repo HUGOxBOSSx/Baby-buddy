@@ -9,8 +9,10 @@ import {
 } from '@baby-buddy/core';
 import {
   GUIDE_CATEGORIES_MX,
+  getRelatedGuideLinks,
   searchClinicalGuides,
   type ClinicalGuideEntry,
+  type ClinicalGuideLinkTone,
 } from '@baby-buddy/content';
 import { PoopColorChart } from '@/components/PoopColorChart';
 import { StageSelector } from '@/components/StageSelector';
@@ -353,15 +355,39 @@ export function GuiasView() {
                       </p>
                     </div>
 
-                    <Link
-                      href={`/guias/${guide.slug}`}
-                      className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-brand-primary bg-brand-surface px-4 py-2 text-xs font-bold text-brand-text hover:opacity-90"
-                    >
-                      <span>Qué SÍ hacer y qué NO hacer</span>
-                      <span aria-hidden="true" className="text-xl leading-none">
-                        →
-                      </span>
-                    </Link>
+                    <div className="flex flex-wrap gap-2">
+                      <Link
+                        href={`/guias/${guide.slug}`}
+                        className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-brand-primary bg-brand-surface px-4 py-2 text-xs font-bold text-brand-text hover:opacity-90"
+                      >
+                        <span>Qué SÍ hacer y qué NO hacer</span>
+                        <span aria-hidden="true" className="text-xl leading-none">
+                          →
+                        </span>
+                      </Link>
+                      {getRelatedGuideLinks(guide.slug).map((rel) => {
+                        const toneCls =
+                          rel.tone === 'normal_green'
+                            ? 'border-brand-primary bg-brand-surface text-brand-text'
+                            : rel.tone === 'not_normal_yellow'
+                              ? 'border-warm bg-warm-surface text-warm-text'
+                              : 'border-alert-red bg-alert-surface text-alert-text';
+                        return (
+                          <Link
+                            key={rel.slug}
+                            href={`/guias/${rel.slug}`}
+                            className={`inline-flex min-h-12 items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold hover:opacity-90 ${toneCls}`}
+                          >
+                            <span>
+                              {rel.prefixMx} {rel.titleMx}
+                            </span>
+                            <span aria-hidden="true" className="text-lg leading-none">
+                              →
+                            </span>
+                          </Link>
+                        );
+                      })}
+                    </div>
                   </article>
                 ))}
               </div>

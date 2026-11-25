@@ -6,6 +6,7 @@ import {
 import {
   ALL_CLINICAL_GUIDES,
   GUIDE_CATEGORIES_MX,
+  getRelatedGuideLinks,
   searchClinicalGuides,
 } from '@baby-buddy/content';
 import { useRouter } from 'expo-router';
@@ -389,31 +390,80 @@ export default function GuiasScreen() {
                       {guide.summaryMx}
                     </Text>
 
-                    <Pressable
-                      onPress={() =>
-                        setExpandedSlug(isExpanded ? null : guide.slug)
-                      }
-                      className="rounded-xl border px-3 py-2 self-start flex-row items-center gap-2"
-                      style={{
-                        minHeight: MIN_TOUCH_TARGET_PX,
-                        backgroundColor: palette.brandSurface,
-                        borderColor: palette.brandPrimary,
-                      }}
-                    >
-                      <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
-                        {isExpanded
-                          ? 'Ocultar detalle ▴'
-                          : 'Qué SÍ hacer y qué NO hacer'}
-                      </Text>
-                      {!isExpanded ? (
-                        <Text
-                          className="text-lg font-bold"
-                          style={{ color: palette.brandText }}
-                        >
-                          →
+                    <View className="flex-row flex-wrap gap-2">
+                      <Pressable
+                        onPress={() =>
+                          setExpandedSlug(isExpanded ? null : guide.slug)
+                        }
+                        className="rounded-xl border px-3 py-2 self-start flex-row items-center gap-2"
+                        style={{
+                          minHeight: MIN_TOUCH_TARGET_PX,
+                          backgroundColor: palette.brandSurface,
+                          borderColor: palette.brandPrimary,
+                        }}
+                      >
+                        <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
+                          {isExpanded
+                            ? 'Ocultar detalle ▴'
+                            : 'Qué SÍ hacer y qué NO hacer'}
                         </Text>
-                      ) : null}
-                    </Pressable>
+                        {!isExpanded ? (
+                          <Text
+                            className="text-lg font-bold"
+                            style={{ color: palette.brandText }}
+                          >
+                            →
+                          </Text>
+                        ) : null}
+                      </Pressable>
+
+                      {getRelatedGuideLinks(guide.slug).map((rel) => {
+                        const bg =
+                          rel.tone === 'normal_green'
+                            ? palette.brandSurface
+                            : rel.tone === 'not_normal_yellow'
+                              ? palette.accentWarmSurface
+                              : palette.alertRedSurface;
+                        const border =
+                          rel.tone === 'normal_green'
+                            ? palette.brandPrimary
+                            : rel.tone === 'not_normal_yellow'
+                              ? palette.accentWarm
+                              : palette.alertRed;
+                        const text =
+                          rel.tone === 'normal_green'
+                            ? palette.brandText
+                            : rel.tone === 'not_normal_yellow'
+                              ? palette.accentWarmText
+                              : palette.alertRedText;
+                        return (
+                          <Pressable
+                            key={rel.slug}
+                            onPress={() => {
+                              setQuery('');
+                              setTab('all');
+                              setSubFilter('all');
+                              setCategoryFilter('all');
+                              setIncludeOtherAges(true);
+                              setExpandedSlug(rel.slug);
+                            }}
+                            className="rounded-xl border px-3 py-2 self-start flex-row items-center gap-1.5"
+                            style={{
+                              minHeight: MIN_TOUCH_TARGET_PX,
+                              backgroundColor: bg,
+                              borderColor: border,
+                            }}
+                          >
+                            <Text className="text-xs font-bold" style={{ color: text }}>
+                              {rel.prefixMx} {rel.titleMx}
+                            </Text>
+                            <Text className="text-base font-bold" style={{ color: text }}>
+                              →
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
 
                     {isExpanded ? (
                       <View className="gap-2 pt-2 border-t" style={{ borderTopColor: palette.borderInteractive }}>

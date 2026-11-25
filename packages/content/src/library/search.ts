@@ -3,7 +3,12 @@ import {
   type StageId,
   type TriageLevel,
 } from '@baby-buddy/core';
-import type { ClinicalGuideEntry, GuideKind } from '../schema';
+import type {
+  ClinicalGuideEntry,
+  ClinicalGuideLink,
+  ClinicalGuideLinkTone,
+  GuideKind,
+} from '../schema';
 import { IS_NORMAL_GUIDES } from './isNormal';
 import { PROBLEM_SOLUTIONS_GUIDES } from './problems';
 
@@ -105,4 +110,77 @@ export function searchClinicalGuides(
       .filter(Boolean)
       .every((term) => haystack.includes(term));
   });
+}
+
+export const RELATED_GUIDE_SLUGS: Readonly<Record<string, readonly string[]>> = {
+  'regurgitacion-y-reflujo': ['vomito-en-proyectil-o-reflujo-con-alerta'],
+  'vomito-en-proyectil-o-reflujo-con-alerta': ['regurgitacion-y-reflujo'],
+  'ictericia-leve': ['ictericia-intensa-o-prolongada'],
+  'ictericia-intensa-o-prolongada': ['ictericia-leve'],
+  'cordon-umbilical': ['infeccion-cordon-umbilical'],
+  'infeccion-cordon-umbilical': ['cordon-umbilical'],
+  'perdida-peso-inicial': ['baja-ganancia-peso-rechazo-tomas'],
+  'alimentacion-en-racimo': ['baja-ganancia-peso-rechazo-tomas', 'dolor-agarre-lactancia'],
+  'dolor-agarre-lactancia': ['mastitis-seno-rojo-fiebre', 'alimentacion-en-racimo'],
+  'mastitis-seno-rojo-fiebre': ['dolor-agarre-lactancia'],
+  'respiracion-periodica': ['pausas-respiratorias-apnea', 'dificultad-respiratoria-grave-reposo'],
+  'pausas-respiratorias-apnea': ['respiracion-periodica'],
+  'pujidos-ruidos-al-dormir': ['dificultad-respiratoria-grave-reposo', 'estrenimiento-bebe-nino'],
+  'dificultad-respiratoria-grave-reposo': ['respiracion-periodica', 'pujidos-ruidos-al-dormir', 'congestion-nasal-lavado'],
+  'estornudos-recien-nacido': ['resfriado-y-tos', 'congestion-nasal-lavado'],
+  'congestion-nasal-lavado': ['resfriado-y-tos', 'dificultad-respiratoria-grave-reposo'],
+  'resfriado-y-tos': ['dificultad-respiratoria-grave-reposo', 'estornudos-recien-nacido', 'congestion-nasal-lavado'],
+  'reflejo-de-moro-sobresalto': ['primeros-auxilios-convulsion-febril'],
+  'primeros-auxilios-convulsion-febril': ['reflejo-de-moro-sobresalto', 'fiebre-mayores-3-meses'],
+  'acne-neonatal-milia': ['sarpullido-con-fiebre-o-manchas-no-blanquean', 'dermatitis-atopica-resequedad'],
+  'descamacion-piel-recien-nacido': ['dermatitis-atopica-resequedad'],
+  'costra-lactea': ['dermatitis-atopica-resequedad'],
+  'rozadura-de-panal': ['dermatitis-atopica-resequedad', 'sarpullido-con-fiebre-o-manchas-no-blanquean'],
+  'dermatitis-atopica-resequedad': ['acne-neonatal-milia', 'rozadura-de-panal'],
+  'sarpullido-con-fiebre-o-manchas-no-blanquean': ['acne-neonatal-milia', 'rozadura-de-panal'],
+  'hora-bruja-llanto-vespertino': ['colicos-y-gases', 'bebe-no-despierta-no-responde'],
+  'colicos-y-gases': ['hora-bruja-llanto-vespertino'],
+  'bebe-no-despierta-no-responde': ['hora-bruja-llanto-vespertino'],
+  'arcada-vs-atragantamiento-blw': ['primeros-auxilios-atragantamiento'],
+  'primeros-auxilios-atragantamiento': ['arcada-vs-atragantamiento-blw'],
+  'diarrea-y-deshidratacion': ['sin-mojar-panal-deshidratacion'],
+  'sin-mojar-panal-deshidratacion': ['diarrea-y-deshidratacion', 'baja-ganancia-peso-rechazo-tomas'],
+  'baja-ganancia-peso-rechazo-tomas': ['perdida-peso-inicial', 'sin-mojar-panal-deshidratacion'],
+  'fiebre-mayores-3-meses': ['fiebre-menores-3-meses', 'primeros-auxilios-convulsion-febril'],
+  'fiebre-menores-3-meses': ['fiebre-mayores-3-meses'],
+};
+
+function getLinkMeta(level: TriageLevel): {
+  readonly tone: ClinicalGuideLinkTone;
+  readonly prefixMx: string;
+} {
+  switch (level) {
+    case 'green_home':
+      return { tone: 'normal_green', prefixMx: '¿Cuándo SÍ es normal?' };
+    case 'yellow_pediatrician':
+      return { tone: 'not_normal_yellow', prefixMx: '¿Cuándo NO es normal?' };
+    case 'orange_urgent':
+      return { tone: 'urgent_red', prefixMx: '¿Cuándo es urgencia hoy?' };
+    case 'red_911':
+      return { tone: 'urgent_red', prefixMx: '¿Cuándo es urgencia (911)?' };
+  }
+}
+
+export function getRelatedGuideLinks(
+  slug: string,
+): readonly ClinicalGuideLink[] {
+  const targets = RELATED_GUIDE_SLUGS[slug] ?? [];
+  const links: ClinicalGuideLink[] = [];
+  for (const targetSlug of targets) {
+    const target = getClinicalGuideBySlug(targetSlug);
+    if (!target) continue;
+    const { tone, prefixMx } = getLinkMeta(target.triageLevel);
+    links.push({
+      slug: target.slug,
+      prefixMx,
+      titleMx: target.titleMx,
+      tone,
+    });
+  }
+  return links;
 }

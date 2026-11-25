@@ -4,6 +4,8 @@ import { notFound } from 'next/navigation';
 import {
   ALL_CLINICAL_GUIDES,
   getClinicalGuideBySlug,
+  getRelatedGuideLinks,
+  type ClinicalGuideLinkTone,
 } from '@baby-buddy/content';
 import { ClinicalMetadataBlock } from '@/components/ClinicalMetadataBlock';
 import { GuideDisclaimerHeader } from '@/components/GuideDisclaimerHeader';
@@ -40,6 +42,19 @@ export default async function GuideDetailPage({
   if (!guide) {
     notFound();
   }
+
+  const relatedLinks = getRelatedGuideLinks(guide.slug);
+
+  const linkToneClass = (tone: ClinicalGuideLinkTone): string => {
+    switch (tone) {
+      case 'normal_green':
+        return 'border-brand-primary bg-brand-surface text-brand-text';
+      case 'not_normal_yellow':
+        return 'border-warm bg-warm-surface text-warm-text';
+      case 'urgent_red':
+        return 'border-alert-red bg-alert-surface text-alert-text';
+    }
+  };
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
@@ -100,6 +115,30 @@ export default async function GuideDetailPage({
             ))}
           </ul>
         </div>
+
+        {relatedLinks.length > 0 ? (
+          <div className="space-y-2 pt-1">
+            <h2 className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
+              Guías relacionadas
+            </h2>
+            <div className="flex flex-col gap-2">
+              {relatedLinks.map((link) => (
+                <Link
+                  key={link.slug}
+                  href={`/guias/${link.slug}`}
+                  className={`inline-flex min-h-12 items-center justify-between gap-3 rounded-xl border px-4 py-2.5 text-xs font-bold hover:opacity-90 ${linkToneClass(link.tone)}`}
+                >
+                  <span>
+                    {link.prefixMx} {link.titleMx}
+                  </span>
+                  <span aria-hidden="true" className="text-xl leading-none">
+                    →
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         {guide.triageLevel === 'red_911' ? (
           <a

@@ -85,10 +85,10 @@ describe('@baby-buddy/content M1 scaffolds & clinical metadata', () => {
     );
   });
 
-  it('validates all 50 clinical guides and poop chart for metadata, Mexican Spanish, and metric-only copy', () => {
+  it('validates all 56 clinical guides and poop chart for metadata, Mexican Spanish, and metric-only copy', () => {
     expect(IS_NORMAL_GUIDES.length).toBe(20);
-    expect(PROBLEM_SOLUTIONS_GUIDES.length).toBe(30);
-    expect(ALL_CLINICAL_GUIDES.length).toBe(50);
+    expect(PROBLEM_SOLUTIONS_GUIDES.length).toBe(36);
+    expect(ALL_CLINICAL_GUIDES.length).toBe(56);
     expect(POOP_COLOR_CHART.length).toBe(7);
 
     for (const guide of ALL_CLINICAL_GUIDES) {
