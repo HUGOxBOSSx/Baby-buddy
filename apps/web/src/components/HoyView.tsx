@@ -59,13 +59,31 @@ export function HoyView() {
       ) : null}
 
       <section aria-labelledby="selector-etapa-titulo" className="space-y-3">
-        <h2
-          id="selector-etapa-titulo"
-          className="text-lg font-bold text-ink-primary"
-        >
-          Etapa activa
-        </h2>
-        <StageSelector />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2
+            id="selector-etapa-titulo"
+            className="text-lg font-bold text-ink-primary"
+          >
+            {childProfile ? 'Etapa automática de tu bebé' : 'Etapa activa'}
+          </h2>
+          {childProfile ? (
+            <Link
+              href="/salud#perfil-bebe"
+              className="inline-flex min-h-12 items-center rounded-xl border border-border-interactive bg-bg-elevated px-4 py-2 text-xs font-bold text-brand-text hover:bg-brand-surface"
+            >
+              Cambiar datos del bebé
+            </Link>
+          ) : null}
+        </div>
+        {childProfile ? (
+          <p className="text-sm text-ink-secondary">
+            Mostrando únicamente la información de{' '}
+            <strong className="text-ink-primary">{stageSpec.label}</strong> según
+            la edad de {childProfile.nicknameMx}.
+          </p>
+        ) : (
+          <StageSelector />
+        )}
       </section>
 
       <section

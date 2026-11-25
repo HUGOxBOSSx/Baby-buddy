@@ -1,5 +1,9 @@
 import Feather from '@expo/vector-icons/Feather';
-import { MIN_TOUCH_TARGET_PX } from '@baby-buddy/core';
+import {
+  CHILD_SEX_LABELS_MX,
+  MIN_TOUCH_TARGET_PX,
+  formatChildAgeMx,
+} from '@baby-buddy/core';
 import { Tabs } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -42,9 +46,12 @@ function HeaderModeToggle() {
 }
 
 export default function TabsLayout() {
-  const { palette, iconsLoaded } = useThemeContext();
+  const { palette, iconsLoaded, childProfile } = useThemeContext();
   const insets = useSafeAreaInsets();
   const bottomPad = Math.max(insets.bottom, 6);
+  const babyHeader = childProfile
+    ? `${childProfile.nicknameMx} · ${formatChildAgeMx(childProfile.ageMonths)} · ${CHILD_SEX_LABELS_MX[childProfile.sex ?? 'no_especificado']}`
+    : null;
 
   return (
     <Tabs
@@ -58,7 +65,19 @@ export default function TabsLayout() {
         headerTitleStyle: {
           color: palette.textPrimary,
           fontWeight: '700',
+          fontSize: 15,
         },
+        headerTitle: babyHeader
+          ? () => (
+              <Text
+                numberOfLines={1}
+                className="text-sm font-bold"
+                style={{ color: palette.textPrimary }}
+              >
+                {babyHeader}
+              </Text>
+            )
+          : undefined,
         headerRight: () => <HeaderModeToggle />,
         tabBarActiveTintColor: palette.brandText,
         tabBarInactiveTintColor: palette.textMuted,

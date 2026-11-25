@@ -2,16 +2,23 @@
 
 import {
   DEFAULT_APP_PREFERENCES,
+  DEFAULT_THEME_SCHEDULE,
   LOCAL_STORAGE_KEYS,
   LOCAL_STORAGE_PREFIX,
   LocalAccountLifecycleAdapter,
+  createChildProfileSummary,
   isStageId,
+  isValidHour,
+  resolveEffectiveThemeMode,
   type AccountDeletionResult,
   type ChildProfileSummary,
+  type ChildSex,
+  type CreateChildProfileInput,
   type KeyValueStoragePort,
   type StageId,
   type StoredSnapshotSummary,
   type ThemeMode,
+  type ThemeScheduleConfig,
 } from '@baby-buddy/core';
 
 export class BrowserLocalStorageAdapter implements KeyValueStoragePort {
@@ -97,6 +104,7 @@ export const accountLifecycleAdapter = new LocalAccountLifecycleAdapter(
 
 export interface LocalAppSnapshot {
   readonly themeMode: ThemeMode;
+  readonly themeSchedule: ThemeScheduleConfig;
   readonly activeStageId: StageId;
   readonly onboardingAccepted: boolean;
   readonly childProfile: ChildProfileSummary | null;
@@ -107,6 +115,7 @@ export interface LocalAppSnapshot {
 
 export const SERVER_APP_SNAPSHOT: LocalAppSnapshot = {
   themeMode: DEFAULT_APP_PREFERENCES.themeMode,
+  themeSchedule: DEFAULT_THEME_SCHEDULE,
   activeStageId: DEFAULT_APP_PREFERENCES.activeStageId,
   onboardingAccepted: false,
   childProfile: null,
@@ -147,11 +156,18 @@ function parseChildProfile(raw: string | null): ChildProfileSummary | null {
     ) {
       return null;
     }
+    const sex: ChildSex =
+      candidate.sex === 'niño' ||
+      candidate.sex === 'niña' ||
+      candidate.sex === 'no_especificado'
+        ? candidate.sex
+        : 'no_especificado';
     return {
       id: candidate.id,
       nicknameMx: candidate.nicknameMx,
       ageMonths: candidate.ageMonths,
       stageId: candidate.stageId,
+      sex,
       birthDateIso:
         typeof candidate.birthDateIso === 'string'
           ? candidate.birthDateIso
@@ -161,6 +177,33 @@ function parseChildProfile(raw: string | null): ChildProfileSummary | null {
     };
   } catch {
     return null;
+  }
+}
+
+function parseThemeSchedule(raw: string | null): ThemeScheduleConfig {
+  if (!raw || raw.trim().length === 0) {
+    return DEFAULT_THEME_SCHEDULE;
+  }
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== 'object' || parsed === null) {
+      return DEFAULT_THEME_SCHEDULE;
+    }
+    const candidate = parsed as Record<string, unknown>;
+    const mode = candidate.mode === 'manual' ? 'manual' : 'auto';
+    const nightStartHour =
+      typeof candidate.nightStartHour === 'number' &&
+      isValidHour(candidate.nightStartHour)
+        ? candidate.nightStartHour
+        : DEFAULT_THEME_SCHEDULE.nightStartHour;
+    const nightEndHour =
+      typeof candidate.nightEndHour === 'number' &&
+      isValidHour(candidate.nightEndHour)
+        ? candidate.nightEndHour
+        : DEFAULT_THEME_SCHEDULE.nightEndHour;
+    return { mode, nightStartHour, nightEndHour };
+  } catch {
+    return DEFAULT_THEME_SCHEDULE;
   }
 }
 
@@ -224,6 +267,9 @@ export function getLocalAppSnapshot(): LocalAppSnapshot {
   }
 
   const rawTheme = browserStorage.getItemSync(LOCAL_STORAGE_KEYS.themeMode);
+  const rawSchedule = browserStorage.getItemSync(
+    LOCAL_STORAGE_KEYS.themeSchedule,
+  );
   const rawStage = browserStorage.getItemSync(LOCAL_STORAGE_KEYS.activeStageId);
   const rawOnboarding = browserStorage.getItemSync(
     LOCAL_STORAGE_KEYS.onboardingAcceptedAt,
@@ -239,9 +285,12 @@ export function getLocalAppSnapshot(): LocalAppSnapshot {
   const deletionSig = transientDeletionResult
     ? `${transientDeletionResult.deletedAtIso}:${transientDeletionResult.deletedKeysCount}`
     : '';
+  const currentHour = new Date().getHours();
 
   const signature = [
     rawTheme ?? '',
+    rawSchedule ?? '',
+    String(currentHour),
     rawStage ?? '',
     rawOnboarding ?? '',
     rawProfile ?? '',
@@ -254,17 +303,26 @@ export function getLocalAppSnapshot(): LocalAppSnapshot {
     return cachedSnapshot;
   }
 
-  const themeMode: ThemeMode = rawTheme === 'night_3am' ? 'night_3am' : 'day';
-  const activeStageId: StageId =
-    rawStage !== null && isStageId(rawStage)
+  const manualThemeMode: ThemeMode =
+    rawTheme === 'night_3am' ? 'night_3am' : 'day';
+  const themeSchedule = parseThemeSchedule(rawSchedule);
+  const themeMode = resolveEffectiveThemeMode(
+    themeSchedule,
+    manualThemeMode,
+    currentHour,
+  );
+  const childProfile = parseChildProfile(rawProfile);
+  const activeStageId: StageId = childProfile
+    ? childProfile.stageId
+    : rawStage !== null && isStageId(rawStage)
       ? rawStage
       : DEFAULT_APP_PREFERENCES.activeStageId;
   const onboardingAccepted =
     rawOnboarding !== null && rawOnboarding.trim().length > 0;
-  const childProfile = parseChildProfile(rawProfile);
 
   cachedSnapshot = {
     themeMode,
+    themeSchedule,
     activeStageId,
     onboardingAccepted,
     childProfile,
@@ -283,13 +341,54 @@ export function getLocalAppSnapshot(): LocalAppSnapshot {
 
 export function setStoredThemeMode(mode: ThemeMode): void {
   browserStorage.setItemSync(LOCAL_STORAGE_KEYS.themeMode, mode);
+  const currentSchedule = getLocalAppSnapshot().themeSchedule;
+  const manualSchedule: ThemeScheduleConfig = {
+    ...currentSchedule,
+    mode: 'manual',
+  };
+  browserStorage.setItemSync(
+    LOCAL_STORAGE_KEYS.themeSchedule,
+    JSON.stringify(manualSchedule),
+  );
   const snapshot = getLocalAppSnapshot();
   applyThemeToDocument(mode, snapshot.onboardingAccepted);
   transientStatusMessage =
     mode === 'night_3am'
-      ? 'Modo 3:00 AM activado para cuidar tu descanso.'
-      : 'Modo Día Calma activado.';
+      ? 'Modo 3:00 AM activado manualmente.'
+      : 'Modo Día Calma activado manualmente.';
   notifyLocalStoreChange();
+}
+
+export function setStoredThemeSchedule(schedule: ThemeScheduleConfig): void {
+  browserStorage.setItemSync(
+    LOCAL_STORAGE_KEYS.themeSchedule,
+    JSON.stringify(schedule),
+  );
+  const snapshot = getLocalAppSnapshot();
+  applyThemeToDocument(snapshot.themeMode, snapshot.onboardingAccepted);
+  transientStatusMessage =
+    schedule.mode === 'auto'
+      ? `Modo noche automático configurado de ${schedule.nightStartHour}:00 a ${schedule.nightEndHour}:00.`
+      : 'Modo de tema manual activado.';
+  notifyLocalStoreChange();
+}
+
+export function saveStoredChildProfile(
+  input: Omit<CreateChildProfileInput, 'id'>,
+): ChildProfileSummary {
+  const existing = getLocalAppSnapshot().childProfile;
+  const profile = createChildProfileSummary({
+    ...input,
+    id: existing?.id ?? 'bebe-local-01',
+  });
+  browserStorage.setItemSync(
+    LOCAL_STORAGE_KEYS.childProfile,
+    JSON.stringify(profile),
+  );
+  browserStorage.setItemSync(LOCAL_STORAGE_KEYS.activeStageId, profile.stageId);
+  transientStatusMessage = `Datos de ${profile.nicknameMx} guardados (${profile.stageId}).`;
+  notifyLocalStoreChange();
+  return profile;
 }
 
 export function toggleStoredThemeMode(): void {

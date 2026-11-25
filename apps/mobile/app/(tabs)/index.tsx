@@ -53,7 +53,38 @@ export default function HoyScreen() {
           </Text>
         </View>
 
-        <StageSelector />
+        {childProfile ? (
+          <View
+            className="rounded-2xl border p-4 gap-2"
+            style={{
+              backgroundColor: palette.brandSurface,
+              borderColor: palette.brandPrimary,
+            }}
+          >
+            <Text className="text-xs font-bold uppercase" style={{ color: palette.brandText }}>
+              Etapa automática: {stageSpec.label}
+            </Text>
+            <Text className="text-sm" style={{ color: palette.textPrimary }}>
+              Mostrando solo el contenido para {childProfile.nicknameMx}. Si
+              deseas cambiar de etapa, actualiza sus datos en Salud.
+            </Text>
+            <Pressable
+              onPress={() => router.push('/(tabs)/salud')}
+              className="self-start rounded-xl border px-3 py-2 justify-center"
+              style={{
+                minHeight: MIN_TOUCH_TARGET_PX,
+                backgroundColor: palette.bgCard,
+                borderColor: palette.borderInteractive,
+              }}
+            >
+              <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
+                Cambiar datos del bebé
+              </Text>
+            </Pressable>
+          </View>
+        ) : (
+          <StageSelector />
+        )}
 
         <View
           className="rounded-2xl border p-4 gap-3"

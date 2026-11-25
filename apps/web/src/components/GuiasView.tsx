@@ -1,19 +1,23 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { STAGE_SPECS, type StageId } from '@baby-buddy/core';
 import { M1_GUIDE_SCAFFOLDS } from '@baby-buddy/content';
 import { ClinicalMetadataBlock } from '@/components/ClinicalMetadataBlock';
 import { StageSelector } from '@/components/StageSelector';
 import { StatusBadge } from '@/components/StatusBadge';
+import { useAppState } from '@/components/ThemeProvider';
 
 export function GuiasView() {
+  const { childProfile } = useAppState();
   const [stageFilter, setStageFilter] = useState<StageId | 'all'>('all');
 
+  const effectiveStage = childProfile ? childProfile.stageId : stageFilter;
   const filteredGuides =
-    stageFilter === 'all'
+    effectiveStage === 'all'
       ? M1_GUIDE_SCAFFOLDS
-      : M1_GUIDE_SCAFFOLDS.filter((guide) => guide.stage === stageFilter);
+      : M1_GUIDE_SCAFFOLDS.filter((guide) => guide.stage === effectiveStage);
 
   return (
     <div className="space-y-6">
@@ -27,19 +31,33 @@ export function GuiasView() {
       </header>
 
       <section aria-labelledby="filtro-guias-titulo" className="space-y-3">
-        <h2
-          id="filtro-guias-titulo"
-          className="text-base font-bold text-ink-primary"
-        >
-          Filtrar por etapa
-        </h2>
-        <StageSelector
-          selectedStage={stageFilter}
-          onSelectStage={(stage) => setStageFilter(stage)}
-          includeAllOption
-          onSelectAll={() => setStageFilter('all')}
-          label="Filtrar guías por etapa"
-        />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2
+            id="filtro-guias-titulo"
+            className="text-base font-bold text-ink-primary"
+          >
+            {childProfile
+              ? `Guías para ${STAGE_SPECS[childProfile.stageId].label}`
+              : 'Filtrar por etapa'}
+          </h2>
+          {childProfile ? (
+            <Link
+              href="/salud#perfil-bebe"
+              className="inline-flex min-h-12 items-center rounded-xl border border-border-interactive bg-bg-elevated px-4 py-2 text-xs font-bold text-brand-text hover:bg-brand-surface"
+            >
+              Cambiar datos del bebé
+            </Link>
+          ) : null}
+        </div>
+        {childProfile ? null : (
+          <StageSelector
+            selectedStage={stageFilter}
+            onSelectStage={(stage) => setStageFilter(stage)}
+            includeAllOption
+            onSelectAll={() => setStageFilter('all')}
+            label="Filtrar guías por etapa"
+          />
+        )}
       </section>
 
       {filteredGuides.length === 0 ? (
@@ -48,21 +66,29 @@ export function GuiasView() {
           className="rounded-2xl border border-border-interactive bg-bg-card p-6 space-y-4"
         >
           <h2 className="text-lg font-bold text-ink-primary">
-            Sin guías específicas para {STAGE_SPECS[stageFilter as StageId].label} en
-            el catálogo inicial
+            Sin guías específicas para{' '}
+            {STAGE_SPECS[effectiveStage as StageId].label} en el catálogo inicial
           </h2>
           <p className="text-sm text-ink-secondary">
             El catálogo del Hito 1–2 incluye guías base para 0–3m, 3–12m y
-            1–3a. Las guías específicas de 3 a 6 años se agregarán en una
-            actualización posterior.
+            1–3a. Las guías específicas de 3 a 6 años se agregarán en el Hito 3.
           </p>
-          <button
-            type="button"
-            onClick={() => setStageFilter('all')}
-            className="inline-flex min-h-12 min-w-12 items-center justify-center rounded-xl bg-brand-primary px-5 py-3 text-sm font-bold text-brand-on hover:opacity-95"
-          >
-            Ver todas las guías ({M1_GUIDE_SCAFFOLDS.length})
-          </button>
+          {childProfile ? (
+            <Link
+              href="/salud#perfil-bebe"
+              className="inline-flex min-h-12 min-w-12 items-center justify-center rounded-xl bg-brand-primary px-5 py-3 text-sm font-bold text-brand-on hover:opacity-95"
+            >
+              Cambiar datos del bebé
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setStageFilter('all')}
+              className="inline-flex min-h-12 min-w-12 items-center justify-center rounded-xl bg-brand-primary px-5 py-3 text-sm font-bold text-brand-on hover:opacity-95"
+            >
+              Ver todas las guías ({M1_GUIDE_SCAFFOLDS.length})
+            </button>
+          )}
         </section>
       ) : (
         <div className="space-y-4">

@@ -11,9 +11,11 @@ import {
 import type {
   AccountDeletionResult,
   ChildProfileSummary,
+  CreateChildProfileInput,
   StageId,
   StoredSnapshotSummary,
   ThemeMode,
+  ThemeScheduleConfig,
 } from '@baby-buddy/core';
 import {
   acceptStoredOnboarding,
@@ -21,15 +23,19 @@ import {
   deleteStoredAccountAndData,
   getLocalAppSnapshot,
   getServerAppSnapshot,
+  notifyLocalStoreChange,
+  saveStoredChildProfile,
   seedStoredDemoData,
   setStoredActiveStageId,
   setStoredThemeMode,
+  setStoredThemeSchedule,
   subscribeLocalStore,
   toggleStoredThemeMode,
 } from '@/lib/localAdapter';
 
 export interface AppStateContextValue {
   readonly themeMode: ThemeMode;
+  readonly themeSchedule: ThemeScheduleConfig;
   readonly activeStageId: StageId;
   readonly onboardingAccepted: boolean;
   readonly childProfile: ChildProfileSummary | null;
@@ -38,7 +44,11 @@ export interface AppStateContextValue {
   readonly lastDeletionResult: AccountDeletionResult | null;
   readonly toggleTheme: () => void;
   readonly setThemeMode: (mode: ThemeMode) => void;
+  readonly setThemeSchedule: (schedule: ThemeScheduleConfig) => void;
   readonly setActiveStageId: (stageId: StageId) => void;
+  readonly saveChildProfile: (
+    input: Omit<CreateChildProfileInput, 'id'>,
+  ) => ChildProfileSummary;
   readonly acceptOnboardingDisclaimer: () => Promise<void>;
   readonly seedDemoData: () => Promise<void>;
   readonly deleteAccountAndData: (
@@ -59,9 +69,20 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
     applyThemeToDocument(snapshot.themeMode, snapshot.onboardingAccepted);
   }, [snapshot.themeMode, snapshot.onboardingAccepted]);
 
+  useEffect(() => {
+    if (snapshot.themeSchedule.mode !== 'auto') {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      notifyLocalStoreChange();
+    }, 60_000);
+    return () => window.clearInterval(timer);
+  }, [snapshot.themeSchedule.mode]);
+
   const value = useMemo<AppStateContextValue>(
     () => ({
       themeMode: snapshot.themeMode,
+      themeSchedule: snapshot.themeSchedule,
       activeStageId: snapshot.activeStageId,
       onboardingAccepted: snapshot.onboardingAccepted,
       childProfile: snapshot.childProfile,
@@ -70,7 +91,9 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       lastDeletionResult: snapshot.lastDeletionResult,
       toggleTheme: toggleStoredThemeMode,
       setThemeMode: setStoredThemeMode,
+      setThemeSchedule: setStoredThemeSchedule,
       setActiveStageId: setStoredActiveStageId,
+      saveChildProfile: saveStoredChildProfile,
       acceptOnboardingDisclaimer: acceptStoredOnboarding,
       seedDemoData: seedStoredDemoData,
       deleteAccountAndData: deleteStoredAccountAndData,
@@ -81,7 +104,12 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
   return (
     <AppStateContext.Provider value={value}>
       {children}
-      <div role="status" aria-live="polite" className="sr-only" data-persistence="localStorage">
+      <div
+        role="status"
+        aria-live="polite"
+        className="sr-only"
+        data-persistence="localStorage"
+      >
         {snapshot.statusMessage}
       </div>
     </AppStateContext.Provider>

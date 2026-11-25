@@ -3,7 +3,12 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { ETHICAL_GUARDRAILS, STAGE_SPECS } from '@baby-buddy/core';
+import {
+  CHILD_SEX_LABELS_MX,
+  ETHICAL_GUARDRAILS,
+  STAGE_SPECS,
+  formatChildAgeMx,
+} from '@baby-buddy/core';
 import {
   BookOpenIcon,
   HeartPulseIcon,
@@ -50,10 +55,18 @@ function isRouteActive(pathname: string, href: string): boolean {
 
 export function AppShell({ children }: { readonly children: ReactNode }) {
   const pathname = usePathname() ?? '/';
-  const { themeMode, toggleTheme, activeStageId, onboardingAccepted } =
-    useAppState();
+  const {
+    themeMode,
+    toggleTheme,
+    activeStageId,
+    onboardingAccepted,
+    childProfile,
+  } = useAppState();
   const isNight = themeMode === 'night_3am';
   const activeStage = STAGE_SPECS[activeStageId];
+  const babyBarSummary = childProfile
+    ? `${childProfile.nicknameMx} · ${formatChildAgeMx(childProfile.ageMonths)} · ${CHILD_SEX_LABELS_MX[childProfile.sex ?? 'no_especificado']}`
+    : null;
 
   const themeToggleLabel = isNight ? 'Cambiar a Modo Día' : 'Activar Modo 3:00 AM';
 
@@ -126,6 +139,12 @@ export function AppShell({ children }: { readonly children: ReactNode }) {
             <p className="inline-block rounded-full border border-border-interactive bg-bg-elevated px-2.5 py-0.5 text-xs font-semibold text-brand-text">
               Etapa: {activeStage.shortLabel}
             </p>
+            <Link
+              href="/salud#perfil-bebe"
+              className="mt-1 block rounded-xl border border-border-interactive bg-bg-elevated px-2.5 py-2 text-xs font-semibold text-ink-primary hover:bg-brand-surface"
+            >
+              {babyBarSummary ?? 'Configurar datos del bebé'}
+            </Link>
           </div>
 
           <nav aria-label="Navegación principal" className="flex flex-col gap-2">
@@ -179,15 +198,18 @@ export function AppShell({ children }: { readonly children: ReactNode }) {
         <header className="flex items-center justify-between gap-3 border-b border-border-interactive bg-bg-card px-4 py-3 md:hidden">
           <div className="min-w-0">
             <p className="truncate text-base font-bold text-ink-primary">
-              Baby Buddy MX
+              {childProfile ? childProfile.nicknameMx : 'Baby Buddy MX'}
             </p>
             <p className="truncate text-xs text-ink-secondary">
-              {activeStage.label} · {isNight ? 'Modo 3:00 AM' : 'Modo Día'}
+              {babyBarSummary ?? `${activeStage.label} · ${isNight ? 'Modo 3:00 AM' : 'Modo Día'}`}
             </p>
           </div>
-          <span className="shrink-0 rounded-full border border-brand-primary bg-brand-surface px-3 py-1 text-xs font-semibold text-brand-text">
+          <Link
+            href="/salud#perfil-bebe"
+            className="inline-flex min-h-12 shrink-0 items-center rounded-full border border-brand-primary bg-brand-surface px-3 py-1 text-xs font-semibold text-brand-text"
+          >
             {activeStage.shortLabel}
-          </span>
+          </Link>
         </header>
 
         <main

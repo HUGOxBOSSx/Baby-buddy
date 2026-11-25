@@ -731,7 +731,7 @@ test('T1-F09-05: apps/mobile enforces Icon + Text StatusBadge and MX Spanish + �
   const combined = files.map((f) => f.content).join('\n');
   assert.match(combined, /StatusBadge/);
   assert.match(combined, /STATUS_SPECS/);
-  assert.match(combined, /M1_CLOTHING_SCAFFOLDS|pañalero/i);
+  assert.match(combined, /recommendClothing|M1_CLOTHING_SCAFFOLDS|pañalero/i);
   assert.match(combined, /°C|ambientTempRangeC/);
 });
 

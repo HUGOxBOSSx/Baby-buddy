@@ -28,10 +28,6 @@ const AD_AND_TRACKER_PATTERNS = [
 
 const M2_TO_M7_LEAK_PATTERNS = [
   {
-    milestone: 'M2_weather_tog',
-    re: /\b(?:api\.openweathermap\.org|openweathermap|weatherForecastApi|computeTog|calculateTog|togEngine|dynamicTogEngine)\b/gi,
-  },
-  {
     milestone: 'M4_supabase_sql_rls',
     re: /\b(?:CREATE\s+TABLE|ALTER\s+TABLE\s+[\w."]+\s+ENABLE\s+ROW\s+LEVEL\s+SECURITY|CREATE\s+POLICY)\b/gi,
   },

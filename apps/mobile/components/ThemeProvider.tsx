@@ -1,16 +1,20 @@
 import Feather from '@expo/vector-icons/Feather';
 import {
   DEFAULT_APP_PREFERENCES,
+  DEFAULT_THEME_SCHEDULE,
   ETHICAL_GUARDRAILS,
   STAGE_SPECS,
   assertEthicalComplianceConfig,
   getThemePalette,
+  resolveEffectiveThemeMode,
   type AccountDeletionResult,
   type ChildProfileSummary,
+  type CreateChildProfileInput,
   type StageId,
   type StoredSnapshotSummary,
   type ThemeMode,
   type ThemePalette,
+  type ThemeScheduleConfig,
 } from '@baby-buddy/core';
 import {
   createContext,
@@ -26,8 +30,11 @@ import {
   loadPersistedChildProfile,
   loadPersistedStageId,
   loadPersistedThemeMode,
+  loadPersistedThemeSchedule,
+  savePersistedChildProfile,
   savePersistedStageId,
   savePersistedThemeMode,
+  savePersistedThemeSchedule,
 } from '../lib/localAdapter';
 
 assertEthicalComplianceConfig(ETHICAL_GUARDRAILS);
@@ -42,10 +49,15 @@ const EMPTY_SNAPSHOT_SUMMARY: StoredSnapshotSummary = {
 export interface ThemeContextValue {
   readonly mode: ThemeMode;
   readonly palette: ThemePalette;
+  readonly themeSchedule: ThemeScheduleConfig;
+  readonly setThemeSchedule: (schedule: ThemeScheduleConfig) => void;
   readonly toggleMode: () => void;
   readonly setMode: (nextMode: ThemeMode) => void;
   readonly selectedStage: StageId;
   readonly setSelectedStage: (stageId: StageId) => void;
+  readonly saveChildProfile: (
+    input: Omit<CreateChildProfileInput, 'id'>,
+  ) => Promise<ChildProfileSummary>;
   readonly onboardingAccepted: boolean;
   readonly acceptOnboardingDisclaimer: () => Promise<void>;
   readonly deleteAccountAndData: (
@@ -67,6 +79,8 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
   const [mode, setModeState] = useState<ThemeMode>(
     DEFAULT_APP_PREFERENCES.themeMode,
   );
+  const [themeSchedule, setThemeScheduleState] =
+    useState<ThemeScheduleConfig>(DEFAULT_THEME_SCHEDULE);
   const [selectedStage, setSelectedStageState] = useState<StageId>(
     DEFAULT_APP_PREFERENCES.activeStageId,
   );
@@ -110,17 +124,25 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
 
     Promise.all([
       loadPersistedThemeMode(),
+      loadPersistedThemeSchedule(),
       loadPersistedStageId(),
       accountLifecycleAdapter.hasAcceptedOnboardingDisclaimer(),
       accountLifecycleAdapter.getStoredSnapshotSummary(),
       loadPersistedChildProfile(),
     ])
-      .then(([savedMode, savedStage, accepted, summary, profile]) => {
+      .then(([savedMode, savedSchedule, savedStage, accepted, summary, profile]) => {
         if (!active) {
           return;
         }
-        setModeState(savedMode);
-        setSelectedStageState(savedStage);
+        setThemeScheduleState(savedSchedule);
+        setModeState(
+          resolveEffectiveThemeMode(
+            savedSchedule,
+            savedMode,
+            new Date().getHours(),
+          ),
+        );
+        setSelectedStageState(profile ? profile.stageId : savedStage);
         setOnboardingAccepted(accepted);
         setSnapshotSummary(summary);
         setChildProfile(profile);
@@ -137,15 +159,46 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
     };
   }, []);
 
-  const setMode = useCallback((nextMode: ThemeMode) => {
-    setModeState(nextMode);
-    setStatusAnnouncement(
-      nextMode === 'night_3am'
-        ? 'Modo 3:00 AM activado para cuidar tu descanso.'
-        : 'Modo Calma de día activado.',
-    );
-    void savePersistedThemeMode(nextMode);
-  }, []);
+  const setMode = useCallback(
+    (nextMode: ThemeMode) => {
+      setModeState(nextMode);
+      const manualSchedule: ThemeScheduleConfig = {
+        ...themeSchedule,
+        mode: 'manual',
+      };
+      setThemeScheduleState(manualSchedule);
+      setStatusAnnouncement(
+        nextMode === 'night_3am'
+          ? 'Modo 3:00 AM activado manualmente.'
+          : 'Modo Calma de día activado manualmente.',
+      );
+      void savePersistedThemeMode(nextMode);
+      void savePersistedThemeSchedule(manualSchedule);
+    },
+    [themeSchedule],
+  );
+
+  const setThemeSchedule = useCallback(
+    (schedule: ThemeScheduleConfig) => {
+      setThemeScheduleState(schedule);
+      setModeState(
+        resolveEffectiveThemeMode(schedule, mode, new Date().getHours()),
+      );
+      void savePersistedThemeSchedule(schedule);
+    },
+    [mode],
+  );
+
+  const saveChildProfile = useCallback(
+    async (input: Omit<CreateChildProfileInput, 'id'>) => {
+      const saved = await savePersistedChildProfile(input, childProfile?.id);
+      setChildProfile(saved);
+      setSelectedStageState(saved.stageId);
+      await refreshSnapshot();
+      return saved;
+    },
+    [childProfile?.id, refreshSnapshot],
+  );
 
   const toggleMode = useCallback(() => {
     const next: ThemeMode = mode === 'day' ? 'night_3am' : 'day';
@@ -216,10 +269,13 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
     () => ({
       mode,
       palette,
+      themeSchedule,
+      setThemeSchedule,
       toggleMode,
       setMode,
       selectedStage,
       setSelectedStage,
+      saveChildProfile,
       onboardingAccepted,
       acceptOnboardingDisclaimer,
       deleteAccountAndData,
@@ -235,10 +291,13 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
     [
       mode,
       palette,
+      themeSchedule,
+      setThemeSchedule,
       toggleMode,
       setMode,
       selectedStage,
       setSelectedStage,
+      saveChildProfile,
       onboardingAccepted,
       acceptOnboardingDisclaimer,
       deleteAccountAndData,

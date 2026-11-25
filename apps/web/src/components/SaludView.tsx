@@ -8,6 +8,7 @@ import {
   loadOfflineEnvConfig,
 } from '@baby-buddy/core';
 import { AccountDeletionDialog } from '@/components/AccountDeletionDialog';
+import { ChildProfileEditor } from '@/components/ChildProfileEditor';
 import { useAppState } from '@/components/ThemeProvider';
 
 const envConfig = loadOfflineEnvConfig();
@@ -16,8 +17,16 @@ const geminiStub = new OfflineGeminiAssistantStub().getStatus();
 const deploymentStub = new OfflineDeploymentInfoStub().getStatus();
 
 export function SaludView() {
-  const { snapshotSummary, childProfile, seedDemoData } = useAppState();
+  const {
+    snapshotSummary,
+    childProfile,
+    seedDemoData,
+    themeSchedule,
+    setThemeSchedule,
+  } = useAppState();
   const [isSeeding, setIsSeeding] = useState(false);
+
+  const hours = Array.from({ length: 24 }, (_, i) => i);
 
   const handleSeedDemo = async () => {
     setIsSeeding(true);
@@ -38,6 +47,102 @@ export function SaludView() {
           Salud, Emergencias 911 y Tus Datos
         </h1>
       </header>
+
+      <ChildProfileEditor />
+
+      <section
+        aria-labelledby="horario-nocturno-titulo"
+        className="rounded-2xl border border-border-interactive bg-bg-card p-5 space-y-4 shadow-sm"
+      >
+        <div className="space-y-1">
+          <h2
+            id="horario-nocturno-titulo"
+            className="text-lg font-bold text-ink-primary"
+          >
+            Horario automático de Modo 3:00 AM
+          </h2>
+          <p className="text-sm text-ink-secondary">
+            Por defecto el Modo 3:00 AM se activa automáticamente de 20:00 a
+            07:00 h. Puedes ajustar las horas o cambiarlo manualmente en
+            cualquier momento.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() =>
+              setThemeSchedule({ ...themeSchedule, mode: 'auto' })
+            }
+            aria-pressed={themeSchedule.mode === 'auto'}
+            className={`inline-flex min-h-12 min-w-12 items-center justify-center rounded-xl border px-4 py-2 text-sm font-semibold ${
+              themeSchedule.mode === 'auto'
+                ? 'border-brand-primary bg-brand-primary text-brand-on'
+                : 'border-border-interactive bg-bg-elevated text-ink-primary'
+            }`}
+          >
+            Automático por horario
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              setThemeSchedule({ ...themeSchedule, mode: 'manual' })
+            }
+            aria-pressed={themeSchedule.mode === 'manual'}
+            className={`inline-flex min-h-12 min-w-12 items-center justify-center rounded-xl border px-4 py-2 text-sm font-semibold ${
+              themeSchedule.mode === 'manual'
+                ? 'border-brand-primary bg-brand-primary text-brand-on'
+                : 'border-border-interactive bg-bg-elevated text-ink-primary'
+            }`}
+          >
+            Manual
+          </button>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block space-y-1 text-sm font-semibold text-ink-primary">
+            <span>Inicio de modo noche</span>
+            <select
+              value={themeSchedule.nightStartHour}
+              onChange={(e) =>
+                setThemeSchedule({
+                  ...themeSchedule,
+                  mode: 'auto',
+                  nightStartHour: Number.parseInt(e.target.value, 10),
+                })
+              }
+              className="mt-1 block min-h-12 w-full rounded-xl border border-border-interactive bg-bg-elevated px-3 py-2 text-sm text-ink-primary"
+            >
+              {hours.map((h) => (
+                <option key={`start-${h}`} value={h}>
+                  {String(h).padStart(2, '0')}:00 h
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block space-y-1 text-sm font-semibold text-ink-primary">
+            <span>Fin de modo noche</span>
+            <select
+              value={themeSchedule.nightEndHour}
+              onChange={(e) =>
+                setThemeSchedule({
+                  ...themeSchedule,
+                  mode: 'auto',
+                  nightEndHour: Number.parseInt(e.target.value, 10),
+                })
+              }
+              className="mt-1 block min-h-12 w-full rounded-xl border border-border-interactive bg-bg-elevated px-3 py-2 text-sm text-ink-primary"
+            >
+              {hours.map((h) => (
+                <option key={`end-${h}`} value={h}>
+                  {String(h).padStart(2, '0')}:00 h
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </section>
 
       <section
         aria-labelledby="datos-locales-titulo"

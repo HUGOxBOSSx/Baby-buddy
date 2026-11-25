@@ -1,24 +1,29 @@
-import { STAGE_SPECS } from '@baby-buddy/core';
+import { MIN_TOUCH_TARGET_PX, STAGE_SPECS } from '@baby-buddy/core';
 import { M1_GUIDE_SCAFFOLDS } from '@baby-buddy/content';
-import { ScrollView, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { GuideDisclaimerHeader } from '../../components/GuideDisclaimerHeader';
 import { StageSelector } from '../../components/StageSelector';
 import { StatusBadge } from '../../components/StatusBadge';
 import { useThemeContext } from '../../components/ThemeProvider';
 
 export default function GuiasScreen() {
-  const { palette, selectedStage } = useThemeContext();
+  const router = useRouter();
+  const { palette, selectedStage, childProfile } = useThemeContext();
   const topMetadata = M1_GUIDE_SCAFFOLDS[0].metadata;
 
-  const orderedGuides = [...M1_GUIDE_SCAFFOLDS].sort((a, b) => {
-    if (a.stage === selectedStage && b.stage !== selectedStage) {
-      return -1;
-    }
-    if (b.stage === selectedStage && a.stage !== selectedStage) {
-      return 1;
-    }
-    return 0;
-  });
+  const effectiveStage = childProfile ? childProfile.stageId : selectedStage;
+  const orderedGuides = childProfile
+    ? M1_GUIDE_SCAFFOLDS.filter((g) => g.stage === effectiveStage)
+    : [...M1_GUIDE_SCAFFOLDS].sort((a, b) => {
+        if (a.stage === selectedStage && b.stage !== selectedStage) {
+          return -1;
+        }
+        if (b.stage === selectedStage && a.stage !== selectedStage) {
+          return 1;
+        }
+        return 0;
+      });
 
   return (
     <ScrollView
@@ -41,7 +46,34 @@ export default function GuiasScreen() {
 
       <GuideDisclaimerHeader metadata={topMetadata} />
 
-      <StageSelector />
+      {childProfile ? (
+        <View
+          className="rounded-2xl border p-4 gap-2"
+          style={{
+            backgroundColor: palette.brandSurface,
+            borderColor: palette.brandPrimary,
+          }}
+        >
+          <Text className="text-xs font-bold uppercase" style={{ color: palette.brandText }}>
+            Guías para {STAGE_SPECS[effectiveStage].label}
+          </Text>
+          <Pressable
+            onPress={() => router.push('/(tabs)/salud')}
+            className="self-start rounded-xl border px-3 py-2 justify-center"
+            style={{
+              minHeight: MIN_TOUCH_TARGET_PX,
+              backgroundColor: palette.bgCard,
+              borderColor: palette.borderInteractive,
+            }}
+          >
+            <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
+              Cambiar datos del bebé
+            </Text>
+          </Pressable>
+        </View>
+      ) : (
+        <StageSelector />
+      )}
 
       <View className="gap-4">
         {orderedGuides.map((guide) => {
