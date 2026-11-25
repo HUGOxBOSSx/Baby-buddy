@@ -5,6 +5,7 @@ import {
   CHILD_SEX_LABELS_MX,
   STAGE_SPECS,
   calculateAgeMonthsFromBirthDate,
+  encodeFamilyBabyCode,
   formatChildAgeMx,
   getStageForAgeMonths,
   type ChildSex,
@@ -148,6 +149,34 @@ export function ChildProfileEditor() {
           </p>
         ) : null}
       </form>
+
+      {childProfile ? (
+        <div className="rounded-xl border border-border-subtle bg-bg-elevated p-3 space-y-2">
+          <p className="text-xs font-bold text-ink-primary">
+            Compartir código con familiar
+          </p>
+          <p className="text-[11px] text-ink-secondary">
+            Comparte este código para que otro familiar cargue los datos de{' '}
+            {childProfile.nicknameMx} en su dispositivo:
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <code className="flex-1 truncate rounded-lg border border-border-interactive bg-bg-card px-2.5 py-1.5 text-xs text-ink-primary">
+              {encodeFamilyBabyCode(childProfile)}
+            </code>
+            <button
+              type="button"
+              onClick={() => {
+                void navigator.clipboard?.writeText(
+                  encodeFamilyBabyCode(childProfile),
+                );
+              }}
+              className="inline-flex min-h-10 items-center rounded-xl border border-brand-primary bg-brand-surface px-3 py-1.5 text-xs font-bold text-brand-text"
+            >
+              Copiar código
+            </button>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

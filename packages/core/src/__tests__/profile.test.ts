@@ -70,4 +70,24 @@ describe('profile & theme schedule helpers', () => {
     expect(live.ageMonths).toBe(5);
     expect(live.stageId).toBe('3-12m');
   });
+
+  it('codifica y decodifica código familiar offline con acentos y fecha', async () => {
+    const { decodeFamilyBabyCode, encodeFamilyBabyCode } = await import(
+      '../domain/profile'
+    );
+    const code = encodeFamilyBabyCode({
+      nicknameMx: 'Sofía',
+      ageMonths: 4,
+      sex: 'niña',
+      birthDateIso: '2026-07-25',
+    });
+    expect(code.startsWith('BBMX-1-')).toBe(true);
+    expect(decodeFamilyBabyCode(code)).toEqual({
+      nicknameMx: 'Sofía',
+      ageMonths: 4,
+      sex: 'niña',
+      birthDateIso: '2026-07-25',
+    });
+    expect(decodeFamilyBabyCode('INVALIDO')).toBeNull();
+  });
 });

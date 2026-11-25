@@ -2,10 +2,15 @@ import Feather from '@expo/vector-icons/Feather';
 import {
   DISCLAIMERS_MX,
   MIN_TOUCH_TARGET_PX,
+  calculateAgeMonthsFromBirthDate,
+  decodeFamilyBabyCode,
+  formatChildAgeMx,
+  type ChildSex,
 } from '@baby-buddy/core';
 import { useState } from 'react';
-import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MascotAvatar } from './MascotAvatar';
 import { StatusBadge } from './StatusBadge';
 import { useThemeContext } from './ThemeProvider';
 import { accountLifecycleAdapter } from '../lib/localAdapter';
@@ -16,13 +21,24 @@ export function OnboardingGate() {
     palette,
     toggleMode,
     acceptOnboardingDisclaimer,
+    saveChildProfile,
     lastDeletionResult,
     clearLastDeletionResult,
     iconsLoaded,
   } = useThemeContext();
   const [submitting, setSubmitting] = useState(false);
+  const [setupMode, setSetupMode] = useState<'register' | 'join'>('register');
+  const [nickname, setNickname] = useState('');
+  const [birthDate, setBirthDate] = useState('');
+  const [sex, setSex] = useState<ChildSex>('no_especificado');
+  const [familyCode, setFamilyCode] = useState('');
   const disclaimer = DISCLAIMERS_MX.onboarding_gate;
   const ackLabel = disclaimer.ackButtonLabelMx ?? 'Entiendo y acepto continuar';
+
+  const decodedFamily =
+    setupMode === 'join' && familyCode.trim().length > 0
+      ? decodeFamilyBabyCode(familyCode)
+      : null;
 
   const handleAccept = async () => {
     if (submitting) {
@@ -30,6 +46,26 @@ export function OnboardingGate() {
     }
     setSubmitting(true);
     try {
+      if (setupMode === 'register' && nickname.trim().length > 0) {
+        let ageMonths = 0;
+        let validDate: string | undefined;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(birthDate.trim())) {
+          try {
+            ageMonths = calculateAgeMonthsFromBirthDate(birthDate.trim());
+            validDate = birthDate.trim();
+          } catch {
+            ageMonths = 0;
+          }
+        }
+        await saveChildProfile({
+          nicknameMx: nickname.trim(),
+          ageMonths,
+          sex,
+          ...(validDate ? { birthDateIso: validDate } : {}),
+        });
+      } else if (setupMode === 'join' && decodedFamily) {
+        await saveChildProfile(decodedFamily);
+      }
       await acceptOnboardingDisclaimer();
       const storedAcceptance =
         await accountLifecycleAdapter.hasAcceptedOnboardingDisclaimer();
@@ -61,6 +97,7 @@ export function OnboardingGate() {
         }}
       >
         <View className="flex-row items-center justify-between gap-3">
+          <MascotAvatar variant="home" size="sm" />
           <View className="flex-1 gap-0.5">
             <Text
               className="text-xs font-bold uppercase tracking-wide"
@@ -218,6 +255,160 @@ export function OnboardingGate() {
               Emergencias 911 (Acceso gratuito)
             </Text>
           </Pressable>
+        </View>
+
+        <View
+          className="rounded-2xl border p-4 gap-3"
+          style={{
+            backgroundColor: palette.bgElevated,
+            borderColor: palette.borderInteractive,
+          }}
+        >
+          <Text className="text-sm font-bold" style={{ color: palette.textPrimary }}>
+            Tu bebé (opcional en este paso)
+          </Text>
+          <View className="flex-row flex-wrap gap-2">
+            <Pressable
+              onPress={() => setSetupMode('register')}
+              className="rounded-full border px-3 py-1.5 justify-center"
+              style={{
+                minHeight: 38,
+                backgroundColor:
+                  setupMode === 'register' ? palette.brandPrimary : palette.bgCard,
+                borderColor:
+                  setupMode === 'register'
+                    ? palette.brandPrimary
+                    : palette.borderInteractive,
+              }}
+            >
+              <Text
+                className="text-xs font-bold"
+                style={{
+                  color:
+                    setupMode === 'register'
+                      ? palette.onBrandPrimary
+                      : palette.textPrimary,
+                }}
+              >
+                Registrar a mi bebé
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setSetupMode('join')}
+              className="rounded-full border px-3 py-1.5 justify-center"
+              style={{
+                minHeight: 38,
+                backgroundColor:
+                  setupMode === 'join' ? palette.brandPrimary : palette.bgCard,
+                borderColor:
+                  setupMode === 'join'
+                    ? palette.brandPrimary
+                    : palette.borderInteractive,
+              }}
+            >
+              <Text
+                className="text-xs font-bold"
+                style={{
+                  color:
+                    setupMode === 'join'
+                      ? palette.onBrandPrimary
+                      : palette.textPrimary,
+                }}
+              >
+                Ya lo registró un familiar
+              </Text>
+            </Pressable>
+          </View>
+
+          {setupMode === 'register' ? (
+            <View className="gap-2">
+              <TextInput
+                value={nickname}
+                onChangeText={setNickname}
+                placeholder="Nombre o apodo del bebé"
+                placeholderTextColor={palette.textMuted}
+                className="rounded-xl border px-3 py-2 text-xs"
+                style={{
+                  minHeight: MIN_TOUCH_TARGET_PX,
+                  backgroundColor: palette.bgCard,
+                  borderColor: palette.borderInteractive,
+                  color: palette.textPrimary,
+                }}
+              />
+              <TextInput
+                value={birthDate}
+                onChangeText={setBirthDate}
+                placeholder="Fecha de nacimiento (YYYY-MM-DD, opcional)"
+                placeholderTextColor={palette.textMuted}
+                className="rounded-xl border px-3 py-2 text-xs"
+                style={{
+                  minHeight: MIN_TOUCH_TARGET_PX,
+                  backgroundColor: palette.bgCard,
+                  borderColor: palette.borderInteractive,
+                  color: palette.textPrimary,
+                }}
+              />
+              <View className="flex-row gap-2">
+                {(['no_especificado', 'niña', 'niño'] as const).map((s) => (
+                  <Pressable
+                    key={s}
+                    onPress={() => setSex(s)}
+                    className="flex-1 rounded-xl border py-2 items-center justify-center"
+                    style={{
+                      minHeight: 40,
+                      backgroundColor:
+                        sex === s ? palette.brandSurface : palette.bgCard,
+                      borderColor:
+                        sex === s
+                          ? palette.brandPrimary
+                          : palette.borderInteractive,
+                    }}
+                  >
+                    <Text
+                      className="text-xs font-semibold"
+                      style={{
+                        color: sex === s ? palette.brandText : palette.textPrimary,
+                      }}
+                    >
+                      {s === 'no_especificado'
+                        ? 'Omitir'
+                        : s === 'niña'
+                          ? 'Niña'
+                          : 'Niño'}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          ) : (
+            <View className="gap-2">
+              <TextInput
+                value={familyCode}
+                onChangeText={setFamilyCode}
+                placeholder="Pega el código familiar (BBMX-1-...)"
+                placeholderTextColor={palette.textMuted}
+                className="rounded-xl border px-3 py-2 text-xs"
+                style={{
+                  minHeight: MIN_TOUCH_TARGET_PX,
+                  backgroundColor: palette.bgCard,
+                  borderColor: palette.borderInteractive,
+                  color: palette.textPrimary,
+                }}
+              />
+              {familyCode.trim().length > 0 ? (
+                decodedFamily ? (
+                  <Text className="text-xs font-semibold" style={{ color: palette.brandText }}>
+                    ✓ Bebé detectado: {decodedFamily.nicknameMx} ·{' '}
+                    {formatChildAgeMx(decodedFamily.ageMonths ?? 0)}
+                  </Text>
+                ) : (
+                  <Text className="text-xs font-semibold" style={{ color: palette.alertRedText }}>
+                    Código no válido. Pide a tu familiar copiarlo desde Salud.
+                  </Text>
+                )
+              ) : null}
+            </View>
+          )}
         </View>
 
         <Pressable

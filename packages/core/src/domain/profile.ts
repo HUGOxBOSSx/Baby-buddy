@@ -211,3 +211,76 @@ export function createChildProfileSummary(
     updatedAtIso: nowIso,
   };
 }
+
+export const FAMILY_CODE_PREFIX = 'BBMX-1-' as const;
+
+export function encodeFamilyBabyCode(
+  profile: Pick<
+    ChildProfileSummary,
+    'nicknameMx' | 'ageMonths' | 'sex' | 'birthDateIso'
+  >,
+): string {
+  const payload: Record<string, unknown> = {
+    n: profile.nicknameMx.trim(),
+    a: profile.ageMonths,
+    s: profile.sex ?? 'no_especificado',
+  };
+  if (profile.birthDateIso) {
+    payload.b = profile.birthDateIso;
+  }
+  const utf8Bytes = encodeURIComponent(JSON.stringify(payload)).replace(
+    /%([0-9A-F]{2})/g,
+    (_, hex: string) => String.fromCharCode(Number.parseInt(hex, 16)),
+  );
+  const b64 = btoa(utf8Bytes)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+  return `${FAMILY_CODE_PREFIX}${b64}`;
+}
+
+export function decodeFamilyBabyCode(
+  raw: string,
+): Omit<CreateChildProfileInput, 'id'> | null {
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith(FAMILY_CODE_PREFIX)) return null;
+  const token = trimmed.slice(FAMILY_CODE_PREFIX.length);
+  if (!token) return null;
+  try {
+    const padded = token
+      .replace(/-/g, '+')
+      .replace(/_/g, '/')
+      .padEnd(Math.ceil(token.length / 4) * 4, '=');
+    const bin = atob(padded);
+    const pct = Array.from(bin)
+      .map((ch) => `%${ch.charCodeAt(0).toString(16).padStart(2, '0')}`)
+      .join('');
+    const parsed: unknown = JSON.parse(decodeURIComponent(pct));
+    if (typeof parsed !== 'object' || parsed === null) return null;
+    const obj = parsed as Record<string, unknown>;
+    if (typeof obj.n !== 'string' || obj.n.trim().length === 0) return null;
+    const ageMonths =
+      typeof obj.a === 'number' &&
+      Number.isInteger(obj.a) &&
+      obj.a >= 0 &&
+      obj.a <= 72
+        ? obj.a
+        : 0;
+    const sex: ChildSex =
+      obj.s === 'niño' || obj.s === 'niña' || obj.s === 'no_especificado'
+        ? obj.s
+        : 'no_especificado';
+    const birthDateIso =
+      typeof obj.b === 'string' && /^\d{4}-\d{2}-\d{2}/.test(obj.b)
+        ? obj.b.slice(0, 10)
+        : undefined;
+    return {
+      nicknameMx: obj.n.trim(),
+      ageMonths,
+      sex,
+      ...(birthDateIso ? { birthDateIso } : {}),
+    };
+  } catch {
+    return null;
+  }
+}
