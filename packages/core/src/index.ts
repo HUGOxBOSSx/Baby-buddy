@@ -2,6 +2,7 @@ export * from './domain/stages';
 export * from './domain/metrics';
 export * from './domain/profile';
 export * from './domain/clothingEngine';
+export * from './domain/triage';
 
 export * from './theme/tokens';
 export * from './theme/status';

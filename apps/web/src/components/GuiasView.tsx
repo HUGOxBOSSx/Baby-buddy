@@ -3,43 +3,63 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { STAGE_SPECS, type StageId } from '@baby-buddy/core';
-import { M1_GUIDE_SCAFFOLDS } from '@baby-buddy/content';
-import { ClinicalMetadataBlock } from '@/components/ClinicalMetadataBlock';
+import { searchClinicalGuides, type GuideKind } from '@baby-buddy/content';
+import { PoopColorChart } from '@/components/PoopColorChart';
+import { QuickTriageChecker } from '@/components/QuickTriageChecker';
 import { StageSelector } from '@/components/StageSelector';
-import { StatusBadge } from '@/components/StatusBadge';
 import { useAppState } from '@/components/ThemeProvider';
+import { TriageBadge } from '@/components/TriageBadge';
+
+type ViewTab =
+  | 'all'
+  | 'es_normal'
+  | 'problema_solucion'
+  | 'primeros_auxilios'
+  | 'popo'
+  | 'semaforo';
+
+const TABS: readonly { readonly id: ViewTab; readonly label: string }[] = [
+  { id: 'all', label: 'Todo' },
+  { id: 'es_normal', label: '¿Es normal?' },
+  { id: 'problema_solucion', label: 'Soluciones' },
+  { id: 'primeros_auxilios', label: 'Auxilios' },
+  { id: 'popo', label: 'Tabla popó' },
+  { id: 'semaforo', label: 'Semáforo 3 AM' },
+] as const;
 
 export function GuiasView() {
   const { childProfile } = useAppState();
+  const [query, setQuery] = useState('');
+  const [tab, setTab] = useState<ViewTab>('all');
   const [stageFilter, setStageFilter] = useState<StageId | 'all'>('all');
+  const [includeOtherAges, setIncludeOtherAges] = useState(false);
 
-  const effectiveStage = childProfile ? childProfile.stageId : stageFilter;
-  const filteredGuides =
-    effectiveStage === 'all'
-      ? M1_GUIDE_SCAFFOLDS
-      : M1_GUIDE_SCAFFOLDS.filter((guide) => guide.stage === effectiveStage);
+  const effectiveStage: StageId | 'all' =
+    childProfile && !includeOtherAges ? childProfile.stageId : stageFilter;
+
+  const kindFilter: GuideKind | 'all' =
+    tab === 'es_normal' ||
+    tab === 'problema_solucion' ||
+    tab === 'primeros_auxilios'
+      ? tab
+      : 'all';
+
+  const guides = searchClinicalGuides({
+    query,
+    stageId: effectiveStage,
+    kind: kindFilter,
+  });
 
   return (
     <div className="space-y-6">
       <header className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-wide text-brand-text">
-          Guías clínicas de referencia
+          Buscador 3:00 AM · ¿Es normal? · Problemas y Soluciones
         </p>
-        <h1 className="text-2xl font-bold text-ink-primary sm:text-3xl">
-          Guías educativas por etapa
-        </h1>
-      </header>
-
-      <section aria-labelledby="filtro-guias-titulo" className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2
-            id="filtro-guias-titulo"
-            className="text-base font-bold text-ink-primary"
-          >
-            {childProfile
-              ? `Guías para ${STAGE_SPECS[childProfile.stageId].label}`
-              : 'Filtrar por etapa'}
-          </h2>
+          <h1 className="text-2xl font-bold text-ink-primary sm:text-3xl">
+            Guías y Semáforo de Triaje
+          </h1>
           {childProfile ? (
             <Link
               href="/salud#perfil-bebe"
@@ -49,7 +69,61 @@ export function GuiasView() {
             </Link>
           ) : null}
         </div>
-        {childProfile ? null : (
+      </header>
+
+      <div className="space-y-3">
+        <label className="block">
+          <span className="sr-only">Buscar en guías</span>
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Busca: hipo, fiebre, pujos, berrinche, anís, atragantamiento..."
+            className="block min-h-12 w-full rounded-2xl border border-border-interactive bg-bg-card px-4 py-3 text-sm text-ink-primary shadow-sm"
+          />
+        </label>
+
+        <div className="flex flex-wrap gap-2">
+          {TABS.map((t) => {
+            const active = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                aria-pressed={active}
+                className={`inline-flex min-h-12 items-center rounded-full border px-4 py-2 text-xs font-bold ${
+                  active
+                    ? 'border-brand-primary bg-brand-primary text-brand-on'
+                    : 'border-border-interactive bg-bg-elevated text-ink-primary'
+                }`}
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {childProfile ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-ink-secondary">
+            <span>
+              Mostrando etapa automática:{' '}
+              <strong className="text-ink-primary">
+                {STAGE_SPECS[childProfile.stageId].label}
+              </strong>
+            </span>
+            <button
+              type="button"
+              onClick={() => setIncludeOtherAges((v) => !v)}
+              aria-pressed={includeOtherAges}
+              className="inline-flex min-h-12 items-center rounded-xl border border-border-interactive bg-bg-elevated px-3 py-1.5 font-semibold text-brand-text"
+            >
+              {includeOtherAges
+                ? 'Solo etapa de mi bebé'
+                : 'Incluir todas las edades'}
+            </button>
+          </div>
+        ) : (
           <StageSelector
             selectedStage={stageFilter}
             onSelectStage={(stage) => setStageFilter(stage)}
@@ -58,73 +132,65 @@ export function GuiasView() {
             label="Filtrar guías por etapa"
           />
         )}
-      </section>
+      </div>
 
-      {filteredGuides.length === 0 ? (
+      {tab === 'semaforo' ? (
+        <QuickTriageChecker />
+      ) : tab === 'popo' ? (
+        <PoopColorChart />
+      ) : guides.length === 0 ? (
         <section
           role="status"
-          className="rounded-2xl border border-border-interactive bg-bg-card p-6 space-y-4"
+          className="rounded-2xl border border-border-interactive bg-bg-card p-6 space-y-3"
         >
           <h2 className="text-lg font-bold text-ink-primary">
-            Sin guías específicas para{' '}
-            {STAGE_SPECS[effectiveStage as StageId].label} en el catálogo inicial
+            Sin resultados para &ldquo;{query}&rdquo;
           </h2>
           <p className="text-sm text-ink-secondary">
-            El catálogo del Hito 1–2 incluye guías base para 0–3m, 3–12m y
-            1–3a. Las guías específicas de 3 a 6 años se agregarán en el Hito 3.
+            Prueba otra palabra (ej. fiebre, cólicos, popó, berrinche) o abre
+            el Semáforo 3 AM.
           </p>
-          {childProfile ? (
-            <Link
-              href="/salud#perfil-bebe"
-              className="inline-flex min-h-12 min-w-12 items-center justify-center rounded-xl bg-brand-primary px-5 py-3 text-sm font-bold text-brand-on hover:opacity-95"
-            >
-              Cambiar datos del bebé
-            </Link>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setStageFilter('all')}
-              className="inline-flex min-h-12 min-w-12 items-center justify-center rounded-xl bg-brand-primary px-5 py-3 text-sm font-bold text-brand-on hover:opacity-95"
-            >
-              Ver todas las guías ({M1_GUIDE_SCAFFOLDS.length})
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => {
+              setQuery('');
+              setTab('all');
+            }}
+            className="inline-flex min-h-12 items-center rounded-xl bg-brand-primary px-4 py-2 text-sm font-bold text-brand-on"
+          >
+            Limpiar búsqueda
+          </button>
         </section>
       ) : (
         <div className="space-y-4">
-          {filteredGuides.map((guide) => (
+          {guides.map((guide) => (
             <article
-              key={guide.id}
-              className="rounded-2xl border border-border-interactive bg-bg-card p-5 space-y-4 shadow-sm"
+              key={guide.slug}
+              className="rounded-2xl border border-border-interactive bg-bg-card p-5 space-y-3 shadow-sm"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <StatusBadge severity={guide.severity} />
+                <TriageBadge level={guide.triageLevel} />
                 <span className="rounded-full border border-border-interactive bg-bg-elevated px-3 py-1 text-xs font-semibold text-brand-text">
-                  Etapa: {STAGE_SPECS[guide.stage].label}
+                  {guide.categoryMx}
                 </span>
               </div>
 
-              <div className="space-y-2">
-                <h2 className="text-xl font-bold text-ink-primary">
+              <div className="space-y-1">
+                <h2 className="text-lg font-bold text-ink-primary">
                   {guide.titleMx}
                 </h2>
-                <p className="text-sm leading-relaxed text-ink-secondary">
-                  {guide.summaryMx}
+                <p className="text-sm font-semibold text-brand-text">
+                  {guide.quickAnswerMx}
                 </p>
+                <p className="text-sm text-ink-secondary">{guide.summaryMx}</p>
               </div>
 
-              <div className="rounded-xl border border-alert-red bg-alert-surface p-4 space-y-2">
-                <h3 className="text-sm font-bold text-alert-text">
-                  Señales de alerta para consultar al pediatra o llamar al 911
-                </h3>
-                <ul className="list-disc pl-5 space-y-1 text-sm text-ink-primary">
-                  {guide.redFlagsMx.map((flag) => (
-                    <li key={flag}>{flag}</li>
-                  ))}
-                </ul>
-              </div>
-
-              <ClinicalMetadataBlock metadata={guide.metadata} />
+              <Link
+                href={`/guias/${guide.slug}`}
+                className="inline-flex min-h-12 items-center rounded-xl border border-brand-primary bg-brand-surface px-4 py-2 text-xs font-bold text-brand-text hover:opacity-90"
+              >
+                Ver guía completa (Qué SÍ / Qué NO hacer) →
+              </Link>
             </article>
           ))}
         </div>

@@ -142,6 +142,8 @@ E2E: node e2e/run.mjs --tier=1|2|3|4|all (con E2E_CORE_ONLY=1 cubre solo package
 | Métricas y unidades | packages/core/src/domain/metrics.ts |
 | Perfil del bebé | packages/core/src/domain/profile.ts |
 | Motor de ropa y clima | packages/core/src/domain/clothingEngine.ts |
+| Semáforo y triaje | packages/core/src/domain/triage.ts |
+| Biblioteca Hito 3 | packages/content/src/library/{isNormal,problems,poopChart,search}.ts |
 | Colores y modo noche | packages/core/src/theme/tokens.ts |
 | Contraste WCAG | packages/core/src/theme/contrast.ts |
 | Copy y guardrails | packages/core/src/compliance/guardrails.ts, disclaimers.ts |

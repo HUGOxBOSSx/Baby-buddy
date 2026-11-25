@@ -5,12 +5,17 @@ import {
   validateSpanishClinicalCopy,
 } from '@baby-buddy/core';
 import {
+  ALL_CLINICAL_GUIDES,
+  IS_NORMAL_GUIDES,
+  POOP_COLOR_CHART,
+  PROBLEM_SOLUTIONS_GUIDES,
   assertValidClinicalMetadata,
   CLOTHING_ENGINE_METADATA,
   createClinicalMetadata,
   M1_CLOTHING_SCAFFOLDS,
   M1_GUIDE_SCAFFOLDS,
   STAGE_OVERVIEWS,
+  searchClinicalGuides,
 } from '../index';
 
 describe('@baby-buddy/content M1 scaffolds & clinical metadata', () => {
@@ -78,6 +83,40 @@ describe('@baby-buddy/content M1 scaffolds & clinical metadata', () => {
     expect(newbornGuide?.redFlagsMx.join(' ')).toContain(
       'Dificultad respiratoria grave',
     );
+  });
+
+  it('validates all 45 clinical guides and poop chart for metadata, Mexican Spanish, and metric-only copy', () => {
+    expect(IS_NORMAL_GUIDES.length).toBe(20);
+    expect(PROBLEM_SOLUTIONS_GUIDES.length).toBe(25);
+    expect(ALL_CLINICAL_GUIDES.length).toBe(45);
+    expect(POOP_COLOR_CHART.length).toBe(7);
+
+    for (const guide of ALL_CLINICAL_GUIDES) {
+      expect(() => assertValidClinicalMetadata(guide.metadata)).not.toThrow();
+      const text = [
+        guide.titleMx,
+        guide.quickAnswerMx,
+        guide.summaryMx,
+        ...guide.doStepsMx,
+        ...guide.doNotDoMx,
+        ...guide.redFlagsMx,
+      ].join(' ');
+      const check = validateSpanishClinicalCopy(text);
+      expect(check.valid, `Invalid guide ${guide.slug}`).toBe(true);
+      expect(check.hasImperialUnits).toBe(false);
+      expect(check.diagnosticViolations).toEqual([]);
+    }
+
+    for (const poop of POOP_COLOR_CHART) {
+      expect(() => assertValidClinicalMetadata(poop.metadata)).not.toThrow();
+      const check = validateSpanishClinicalCopy(
+        `${poop.colorNameMx} ${poop.meaningMx} ${poop.actionMx}`,
+      );
+      expect(check.valid, `Invalid poop entry ${poop.id}`).toBe(true);
+    }
+
+    expect(searchClinicalGuides({ query: 'colicos' }).length).toBeGreaterThan(0);
+    expect(searchClinicalGuides({ query: 'hipo', stageId: '0-3m' }).length).toBeGreaterThan(0);
   });
 
   it('rejects invalid ClinicalMetadata and impossible calendar dates in assertValidClinicalMetadata', () => {
