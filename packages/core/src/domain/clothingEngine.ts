@@ -128,7 +128,7 @@ export const MID_LAYER_OPTIONS: readonly LayerOption<MidLayerId>[] = [
   },
   {
     id: 'mameluco_poliester_afelpado',
-    labelMx: 'Mameluco de poliéster afelpado',
+    labelMx: 'Mameluco de poliéster',
     tog: 1.0,
     visualKind: 'fleece_sleeper',
   },
@@ -162,7 +162,7 @@ export const OUTER_LAYER_OPTIONS: readonly LayerOption<OuterLayerId>[] = [
   },
   {
     id: 'cobija_poliester_afelpada_envuelta',
-    labelMx: 'Cobija de poliéster afelpada envuelta',
+    labelMx: 'Cobija de poliéster envuelta',
     tog: 1.8,
     visualKind: 'fleece_blanket',
   },
@@ -1101,18 +1101,18 @@ export const GARMENT_TOG_GUIDES: Readonly<
   },
   mameluco_poliester_afelpado: {
     id: 'mameluco_poliester_afelpado',
-    titleMx: 'Mameluco de poliéster afelpado',
+    titleMx: 'Mameluco de poliéster',
     togValue: 1.0,
     warmthLevel: 3,
     diagramKind: 'plush_minky_polar',
     visualCaptionMx:
-      'Tela 100% poliéster tipo peluche suave, minky o microfibra afelpada.',
+      'Tela 100% poliéster tipo terciopelo (velour), peluche suave, minky o microfibra.',
     labelCluesMx: [
-      'Dice "100% poliéster" (microfibra, minky, coral fleece o polar suave).',
+      'Dice "100% poliéster" (velour/terciopelo, microfibra, minky, coral fleece o polar suave).',
       'Más abrigador que el algodón afelpado aunque se sienta ligero.',
     ],
     touchAndLookMx: [
-      'Textura de peluche suave o aterciopelada por fuera y/o por dentro.',
+      'Textura de terciopelo (velour) o peluche suave por fuera, incluso si por dentro es liso.',
       'Al apretarlo vuelve a su forma sin arrugarse y retiene muy bien el calor.',
     ],
     compareMx:
@@ -1196,7 +1196,7 @@ export const GARMENT_TOG_GUIDES: Readonly<
   },
   cobija_poliester_afelpada_envuelta: {
     id: 'cobija_poliester_afelpada_envuelta',
-    titleMx: 'Cobija de poliéster afelpada envuelta',
+    titleMx: 'Cobija de poliéster envuelta',
     togValue: 1.8,
     warmthLevel: 4,
     diagramKind: 'plush_minky_polar',
