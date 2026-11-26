@@ -33,6 +33,7 @@ export type MidLayerId =
   | 'pijama_ligera'
   | 'mameluco_algodon'
   | 'mameluco_afelpado'
+  | 'mameluco_poliester_afelpado'
   | 'mameluco_termico'
   | 'sueter_chamarra';
 
@@ -40,6 +41,7 @@ export type OuterLayerId =
   | 'ninguna'
   | 'manta_delgada_envuelta'
   | 'cobija_algodon_envuelta'
+  | 'cobija_poliester_afelpada_envuelta'
   | 'cobija_polar'
   | 'saco_05'
   | 'saco_10'
@@ -125,6 +127,12 @@ export const MID_LAYER_OPTIONS: readonly LayerOption<MidLayerId>[] = [
     visualKind: 'fleece_sleeper',
   },
   {
+    id: 'mameluco_poliester_afelpado',
+    labelMx: 'Mameluco de poliéster afelpado',
+    tog: 1.0,
+    visualKind: 'fleece_sleeper',
+  },
+  {
     id: 'mameluco_termico',
     labelMx: 'Mameluco térmico',
     tog: 1.2,
@@ -153,8 +161,14 @@ export const OUTER_LAYER_OPTIONS: readonly LayerOption<OuterLayerId>[] = [
     visualKind: 'swaddle_cotton',
   },
   {
+    id: 'cobija_poliester_afelpada_envuelta',
+    labelMx: 'Cobija de poliéster afelpada envuelta',
+    tog: 1.8,
+    visualKind: 'fleece_blanket',
+  },
+  {
     id: 'cobija_polar',
-    labelMx: 'Cobija polar',
+    labelMx: 'Cobija polar envuelta',
     tog: 2.0,
     visualKind: 'fleece_blanket',
   },
@@ -449,8 +463,7 @@ function computeCurrentTog(
   if (
     environment === 'cuarto' &&
     isUnder12m &&
-    (layers.outer.includes('cobija_suelta') ||
-      layers.outer.includes('cobija_polar'))
+    layers.outer.includes('cobija_suelta')
   ) {
     return null;
   }
@@ -843,7 +856,9 @@ export function recommendClothing(
 
   const isSwaddleSelected =
     outerSelected.includes('manta_delgada_envuelta') ||
-    outerSelected.includes('cobija_algodon_envuelta');
+    outerSelected.includes('cobija_algodon_envuelta') ||
+    outerSelected.includes('cobija_poliester_afelpada_envuelta') ||
+    outerSelected.includes('cobija_polar');
 
   if (isSwaddleSelected && environment === 'cuarto') {
     if (stageId === '0-3m' && !ctx.canRollOver) {
@@ -901,8 +916,7 @@ export function recommendClothing(
   const looseBlanketAlert =
     environment === 'cuarto' &&
     isUnder12m &&
-    (outerSelected.includes('cobija_suelta') ||
-      outerSelected.includes('cobija_polar'));
+    outerSelected.includes('cobija_suelta');
 
   let comfortZone: ComfortZone = 'optimal';
   let togDeltaMx = 'Abrigo óptimo para esta temperatura y contexto.';
@@ -910,11 +924,10 @@ export function recommendClothing(
   if (looseBlanketAlert) {
     comfortZone = 'unsafe_sleep';
     severity = 'urgent_red';
-    togDeltaMx = outerSelected.includes('cobija_polar')
-      ? 'Sueño inseguro: en menores de 12 meses, la cobija polar suelta o muy gruesa aumenta el riesgo de asfixia y sobrecalentamiento. Cámbiala por mameluco afelpado/térmico o saco.'
-      : 'Sueño inseguro: en menores de 12 meses, las cobijas sueltas aumentan el riesgo de asfixia. Cámbiala por mameluco afelpado o saco de dormir.';
+    togDeltaMx =
+      'Sueño inseguro: en menores de 12 meses, las cobijas sueltas aumentan el riesgo de asfixia. Cámbiala por mameluco afelpado, cobija envuelta segura o saco de dormir.';
     doNotDoMx.unshift(
-      'Nunca uses cobijas sueltas, cobija polar suelta ni almohadas en la cuna de menores de 12 meses.',
+      'Nunca uses cobijas sueltas ni almohadas en la cuna de menores de 12 meses.',
     );
   } else if (currentTog !== null) {
     if (currentTog < recommendedTogRange.min) {
@@ -1086,6 +1099,25 @@ export const GARMENT_TOG_GUIDES: Readonly<
     compareMx:
       'Punto medio entre el mameluco de algodón (+0.5 TOG) y el térmico (+1.2 TOG).',
   },
+  mameluco_poliester_afelpado: {
+    id: 'mameluco_poliester_afelpado',
+    titleMx: 'Mameluco de poliéster afelpado',
+    togValue: 1.0,
+    warmthLevel: 3,
+    diagramKind: 'plush_minky_polar',
+    visualCaptionMx:
+      'Tela 100% poliéster tipo peluche suave, minky o microfibra afelpada.',
+    labelCluesMx: [
+      'Dice "100% poliéster" (microfibra, minky, coral fleece o polar suave).',
+      'Más abrigador que el algodón afelpado aunque se sienta ligero.',
+    ],
+    touchAndLookMx: [
+      'Textura de peluche suave o aterciopelada por fuera y/o por dentro.',
+      'Al apretarlo vuelve a su forma sin arrugarse y retiene muy bien el calor.',
+    ],
+    compareMx:
+      'Más cálido que el algodón afelpado (+0.8 TOG) y ligeramente menor que el térmico grueso (+1.2 TOG).',
+  },
   mameluco_termico: {
     id: 'mameluco_termico',
     titleMx: 'Mameluco térmico',
@@ -1162,24 +1194,43 @@ export const GARMENT_TOG_GUIDES: Readonly<
     safetyTipMx:
       'Suspende la envoltura en cuanto el bebé muestre signos de voltearse.',
   },
+  cobija_poliester_afelpada_envuelta: {
+    id: 'cobija_poliester_afelpada_envuelta',
+    titleMx: 'Cobija de poliéster afelpada envuelta',
+    togValue: 1.8,
+    warmthLevel: 4,
+    diagramKind: 'plush_minky_polar',
+    visualCaptionMx:
+      'Cobija 100% poliéster afelpada tipo peluche, minky o microfibra suave.',
+    labelCluesMx: [
+      'Dice "100% poliéster" (minky, microfibra o coral fleece suave).',
+    ],
+    touchAndLookMx: [
+      'Se siente como peluche suave o terciopelo; retiene mucho calor aunque sea liviana.',
+    ],
+    compareMx:
+      'Abriga casi el doble que una cobija de algodón envuelta (+1.0 TOG).',
+    safetyTipMx:
+      'Envoltura segura: deja caderas holgadas, sin cubrir cara ni cuello, suspende al voltear y vigila nuca o pecho.',
+  },
   cobija_polar: {
     id: 'cobija_polar',
-    titleMx: 'Cobija polar / peluche / minky',
+    titleMx: 'Cobija polar envuelta',
     togValue: 2.0,
     warmthLevel: 4,
     diagramKind: 'plush_minky_polar',
     visualCaptionMx:
-      'Tela sintética afelpada tipo peluche, minky, coral fleece o polar.',
+      'Tela sintética polar gruesa o borrega (100% poliéster).',
     labelCluesMx: [
-      'Dice "100% poliéster" (fleece, minky, coral fleece, microfibra o borrega).',
+      'Dice "100% poliéster" (polar grueso, fleece o borrega).',
     ],
     touchAndLookMx: [
-      'Se siente muy suave, peludita o como peluche; aunque pese poco, atrapa mucho calor.',
+      'Tela gruesa y muy cálida; bloquea el paso del aire y atrapa mucho calor corporal.',
     ],
     compareMx:
       'Abriga el doble que una cobija de algodón (+1.0 TOG).',
     safetyTipMx:
-      'En menores de 12 meses NO uses cobijas sueltas en la cuna; prefiere saco de dormir.',
+      'Úsala bien envuelta y ajustada (nunca suelta en <12m); deja caderas holgadas y vigila que no sude.',
   },
   cobija_suelta: {
     id: 'cobija_suelta',

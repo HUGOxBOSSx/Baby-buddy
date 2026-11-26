@@ -139,8 +139,21 @@ describe('recommendClothing (-5 °C a 50 °C)', () => {
     }
   });
 
-  it('detecta sueño inseguro con cobija suelta o polar en <12m y la permite en >=12m', () => {
-    const polarUnder12m = recommendClothing({
+  it('detecta sueño inseguro con cobija suelta en <12m y permite cobija polar envuelta y poliéster afelpado', () => {
+    const sueltaUnder12m = recommendClothing({
+      tempC: 16,
+      environment: 'cuarto',
+      stageId: '3-12m',
+      selectedLayers: {
+        base: ['panalero_larga'],
+        mid: ['mameluco_afelpado'],
+        outer: ['cobija_suelta'],
+      },
+    });
+    expect(sueltaUnder12m.looseBlanketAlert).toBe(true);
+    expect(sueltaUnder12m.comfortZone).toBe('unsafe_sleep');
+
+    const polarEnvuelta = recommendClothing({
       tempC: 16,
       environment: 'cuarto',
       stageId: '3-12m',
@@ -150,22 +163,23 @@ describe('recommendClothing (-5 °C a 50 °C)', () => {
         outer: ['cobija_polar'],
       },
     });
-    expect(polarUnder12m.looseBlanketAlert).toBe(true);
-    expect(polarUnder12m.comfortZone).toBe('unsafe_sleep');
+    expect(polarEnvuelta.looseBlanketAlert).toBe(false);
+    expect(polarEnvuelta.currentTog).toBe(3.15);
+    expect(polarEnvuelta.comfortZone).toBe('optimal');
 
-    const polarToddler = recommendClothing({
+    const poliesterAfelpado = recommendClothing({
       tempC: 16,
       environment: 'cuarto',
-      stageId: '1-3a',
+      stageId: '0-3m',
       selectedLayers: {
         base: ['panalero_larga'],
-        mid: ['mameluco_afelpado'],
-        outer: ['cobija_polar'],
+        mid: ['mameluco_poliester_afelpado'],
+        outer: ['cobija_poliester_afelpada_envuelta'],
       },
     });
-    expect(polarToddler.looseBlanketAlert).toBe(false);
-    expect(polarToddler.currentTog).toBe(3.15);
-    expect(polarToddler.comfortZone).toBe('optimal');
+    expect(poliesterAfelpado.looseBlanketAlert).toBe(false);
+    expect(poliesterAfelpado.currentTog).toBe(3.15);
+    expect(poliesterAfelpado.comfortZone).toBe('optimal');
   });
 
   it('genera acciones dinámicas según comfortZone (qué sumar en frío y qué quitar en calor)', () => {
