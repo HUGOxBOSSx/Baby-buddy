@@ -10,12 +10,14 @@ import {
   OUTER_LAYER_OPTIONS,
   STAGE_SPECS,
   getDefaultOptimalLayers,
+  getGarmentTogGuide,
   recommendClothing,
   type AccessoryId,
   type BabyHealthStatus,
   type BaseLayerId,
   type ClothingContextFlags,
   type ClothingEnvironment,
+  type GarmentTogGuide,
   type IndoorLocation,
   type MidLayerId,
   type OutdoorTransport,
@@ -27,6 +29,7 @@ import { CLOTHING_ENGINE_METADATA } from '@baby-buddy/content';
 import { useEffect, useRef, useState } from 'react';
 import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { SelectedLayersPreview } from '../../components/ClothingGarmentVisual';
+import { GarmentTogGuideModal } from '../../components/GarmentTogGuideModal';
 import { GuideDisclaimerHeader } from '../../components/GuideDisclaimerHeader';
 import { StageSelector } from '../../components/StageSelector';
 import { StatusBadge } from '../../components/StatusBadge';
@@ -119,6 +122,7 @@ export default function RopaYClimaScreen() {
     DEFAULT_CLOTHING_CONTEXT,
   );
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [activeGuide, setActiveGuide] = useState<GarmentTogGuide | null>(null);
   const [customLayers, setCustomLayers] = useState<SelectedLayersInput | null>(
     null,
   );
@@ -501,6 +505,25 @@ export default function RopaYClimaScreen() {
         ) : null}
       </View>
 
+      {/* Banner explicativo de TOG */}
+      <View
+        className="rounded-2xl border px-3.5 py-2.5 gap-1"
+        style={{
+          backgroundColor: palette.brandSurface,
+          borderColor: palette.brandPrimary,
+        }}
+      >
+        <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
+          ¿Qué significa TOG?
+        </Text>
+        <Text className="text-xs leading-4" style={{ color: palette.textSecondary }}>
+          TOG mide qué tanto calor retiene una prenda (a mayor número, más
+          abriga). El número a la derecha de cada prenda (+0.5, +1.0, +2.5…) es
+          su valor TOG y se suma automáticamente. Toca el botón ? en prendas de
+          frío, sacos o cobijas para identificar cuál tienes.
+        </Text>
+      </View>
+
       {/* 2. Menú desplegable colapsable (cerrado por defecto) */}
       <View
         className="rounded-3xl border p-4 gap-3"
@@ -803,37 +826,85 @@ export default function RopaYClimaScreen() {
               <View className="flex-row flex-wrap gap-2">
                 {BASE_LAYER_OPTIONS.map((opt) => {
                   const selected = activeLayers.base.includes(opt.id);
+                  const guide = getGarmentTogGuide(opt.id);
+                  const pillBg = selected ? palette.brandSurface : palette.bgElevated;
+                  const pillBorder = selected ? palette.brandPrimary : palette.borderInteractive;
+                  if (!guide) {
+                    return (
+                      <Pressable
+                        key={opt.id}
+                        onPress={() =>
+                          setCustomLayers({
+                            ...activeLayers,
+                            base: toggleMulti<BaseLayerId>(
+                              activeLayers.base,
+                              opt.id,
+                              'ninguna',
+                            ),
+                          })
+                        }
+                        className="rounded-full border px-3 py-2 justify-center"
+                        style={{
+                          minHeight: MIN_TOUCH_TARGET_PX,
+                          backgroundColor: pillBg,
+                          borderColor: pillBorder,
+                        }}
+                      >
+                        <Text className="text-xs font-semibold" style={{ color: palette.textPrimary }}>
+                          {opt.labelMx}{' '}
+                          <Text style={{ color: palette.textMuted }}>
+                            {opt.tog === null ? '' : opt.tog === 0 ? '(0 TOG)' : `(+${opt.tog} TOG)`}
+                          </Text>
+                        </Text>
+                      </Pressable>
+                    );
+                  }
                   return (
-                    <Pressable
+                    <View
                       key={opt.id}
-                      onPress={() =>
-                        setCustomLayers({
-                          ...activeLayers,
-                          base: toggleMulti<BaseLayerId>(
-                            activeLayers.base,
-                            opt.id,
-                            'ninguna',
-                          ),
-                        })
-                      }
-                      className="rounded-full border px-3 py-2 justify-center"
+                      className="flex-row items-center rounded-full border overflow-hidden"
                       style={{
-                        minHeight: MIN_TOUCH_TARGET_PX,
-                        backgroundColor: selected
-                          ? palette.brandSurface
-                          : palette.bgElevated,
-                        borderColor: selected
-                          ? palette.brandPrimary
-                          : palette.borderInteractive,
+                        backgroundColor: pillBg,
+                        borderColor: pillBorder,
                       }}
                     >
-                      <Text className="text-xs font-semibold" style={{ color: palette.textPrimary }}>
-                        {opt.labelMx}{' '}
-                        <Text style={{ color: palette.textMuted }}>
-                          {opt.tog === null ? '' : opt.tog === 0 ? '(0 TOG)' : `(+${opt.tog} TOG)`}
+                      <Pressable
+                        onPress={() =>
+                          setCustomLayers({
+                            ...activeLayers,
+                            base: toggleMulti<BaseLayerId>(
+                              activeLayers.base,
+                              opt.id,
+                              'ninguna',
+                            ),
+                          })
+                        }
+                        className="pl-3 pr-2.5 py-2 justify-center"
+                        style={{ minHeight: MIN_TOUCH_TARGET_PX }}
+                      >
+                        <Text className="text-xs font-semibold" style={{ color: palette.textPrimary }}>
+                          {opt.labelMx}{' '}
+                          <Text style={{ color: palette.textMuted }}>
+                            {opt.tog === null ? '' : opt.tog === 0 ? '(0 TOG)' : `(+${opt.tog} TOG)`}
+                          </Text>
                         </Text>
-                      </Text>
-                    </Pressable>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => setActiveGuide(guide)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Cómo identificar ${opt.labelMx}`}
+                        className="border-l px-2.5 items-center justify-center"
+                        style={{
+                          minHeight: MIN_TOUCH_TARGET_PX,
+                          minWidth: 40,
+                          borderLeftColor: palette.borderInteractive,
+                        }}
+                      >
+                        <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
+                          ?
+                        </Text>
+                      </Pressable>
+                    </View>
                   );
                 })}
               </View>
@@ -846,37 +917,85 @@ export default function RopaYClimaScreen() {
               <View className="flex-row flex-wrap gap-2">
                 {MID_LAYER_OPTIONS.map((opt) => {
                   const selected = activeLayers.mid.includes(opt.id);
+                  const guide = getGarmentTogGuide(opt.id);
+                  const pillBg = selected ? palette.brandSurface : palette.bgElevated;
+                  const pillBorder = selected ? palette.brandPrimary : palette.borderInteractive;
+                  if (!guide) {
+                    return (
+                      <Pressable
+                        key={opt.id}
+                        onPress={() =>
+                          setCustomLayers({
+                            ...activeLayers,
+                            mid: toggleMulti<MidLayerId>(
+                              activeLayers.mid,
+                              opt.id,
+                              'ninguna',
+                            ),
+                          })
+                        }
+                        className="rounded-full border px-3 py-2 justify-center"
+                        style={{
+                          minHeight: MIN_TOUCH_TARGET_PX,
+                          backgroundColor: pillBg,
+                          borderColor: pillBorder,
+                        }}
+                      >
+                        <Text className="text-xs font-semibold" style={{ color: palette.textPrimary }}>
+                          {opt.labelMx}{' '}
+                          <Text style={{ color: palette.textMuted }}>
+                            {opt.tog === null ? '' : opt.tog === 0 ? '(0 TOG)' : `(+${opt.tog} TOG)`}
+                          </Text>
+                        </Text>
+                      </Pressable>
+                    );
+                  }
                   return (
-                    <Pressable
+                    <View
                       key={opt.id}
-                      onPress={() =>
-                        setCustomLayers({
-                          ...activeLayers,
-                          mid: toggleMulti<MidLayerId>(
-                            activeLayers.mid,
-                            opt.id,
-                            'ninguna',
-                          ),
-                        })
-                      }
-                      className="rounded-full border px-3 py-2 justify-center"
+                      className="flex-row items-center rounded-full border overflow-hidden"
                       style={{
-                        minHeight: MIN_TOUCH_TARGET_PX,
-                        backgroundColor: selected
-                          ? palette.brandSurface
-                          : palette.bgElevated,
-                        borderColor: selected
-                          ? palette.brandPrimary
-                          : palette.borderInteractive,
+                        backgroundColor: pillBg,
+                        borderColor: pillBorder,
                       }}
                     >
-                      <Text className="text-xs font-semibold" style={{ color: palette.textPrimary }}>
-                        {opt.labelMx}{' '}
-                        <Text style={{ color: palette.textMuted }}>
-                          {opt.tog === null ? '' : opt.tog === 0 ? '(0 TOG)' : `(+${opt.tog} TOG)`}
+                      <Pressable
+                        onPress={() =>
+                          setCustomLayers({
+                            ...activeLayers,
+                            mid: toggleMulti<MidLayerId>(
+                              activeLayers.mid,
+                              opt.id,
+                              'ninguna',
+                            ),
+                          })
+                        }
+                        className="pl-3 pr-2.5 py-2 justify-center"
+                        style={{ minHeight: MIN_TOUCH_TARGET_PX }}
+                      >
+                        <Text className="text-xs font-semibold" style={{ color: palette.textPrimary }}>
+                          {opt.labelMx}{' '}
+                          <Text style={{ color: palette.textMuted }}>
+                            {opt.tog === null ? '' : opt.tog === 0 ? '(0 TOG)' : `(+${opt.tog} TOG)`}
+                          </Text>
                         </Text>
-                      </Text>
-                    </Pressable>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => setActiveGuide(guide)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Cómo identificar ${opt.labelMx}`}
+                        className="border-l px-2.5 items-center justify-center"
+                        style={{
+                          minHeight: MIN_TOUCH_TARGET_PX,
+                          minWidth: 40,
+                          borderLeftColor: palette.borderInteractive,
+                        }}
+                      >
+                        <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
+                          ?
+                        </Text>
+                      </Pressable>
+                    </View>
                   );
                 })}
               </View>
@@ -889,37 +1008,85 @@ export default function RopaYClimaScreen() {
               <View className="flex-row flex-wrap gap-2">
                 {OUTER_LAYER_OPTIONS.map((opt) => {
                   const selected = activeLayers.outer.includes(opt.id);
+                  const guide = getGarmentTogGuide(opt.id);
+                  const pillBg = selected ? palette.brandSurface : palette.bgElevated;
+                  const pillBorder = selected ? palette.brandPrimary : palette.borderInteractive;
+                  if (!guide) {
+                    return (
+                      <Pressable
+                        key={opt.id}
+                        onPress={() =>
+                          setCustomLayers({
+                            ...activeLayers,
+                            outer: toggleMulti<OuterLayerId>(
+                              activeLayers.outer,
+                              opt.id,
+                              'ninguna',
+                            ),
+                          })
+                        }
+                        className="rounded-full border px-3 py-2 justify-center"
+                        style={{
+                          minHeight: MIN_TOUCH_TARGET_PX,
+                          backgroundColor: pillBg,
+                          borderColor: pillBorder,
+                        }}
+                      >
+                        <Text className="text-xs font-semibold" style={{ color: palette.textPrimary }}>
+                          {opt.labelMx}{' '}
+                          <Text style={{ color: palette.textMuted }}>
+                            {opt.tog === null ? '' : opt.tog === 0 ? '(0 TOG)' : `(+${opt.tog} TOG)`}
+                          </Text>
+                        </Text>
+                      </Pressable>
+                    );
+                  }
                   return (
-                    <Pressable
+                    <View
                       key={opt.id}
-                      onPress={() =>
-                        setCustomLayers({
-                          ...activeLayers,
-                          outer: toggleMulti<OuterLayerId>(
-                            activeLayers.outer,
-                            opt.id,
-                            'ninguna',
-                          ),
-                        })
-                      }
-                      className="rounded-full border px-3 py-2 justify-center"
+                      className="flex-row items-center rounded-full border overflow-hidden"
                       style={{
-                        minHeight: MIN_TOUCH_TARGET_PX,
-                        backgroundColor: selected
-                          ? palette.brandSurface
-                          : palette.bgElevated,
-                        borderColor: selected
-                          ? palette.brandPrimary
-                          : palette.borderInteractive,
+                        backgroundColor: pillBg,
+                        borderColor: pillBorder,
                       }}
                     >
-                      <Text className="text-xs font-semibold" style={{ color: palette.textPrimary }}>
-                        {opt.labelMx}{' '}
-                        <Text style={{ color: palette.textMuted }}>
-                          {opt.tog === null ? '' : opt.tog === 0 ? '(0 TOG)' : `(+${opt.tog} TOG)`}
+                      <Pressable
+                        onPress={() =>
+                          setCustomLayers({
+                            ...activeLayers,
+                            outer: toggleMulti<OuterLayerId>(
+                              activeLayers.outer,
+                              opt.id,
+                              'ninguna',
+                            ),
+                          })
+                        }
+                        className="pl-3 pr-2.5 py-2 justify-center"
+                        style={{ minHeight: MIN_TOUCH_TARGET_PX }}
+                      >
+                        <Text className="text-xs font-semibold" style={{ color: palette.textPrimary }}>
+                          {opt.labelMx}{' '}
+                          <Text style={{ color: palette.textMuted }}>
+                            {opt.tog === null ? '' : opt.tog === 0 ? '(0 TOG)' : `(+${opt.tog} TOG)`}
+                          </Text>
                         </Text>
-                      </Text>
-                    </Pressable>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => setActiveGuide(guide)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Cómo identificar ${opt.labelMx}`}
+                        className="border-l px-2.5 items-center justify-center"
+                        style={{
+                          minHeight: MIN_TOUCH_TARGET_PX,
+                          minWidth: 40,
+                          borderLeftColor: palette.borderInteractive,
+                        }}
+                      >
+                        <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
+                          ?
+                        </Text>
+                      </Pressable>
+                    </View>
                   );
                 })}
               </View>
@@ -1157,6 +1324,11 @@ export default function RopaYClimaScreen() {
       </View>
 
       <GuideDisclaimerHeader metadata={CLOTHING_ENGINE_METADATA} />
+
+      <GarmentTogGuideModal
+        guide={activeGuide}
+        onClose={() => setActiveGuide(null)}
+      />
     </ScrollView>
   );
 }

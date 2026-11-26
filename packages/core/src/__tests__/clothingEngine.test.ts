@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  BASE_LAYER_OPTIONS,
   CLOTHING_MAX_TEMP_C,
   CLOTHING_MIN_TEMP_C,
+  GARMENT_TOG_GUIDES,
+  MID_LAYER_OPTIONS,
+  OUTER_LAYER_OPTIONS,
   getDefaultOptimalLayers,
+  getGarmentTogGuide,
   recommendClothing,
 } from '../domain/clothingEngine';
 
@@ -246,6 +251,24 @@ describe('recommendClothing (-5 °C a 50 °C)', () => {
           `Falló óptimo en ${environment} a ${tempC}°C (TOG ${rec.currentTog} vs ${rec.recommendedTogRange.min}-${rec.recommendedTogRange.max})`,
         ).toBe('optimal');
       }
+    }
+  });
+
+  it('mantiene guías TOG sincronizadas con las opciones de prendas', () => {
+    const allOptions = [
+      ...BASE_LAYER_OPTIONS,
+      ...MID_LAYER_OPTIONS,
+      ...OUTER_LAYER_OPTIONS,
+    ];
+    for (const guide of Object.values(GARMENT_TOG_GUIDES)) {
+      if (!guide) continue;
+      const opt = allOptions.find((o) => o.id === guide.id);
+      expect(opt).toBeDefined();
+      expect(guide.togValue).toBe(opt?.tog);
+      expect(guide.titleMx.length).toBeGreaterThan(0);
+      expect(guide.labelCluesMx.length).toBeGreaterThan(0);
+      expect(guide.touchAndLookMx.length).toBeGreaterThan(0);
+      expect(getGarmentTogGuide(guide.id)).toEqual(guide);
     }
   });
 });

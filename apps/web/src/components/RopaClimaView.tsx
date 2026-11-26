@@ -11,12 +11,14 @@ import {
   OUTER_LAYER_OPTIONS,
   STAGE_SPECS,
   getDefaultOptimalLayers,
+  getGarmentTogGuide,
   recommendClothing,
   type AccessoryId,
   type BabyHealthStatus,
   type BaseLayerId,
   type ClothingContextFlags,
   type ClothingEnvironment,
+  type GarmentTogGuide,
   type IndoorLocation,
   type MidLayerId,
   type OutdoorTransport,
@@ -31,6 +33,7 @@ import {
   GarmentIcon,
   SelectedLayersPreview,
 } from '@/components/ClothingGarmentVisual';
+import { GarmentTogGuideModal } from '@/components/GarmentTogGuideModal';
 import { PhoneCallIcon } from '@/components/Icons';
 import { StageSelector } from '@/components/StageSelector';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -117,6 +120,7 @@ export function RopaClimaView() {
     DEFAULT_CLOTHING_CONTEXT,
   );
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [activeGuide, setActiveGuide] = useState<GarmentTogGuide | null>(null);
   const [customLayers, setCustomLayers] = useState<SelectedLayersInput | null>(
     null,
   );
@@ -534,6 +538,21 @@ export function RopaClimaView() {
         ) : null}
       </section>
 
+      {/* Banner explicativo de TOG */}
+      <aside
+        aria-label="Qué significa TOG"
+        className="rounded-2xl border border-brand-primary/40 bg-brand-surface px-4 py-3 text-xs space-y-1"
+      >
+        <p className="font-bold text-brand-text">¿Qué significa TOG?</p>
+        <p className="leading-relaxed text-ink-secondary">
+          TOG mide qué tanto calor retiene una prenda (a mayor número, más
+          abriga). El número a la derecha de cada prenda (+0.5, +1.0, +2.5…) es
+          su valor TOG y se suma automáticamente. Toca el botón{' '}
+          <strong className="text-ink-primary">?</strong> en prendas de frío,
+          sacos o cobijas para identificar cuál tienes.
+        </p>
+      </aside>
+
       {/* 2. Menú desplegable colapsable (arriba del resumen, cerrado por defecto) */}
       <section
         aria-label="Configurar ropa y contexto"
@@ -759,33 +778,72 @@ export function RopaClimaView() {
               <div className="flex flex-wrap gap-2">
                 {BASE_LAYER_OPTIONS.map((opt) => {
                   const selected = activeLayers.base.includes(opt.id);
+                  const guide = getGarmentTogGuide(opt.id);
+                  const pillClass = selected
+                    ? 'border-brand-primary bg-brand-surface text-brand-text'
+                    : 'border-border-interactive bg-bg-elevated text-ink-primary';
+                  if (!guide) {
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() =>
+                          setCustomLayers({
+                            ...activeLayers,
+                            base: toggleMulti<BaseLayerId>(
+                              activeLayers.base,
+                              opt.id,
+                              'ninguna',
+                            ),
+                          })
+                        }
+                        aria-pressed={selected}
+                        className={`inline-flex min-h-12 items-center gap-2 rounded-full border px-3.5 py-2 text-xs font-semibold ${pillClass}`}
+                      >
+                        <GarmentIcon kind={opt.visualKind} className="h-4 w-4" />
+                        <span>{opt.labelMx}</span>
+                        <span className="text-[11px] opacity-75 tabular-nums">
+                          {opt.tog === null ? '' : opt.tog === 0 ? '0 TOG' : `+${opt.tog} TOG`}
+                        </span>
+                      </button>
+                    );
+                  }
                   return (
-                    <button
+                    <div
                       key={opt.id}
-                      type="button"
-                      onClick={() =>
-                        setCustomLayers({
-                          ...activeLayers,
-                          base: toggleMulti<BaseLayerId>(
-                            activeLayers.base,
-                            opt.id,
-                            'ninguna',
-                          ),
-                        })
-                      }
-                      aria-pressed={selected}
-                      className={`inline-flex min-h-12 items-center gap-2 rounded-full border px-3.5 py-2 text-xs font-semibold ${
-                        selected
-                          ? 'border-brand-primary bg-brand-surface text-brand-text'
-                          : 'border-border-interactive bg-bg-elevated text-ink-primary'
-                      }`}
+                      className={`inline-flex items-center rounded-full border overflow-hidden ${pillClass}`}
                     >
-                      <GarmentIcon kind={opt.visualKind} className="h-4 w-4" />
-                      <span>{opt.labelMx}</span>
-                      <span className="text-[11px] opacity-75 tabular-nums">
-                        {opt.tog === null ? '' : opt.tog === 0 ? '0 TOG' : `+${opt.tog} TOG`}
-                      </span>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCustomLayers({
+                            ...activeLayers,
+                            base: toggleMulti<BaseLayerId>(
+                              activeLayers.base,
+                              opt.id,
+                              'ninguna',
+                            ),
+                          })
+                        }
+                        aria-pressed={selected}
+                        className="inline-flex min-h-12 items-center gap-2 pl-3.5 pr-2.5 py-2 text-xs font-semibold"
+                      >
+                        <GarmentIcon kind={opt.visualKind} className="h-4 w-4" />
+                        <span>{opt.labelMx}</span>
+                        <span className="text-[11px] opacity-75 tabular-nums">
+                          {opt.tog === null ? '' : opt.tog === 0 ? '0 TOG' : `+${opt.tog} TOG`}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveGuide(guide)}
+                        title="Cómo identificar este TOG"
+                        aria-label={`Cómo identificar ${opt.labelMx}`}
+                        className="inline-flex min-h-12 min-w-10 items-center justify-center border-l border-border-interactive/60 px-2.5 text-xs font-bold hover:bg-bg-card/60"
+                      >
+                        ?
+                      </button>
+                    </div>
                   );
                 })}
               </div>
@@ -798,33 +856,72 @@ export function RopaClimaView() {
               <div className="flex flex-wrap gap-2">
                 {MID_LAYER_OPTIONS.map((opt) => {
                   const selected = activeLayers.mid.includes(opt.id);
+                  const guide = getGarmentTogGuide(opt.id);
+                  const pillClass = selected
+                    ? 'border-brand-primary bg-brand-surface text-brand-text'
+                    : 'border-border-interactive bg-bg-elevated text-ink-primary';
+                  if (!guide) {
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() =>
+                          setCustomLayers({
+                            ...activeLayers,
+                            mid: toggleMulti<MidLayerId>(
+                              activeLayers.mid,
+                              opt.id,
+                              'ninguna',
+                            ),
+                          })
+                        }
+                        aria-pressed={selected}
+                        className={`inline-flex min-h-12 items-center gap-2 rounded-full border px-3.5 py-2 text-xs font-semibold ${pillClass}`}
+                      >
+                        <GarmentIcon kind={opt.visualKind} className="h-4 w-4" />
+                        <span>{opt.labelMx}</span>
+                        <span className="text-[11px] opacity-75 tabular-nums">
+                          {opt.tog === null ? '' : opt.tog === 0 ? '0 TOG' : `+${opt.tog} TOG`}
+                        </span>
+                      </button>
+                    );
+                  }
                   return (
-                    <button
+                    <div
                       key={opt.id}
-                      type="button"
-                      onClick={() =>
-                        setCustomLayers({
-                          ...activeLayers,
-                          mid: toggleMulti<MidLayerId>(
-                            activeLayers.mid,
-                            opt.id,
-                            'ninguna',
-                          ),
-                        })
-                      }
-                      aria-pressed={selected}
-                      className={`inline-flex min-h-12 items-center gap-2 rounded-full border px-3.5 py-2 text-xs font-semibold ${
-                        selected
-                          ? 'border-brand-primary bg-brand-surface text-brand-text'
-                          : 'border-border-interactive bg-bg-elevated text-ink-primary'
-                      }`}
+                      className={`inline-flex items-center rounded-full border overflow-hidden ${pillClass}`}
                     >
-                      <GarmentIcon kind={opt.visualKind} className="h-4 w-4" />
-                      <span>{opt.labelMx}</span>
-                      <span className="text-[11px] opacity-75 tabular-nums">
-                        {opt.tog === null ? '' : opt.tog === 0 ? '0 TOG' : `+${opt.tog} TOG`}
-                      </span>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCustomLayers({
+                            ...activeLayers,
+                            mid: toggleMulti<MidLayerId>(
+                              activeLayers.mid,
+                              opt.id,
+                              'ninguna',
+                            ),
+                          })
+                        }
+                        aria-pressed={selected}
+                        className="inline-flex min-h-12 items-center gap-2 pl-3.5 pr-2.5 py-2 text-xs font-semibold"
+                      >
+                        <GarmentIcon kind={opt.visualKind} className="h-4 w-4" />
+                        <span>{opt.labelMx}</span>
+                        <span className="text-[11px] opacity-75 tabular-nums">
+                          {opt.tog === null ? '' : opt.tog === 0 ? '0 TOG' : `+${opt.tog} TOG`}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveGuide(guide)}
+                        title="Cómo identificar este TOG"
+                        aria-label={`Cómo identificar ${opt.labelMx}`}
+                        className="inline-flex min-h-12 min-w-10 items-center justify-center border-l border-border-interactive/60 px-2.5 text-xs font-bold hover:bg-bg-card/60"
+                      >
+                        ?
+                      </button>
+                    </div>
                   );
                 })}
               </div>
@@ -837,33 +934,72 @@ export function RopaClimaView() {
               <div className="flex flex-wrap gap-2">
                 {OUTER_LAYER_OPTIONS.map((opt) => {
                   const selected = activeLayers.outer.includes(opt.id);
+                  const guide = getGarmentTogGuide(opt.id);
+                  const pillClass = selected
+                    ? 'border-brand-primary bg-brand-surface text-brand-text'
+                    : 'border-border-interactive bg-bg-elevated text-ink-primary';
+                  if (!guide) {
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() =>
+                          setCustomLayers({
+                            ...activeLayers,
+                            outer: toggleMulti<OuterLayerId>(
+                              activeLayers.outer,
+                              opt.id,
+                              'ninguna',
+                            ),
+                          })
+                        }
+                        aria-pressed={selected}
+                        className={`inline-flex min-h-12 items-center gap-2 rounded-full border px-3.5 py-2 text-xs font-semibold ${pillClass}`}
+                      >
+                        <GarmentIcon kind={opt.visualKind} className="h-4 w-4" />
+                        <span>{opt.labelMx}</span>
+                        <span className="text-[11px] opacity-75 tabular-nums">
+                          {opt.tog === null ? '' : opt.tog === 0 ? '0 TOG' : `+${opt.tog} TOG`}
+                        </span>
+                      </button>
+                    );
+                  }
                   return (
-                    <button
+                    <div
                       key={opt.id}
-                      type="button"
-                      onClick={() =>
-                        setCustomLayers({
-                          ...activeLayers,
-                          outer: toggleMulti<OuterLayerId>(
-                            activeLayers.outer,
-                            opt.id,
-                            'ninguna',
-                          ),
-                        })
-                      }
-                      aria-pressed={selected}
-                      className={`inline-flex min-h-12 items-center gap-2 rounded-full border px-3.5 py-2 text-xs font-semibold ${
-                        selected
-                          ? 'border-brand-primary bg-brand-surface text-brand-text'
-                          : 'border-border-interactive bg-bg-elevated text-ink-primary'
-                      }`}
+                      className={`inline-flex items-center rounded-full border overflow-hidden ${pillClass}`}
                     >
-                      <GarmentIcon kind={opt.visualKind} className="h-4 w-4" />
-                      <span>{opt.labelMx}</span>
-                      <span className="text-[11px] opacity-75 tabular-nums">
-                        {opt.tog === null ? '' : opt.tog === 0 ? '0 TOG' : `+${opt.tog} TOG`}
-                      </span>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCustomLayers({
+                            ...activeLayers,
+                            outer: toggleMulti<OuterLayerId>(
+                              activeLayers.outer,
+                              opt.id,
+                              'ninguna',
+                            ),
+                          })
+                        }
+                        aria-pressed={selected}
+                        className="inline-flex min-h-12 items-center gap-2 pl-3.5 pr-2.5 py-2 text-xs font-semibold"
+                      >
+                        <GarmentIcon kind={opt.visualKind} className="h-4 w-4" />
+                        <span>{opt.labelMx}</span>
+                        <span className="text-[11px] opacity-75 tabular-nums">
+                          {opt.tog === null ? '' : opt.tog === 0 ? '0 TOG' : `+${opt.tog} TOG`}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveGuide(guide)}
+                        title="Cómo identificar este TOG"
+                        aria-label={`Cómo identificar ${opt.labelMx}`}
+                        className="inline-flex min-h-12 min-w-10 items-center justify-center border-l border-border-interactive/60 px-2.5 text-xs font-bold hover:bg-bg-card/60"
+                      >
+                        ?
+                      </button>
+                    </div>
                   );
                 })}
               </div>
@@ -1039,6 +1175,13 @@ export function RopaClimaView() {
       </section>
 
       <ClinicalMetadataBlock metadata={CLOTHING_ENGINE_METADATA} />
+
+      {activeGuide ? (
+        <GarmentTogGuideModal
+          guide={activeGuide}
+          onClose={() => setActiveGuide(null)}
+        />
+      ) : null}
     </div>
   );
 }

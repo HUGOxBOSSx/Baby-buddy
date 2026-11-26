@@ -1001,3 +1001,281 @@ export function recommendClothing(
       'Toca su nuca o pecho (no manos ni pies): tibio y seco está bien; si suda o tiene el cabello húmedo, quita una capa.',
   };
 }
+
+export type FabricDiagramKind =
+  | 'single_cotton'
+  | 'double_cotton'
+  | 'waffle_thermal'
+  | 'brushed_fleece'
+  | 'padded_quilt'
+  | 'heavy_winter_fill'
+  | 'plush_minky_polar';
+
+export type GuideableGarmentId = BaseLayerId | MidLayerId | OuterLayerId;
+
+export interface GarmentTogGuide {
+  readonly id: GuideableGarmentId;
+  readonly titleMx: string;
+  readonly togValue: number;
+  readonly warmthLevel: 1 | 2 | 3 | 4 | 5;
+  readonly diagramKind: FabricDiagramKind;
+  readonly visualCaptionMx: string;
+  readonly labelCluesMx: readonly string[];
+  readonly touchAndLookMx: readonly string[];
+  readonly compareMx: string;
+  readonly safetyTipMx?: string;
+}
+
+export const GARMENT_TOG_GUIDES: Readonly<
+  Partial<Record<GuideableGarmentId, GarmentTogGuide>>
+> = {
+  termica_interior: {
+    id: 'termica_interior',
+    titleMx: 'Camiseta térmica (primera capa)',
+    togValue: 0.6,
+    warmthLevel: 2,
+    diagramKind: 'waffle_thermal',
+    visualCaptionMx:
+      'Tejido con relieve de cuadritos (waffle) o interior cepillado ceñido.',
+    labelCluesMx: [
+      'Puede decir "thermal knit", "waffle" o mezcla de algodón/poliéster/elastano.',
+      'Está diseñada para ir pegada al cuerpo como primera capa.',
+    ],
+    touchAndLookMx: [
+      'Textura de cuadritos pequeños o interior suavemente cepillado.',
+      'Más gruesa y tibia al tacto que un pañalero de algodón liso.',
+    ],
+    compareMx:
+      'Abriga casi el doble que un pañalero manga larga clásico (+0.35 TOG).',
+  },
+  mameluco_algodon: {
+    id: 'mameluco_algodon',
+    titleMx: 'Mameluco de algodón',
+    togValue: 0.5,
+    warmthLevel: 1,
+    diagramKind: 'single_cotton',
+    visualCaptionMx:
+      'Una sola capa delgada y lisa de punto sencillo (como camiseta).',
+    labelCluesMx: [
+      'Dice "100% algodón" (100% cotton) o 95% algodón / 5% elastano.',
+      'Tejido jersey sencillo, sin relleno ni interior peludo.',
+    ],
+    touchAndLookMx: [
+      'Tela delgada, lisa y plana por ambos lados; se siente fresca al tocarla.',
+      'Si la aprietas con el puño se arruga fácil y deja pasar el aire al soplar.',
+    ],
+    compareMx:
+      'Es la opción clásica para clima templado o debajo de un saco de dormir.',
+  },
+  mameluco_afelpado: {
+    id: 'mameluco_afelpado',
+    titleMx: 'Mameluco afelpado',
+    togValue: 0.8,
+    warmthLevel: 2,
+    diagramKind: 'brushed_fleece',
+    visualCaptionMx:
+      'Exterior liso con interior suavizado o ligeramente peludito (franela / french terry).',
+    labelCluesMx: [
+      'Suele ser algodón con poliéster ("french terry", franela o felpa ligera).',
+      'No es tan grueso ni acolchado como una prenda de invierno.',
+    ],
+    touchAndLookMx: [
+      'Por fuera parece algodón normal, pero por dentro se siente suave y tibio.',
+      'Retiene un poco más de calor que el algodón sencillo sin ser pesado.',
+    ],
+    compareMx:
+      'Punto medio entre el mameluco de algodón (+0.5 TOG) y el térmico (+1.2 TOG).',
+  },
+  mameluco_termico: {
+    id: 'mameluco_termico',
+    titleMx: 'Mameluco térmico',
+    togValue: 1.2,
+    warmthLevel: 3,
+    diagramKind: 'heavy_winter_fill',
+    visualCaptionMx:
+      'Tela gruesa, polar (fleece), borrega (sherpa), capitonada o waffle grueso.',
+    labelCluesMx: [
+      'Dice "100% poliéster" (polar, fleece, microfibra, sherpa) o algodón térmico grueso.',
+      'Diseñado para noches frías sin necesitar tantas capas extra.',
+    ],
+    touchAndLookMx: [
+      'Tela gruesa y tibia al primer contacto; bloquea el paso del aire.',
+      'Si es sintético, al soltarlo después de apretarlo vuelve a su forma sin arrugarse.',
+    ],
+    compareMx:
+      'Abriga más del doble que un mameluco de algodón (+0.5 TOG).',
+  },
+  sueter_chamarra: {
+    id: 'sueter_chamarra',
+    titleMx: 'Suéter / chamarra',
+    togValue: 1.0,
+    warmthLevel: 3,
+    diagramKind: 'padded_quilt',
+    visualCaptionMx:
+      'Capa intermedia/exterior de punto grueso, tejido o chamarra ligera.',
+    labelCluesMx: [
+      'Prenda de tejido grueso (algodón, lana o poliéster) o chamarra ligera.',
+    ],
+    touchAndLookMx: [
+      'Aporta volumen y cámara de aire sobre el mameluco o pañalero.',
+    ],
+    compareMx:
+      'Equivale aproximadamente a sumar un saco ligero de 1.0 TOG en paseo.',
+    safetyTipMx:
+      'En silla del auto, quita la chamarra gruesa antes de abrochar el arnés.',
+  },
+  manta_delgada_envuelta: {
+    id: 'manta_delgada_envuelta',
+    titleMx: 'Manta delgada envuelta (taquito)',
+    togValue: 0.5,
+    warmthLevel: 1,
+    diagramKind: 'single_cotton',
+    visualCaptionMx:
+      'Muselina o sabanita muy fina, casi traslúcida y muy transpirable.',
+    labelCluesMx: [
+      'Generalmente "100% algodón" o bambú/muselina de tejido abierto.',
+    ],
+    touchAndLookMx: [
+      'Muy ligera, delgada y fresca; deja pasar el aire fácilmente.',
+    ],
+    compareMx:
+      'Equivale a un saco de 0.5 TOG.',
+    safetyTipMx:
+      'Solo para bebés que aún no intentan voltearse; deja caderas holgadas.',
+  },
+  cobija_algodon_envuelta: {
+    id: 'cobija_algodon_envuelta',
+    titleMx: 'Cobija de algodón envuelta',
+    togValue: 1.0,
+    warmthLevel: 2,
+    diagramKind: 'double_cotton',
+    visualCaptionMx:
+      'Tela plana o de punto 100% algodón (franela o recibidora), sin peluche.',
+    labelCluesMx: [
+      'Dice "100% algodón" (franela, punto o recibidora), sin poliéster grueso.',
+    ],
+    touchAndLookMx: [
+      'Más gruesa que una muselina, pero respirable y sin textura de peluche.',
+    ],
+    compareMx:
+      'Equivale a un saco de 1.0 TOG.',
+    safetyTipMx:
+      'Suspende la envoltura en cuanto el bebé muestre signos de voltearse.',
+  },
+  cobija_polar: {
+    id: 'cobija_polar',
+    titleMx: 'Cobija polar / peluche / minky',
+    togValue: 2.0,
+    warmthLevel: 4,
+    diagramKind: 'plush_minky_polar',
+    visualCaptionMx:
+      'Tela sintética afelpada tipo peluche, minky, coral fleece o polar.',
+    labelCluesMx: [
+      'Dice "100% poliéster" (fleece, minky, coral fleece, microfibra o borrega).',
+    ],
+    touchAndLookMx: [
+      'Se siente muy suave, peludita o como peluche; aunque pese poco, atrapa mucho calor.',
+    ],
+    compareMx:
+      'Abriga el doble que una cobija de algodón (+1.0 TOG).',
+    safetyTipMx:
+      'En menores de 12 meses NO uses cobijas sueltas en la cuna; prefiere saco de dormir.',
+  },
+  cobija_suelta: {
+    id: 'cobija_suelta',
+    titleMx: 'Cobija suelta (tejida / estándar)',
+    togValue: 1.5,
+    warmthLevel: 3,
+    diagramKind: 'double_cotton',
+    visualCaptionMx:
+      'Cobija estándar de cuna o cama (tejida o algodón grueso) sin polar.',
+    labelCluesMx: [
+      'Cobija tradicional de algodón grueso o tejido de punto.',
+    ],
+    touchAndLookMx: [
+      'Más pesada que una sábana recibidora, pero menos cálida que una cobija polar.',
+    ],
+    compareMx:
+      'Punto medio entre cobija de algodón (+1.0 TOG) y cobija polar (+2.0 TOG).',
+    safetyTipMx:
+      'Evítala en menores de 12 meses por riesgo de asfixia; úsala solo en ≥ 12 meses.',
+  },
+  saco_05: {
+    id: 'saco_05',
+    titleMx: 'Saco 0.5 TOG',
+    togValue: 0.5,
+    warmthLevel: 1,
+    diagramKind: 'single_cotton',
+    visualCaptionMx:
+      'Una sola capa muy delgada (como sábana o muselina), sin relleno ni forro.',
+    labelCluesMx: [
+      'Etiqueta: "0.5 TOG" o "100% algodón" de una sola capa ligera.',
+    ],
+    touchAndLookMx: [
+      'Al trasluz se ve delgado; no tiene forro interior ni guata.',
+    ],
+    compareMx:
+      'Ideal para cuartos calurosos (24 °C o más).',
+  },
+  saco_10: {
+    id: 'saco_10',
+    titleMx: 'Saco 1.0 TOG',
+    togValue: 1.0,
+    warmthLevel: 2,
+    diagramKind: 'double_cotton',
+    visualCaptionMx:
+      'Doble capa de algodón (exterior + forro) sin relleno acolchado en medio.',
+    labelCluesMx: [
+      'Etiqueta: "1.0 TOG" o "100% algodón" con forro interior liso.',
+    ],
+    touchAndLookMx: [
+      'Se siente firme como dos sábanas juntas, pero plano (sin esponjarse).',
+    ],
+    compareMx:
+      'Ideal para clima templado (20–23 °C).',
+  },
+  saco_25: {
+    id: 'saco_25',
+    titleMx: 'Saco 2.5 TOG',
+    togValue: 2.5,
+    warmthLevel: 4,
+    diagramKind: 'padded_quilt',
+    visualCaptionMx:
+      'Acolchado con relleno ligero de guata, O tela tipo borrego/sherpa + forro.',
+    labelCluesMx: [
+      'Etiqueta: "2.5 TOG" o "100% poliéster" con exterior tipo borrego y forro interno.',
+    ],
+    touchAndLookMx: [
+      'Esponjoso/acolchado como edredón delgado, o doble capa con borrego/peluche por fuera y forro blanco por dentro (aunque no tenga guata en medio).',
+    ],
+    compareMx:
+      'Estándar de invierno o cuarto fresco (16–20 °C).',
+    safetyTipMx:
+      'Si usas saco 2.5 TOG, no agregues cobijas encima; ajusta con la ropa de abajo.',
+  },
+  saco_35: {
+    id: 'saco_35',
+    titleMx: 'Saco 3.5 TOG',
+    togValue: 3.5,
+    warmthLevel: 5,
+    diagramKind: 'heavy_winter_fill',
+    visualCaptionMx:
+      'Muy grueso y pesado, con relleno abundante o interior de borrega/polar grueso.',
+    labelCluesMx: [
+      'Etiqueta: "3.5 TOG" o saco invernal grueso (a veces con mangas).',
+    ],
+    touchAndLookMx: [
+      'Se siente notablemente grueso, acolchado y muy abrigador al tacto.',
+    ],
+    compareMx:
+      'Reservado para frío intenso (menos de 16 °C en la habitación).',
+    safetyTipMx:
+      'Revisa la nuca o pecho del bebé para evitar sobrecalentamiento.',
+  },
+};
+
+export function getGarmentTogGuide(
+  id: GuideableGarmentId,
+): GarmentTogGuide | undefined {
+  return GARMENT_TOG_GUIDES[id];
+}
