@@ -16,6 +16,7 @@ export interface FeedLogEntry {
   readonly feedType: FeedType;
   readonly durationSec?: number;
   readonly volumeMl?: number;
+  readonly noteMx?: string;
 }
 
 export interface DiaperLogEntry {
@@ -24,9 +25,18 @@ export interface DiaperLogEntry {
   readonly timestampIso: string;
   readonly diaperKind: DiaperKind;
   readonly poopColor?: PoopColorTag;
+  readonly noteMx?: string;
 }
 
-export type DailyLogEntry = FeedLogEntry | DiaperLogEntry;
+export interface SleepLogEntry {
+  readonly id: string;
+  readonly kind: 'sleep';
+  readonly timestampIso: string;
+  readonly durationSec: number;
+  readonly noteMx?: string;
+}
+
+export type DailyLogEntry = FeedLogEntry | DiaperLogEntry | SleepLogEntry;
 
 export interface ActiveFeedTimer {
   readonly side: 'breast_left' | 'breast_right';
@@ -63,9 +73,14 @@ export interface DailyLogSummary {
   readonly avgWetDiapersPerDay: number;
   readonly dirtyDiapers: number;
   readonly avgDirtyDiapersPerDay: number;
+  readonly totalSleeps: number;
+  readonly totalSleepMin: number;
+  readonly avgSleepMinPerDay: number;
   readonly lastBreastSide: 'breast_left' | 'breast_right' | null;
   readonly hoursSinceLastWetDiaper: number | null;
+  readonly hoursSinceLastDiaper: number | null;
   readonly hoursSinceLastFeed: number | null;
+  readonly hoursSinceLastSleep: number | null;
   readonly hydrationAlertMx: string | null;
   readonly stoolAlertMx: string | null;
 }
@@ -196,6 +211,8 @@ export function summarizeDailyLog(
   let totalDiapers = 0;
   let wetDiapers = 0;
   let dirtyDiapers = 0;
+  let totalSleeps = 0;
+  let totalSleepSec = 0;
 
   for (const entry of inRange) {
     if (entry.kind === 'feed') {
@@ -207,6 +224,9 @@ export function summarizeDailyLog(
         breastFeeds += 1;
         totalBreastSec += entry.durationSec ?? 0;
       }
+    } else if (entry.kind === 'sleep') {
+      totalSleeps += 1;
+      totalSleepSec += entry.durationSec;
     } else {
       totalDiapers += 1;
       if (entry.diaperKind === 'wet' || entry.diaperKind === 'both') {
@@ -254,6 +274,20 @@ export function summarizeDailyLog(
       )
     : null;
 
+  const lastDiaper = sortedAll.find((e) => e.kind === 'diaper');
+  const hoursSinceLastDiaper = lastDiaper
+    ? round1(
+        Math.max(0, (nowMs - new Date(lastDiaper.timestampIso).getTime()) / 3_600_000),
+      )
+    : null;
+
+  const lastSleep = sortedAll.find((e) => e.kind === 'sleep');
+  const hoursSinceLastSleep = lastSleep
+    ? round1(
+        Math.max(0, (nowMs - new Date(lastSleep.timestampIso).getTime()) / 3_600_000),
+      )
+    : null;
+
   const hydrationAlertMx =
     hoursSinceLastWetDiaper !== null && hoursSinceLastWetDiaper >= 8
       ? `Lleva ${hoursSinceLastWetDiaper} h desde el último pañal mojado (>= 8 h). Vigila signos de deshidratación y consulta a tu pediatra.`
@@ -273,6 +307,7 @@ export function summarizeDailyLog(
     : null;
 
   const totalBreastMin = Math.round(totalBreastSec / 60);
+  const totalSleepMin = Math.round(totalSleepSec / 60);
 
   return {
     daysInRange,
@@ -290,9 +325,14 @@ export function summarizeDailyLog(
     avgWetDiapersPerDay: round1(wetDiapers / daysInRange),
     dirtyDiapers,
     avgDirtyDiapersPerDay: round1(dirtyDiapers / daysInRange),
+    totalSleeps,
+    totalSleepMin,
+    avgSleepMinPerDay: round1(totalSleepMin / daysInRange),
     lastBreastSide,
     hoursSinceLastWetDiaper,
+    hoursSinceLastDiaper,
     hoursSinceLastFeed,
+    hoursSinceLastSleep,
     hydrationAlertMx,
     stoolAlertMx,
   };
@@ -329,7 +369,7 @@ export function parseDailyLogEntries(
       return (
         typeof obj.id === 'string' &&
         typeof obj.timestampIso === 'string' &&
-        (obj.kind === 'feed' || obj.kind === 'diaper')
+        (obj.kind === 'feed' || obj.kind === 'diaper' || obj.kind === 'sleep')
       );
     });
   } catch {
@@ -362,4 +402,29 @@ export function parseActiveFeedTimer(
   } catch {
     return null;
   }
+}
+
+export function getWakeWindowGuidanceMx(
+  ageMonths: number,
+  hoursSinceLastSleep: number | null,
+): string {
+  let windowLabel = 'siesta opcional / descanso nocturno';
+  if (ageMonths < 3) {
+    windowLabel = '45–90 min';
+  } else if (ageMonths < 6) {
+    windowLabel = '1.5–2.5 h';
+  } else if (ageMonths < 12) {
+    windowLabel = '2.5–3.5 h';
+  } else if (ageMonths < 36) {
+    windowLabel = '4–6 h';
+  }
+
+  if (hoursSinceLastSleep === null) {
+    return `Ventana de vigilia orientativa: ${windowLabel}.`;
+  }
+  const awakeStr =
+    hoursSinceLastSleep < 1
+      ? `${Math.round(hoursSinceLastSleep * 60)} min`
+      : `${hoursSinceLastSleep} h`;
+  return `Lleva ${awakeStr} despierto · Ventana orientativa: ${windowLabel}.`;
 }

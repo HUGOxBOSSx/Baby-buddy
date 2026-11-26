@@ -8,6 +8,7 @@ import {
   computeTimerElapsedSec,
   filterEntriesByDateRange,
   formatTimerClock,
+  getWakeWindowGuidanceMx,
   resolveDateRangePreset,
   summarizeDailyLog,
   toLocalDateKey,
@@ -41,6 +42,7 @@ function formatEntryTime(iso: string): string {
 
 export function DailyLogPanel() {
   const {
+    childProfile,
     dailyLogs,
     activeFeedTimer,
     addDailyLogEntry,
@@ -59,6 +61,9 @@ export function DailyLogPanel() {
   );
   const [selectedPoopColor, setSelectedPoopColor] =
     useState<PoopColorTag>('mostaza');
+  const [retroOffsetMin, setRetroOffsetMin] = useState<0 | 15 | 30 | 60>(0);
+  const [noteInput, setNoteInput] = useState('');
+  const [sleepStartMs, setSleepStartMs] = useState<number | null>(null);
 
   const [rangePreset, setRangePreset] = useState<DateRangePreset>('today');
   const [customStart, setCustomStart] = useState<string>(() =>
@@ -89,14 +94,14 @@ export function DailyLogPanel() {
   }, []);
 
   useEffect(() => {
-    if (!activeFeedTimer || activeFeedTimer.paused) {
+    if ((!activeFeedTimer || activeFeedTimer.paused) && sleepStartMs === null) {
       return;
     }
     const id = window.setInterval(() => {
       setNowMs(Date.now());
     }, 1000);
     return () => window.clearInterval(id);
-  }, [activeFeedTimer]);
+  }, [activeFeedTimer, sleepStartMs]);
 
   const activeRange =
     rangePreset === 'custom'
@@ -117,6 +122,11 @@ export function DailyLogPanel() {
     ? computeTimerElapsedSec(activeFeedTimer, nowMs)
     : 0;
 
+  const getEntryTimestampIso = useCallback(
+    (now: number) => new Date(now - retroOffsetMin * 60_000).toISOString(),
+    [retroOffsetMin],
+  );
+
   const handleSaveBottle = useCallback(
     (mlValue: number) => {
       const safeMl = Math.max(5, Math.min(500, Math.round(mlValue)));
@@ -124,14 +134,16 @@ export function DailyLogPanel() {
       addDailyLogEntry({
         id: `feed-${now}`,
         kind: 'feed',
-        timestampIso: new Date(now).toISOString(),
+        timestampIso: getEntryTimestampIso(now),
         feedType: 'bottle',
         volumeMl: safeMl,
+        noteMx: noteInput.trim() || undefined,
       });
       setShowBottlePicker(false);
+      setNoteInput('');
       flashFeedback(`✓ Biberón (${safeMl} ml) guardado`);
     },
-    [addDailyLogEntry, flashFeedback],
+    [addDailyLogEntry, flashFeedback, getEntryTimestampIso, noteInput],
   );
 
   const handleQuickWetDiaper = useCallback(() => {
@@ -139,12 +151,14 @@ export function DailyLogPanel() {
     addDailyLogEntry({
       id: `diaper-${now}`,
       kind: 'diaper',
-      timestampIso: new Date(now).toISOString(),
+      timestampIso: getEntryTimestampIso(now),
       diaperKind: 'wet',
+      noteMx: noteInput.trim() || undefined,
     });
     setPendingDiaperKind(null);
+    setNoteInput('');
     flashFeedback('✓ Pipí guardado');
-  }, [addDailyLogEntry, flashFeedback]);
+  }, [addDailyLogEntry, flashFeedback, getEntryTimestampIso, noteInput]);
 
   const handleSaveDirtyDiaper = useCallback(() => {
     if (!pendingDiaperKind) return;
@@ -152,9 +166,10 @@ export function DailyLogPanel() {
     addDailyLogEntry({
       id: `diaper-${now}`,
       kind: 'diaper',
-      timestampIso: new Date(now).toISOString(),
+      timestampIso: getEntryTimestampIso(now),
       diaperKind: pendingDiaperKind,
       poopColor: selectedPoopColor,
+      noteMx: noteInput.trim() || undefined,
     });
     flashFeedback(
       pendingDiaperKind === 'both'
@@ -162,10 +177,77 @@ export function DailyLogPanel() {
         : '✓ Popó guardada',
     );
     setPendingDiaperKind(null);
-  }, [addDailyLogEntry, flashFeedback, pendingDiaperKind, selectedPoopColor]);
+    setNoteInput('');
+  }, [addDailyLogEntry, flashFeedback, getEntryTimestampIso, noteInput, pendingDiaperKind, selectedPoopColor]);
+
+  const handleSaveSleep = useCallback(
+    (durationSec: number) => {
+      const safeSec = Math.max(60, Math.round(durationSec));
+      const now = Date.now();
+      addDailyLogEntry({
+        id: `sleep-${now}`,
+        kind: 'sleep',
+        timestampIso: getEntryTimestampIso(now),
+        durationSec: safeSec,
+        noteMx: noteInput.trim() || undefined,
+      });
+      setSleepStartMs(null);
+      setNoteInput('');
+      flashFeedback(`✓ Siesta (${Math.round(safeSec / 60)} min) guardada`);
+    },
+    [addDailyLogEntry, flashFeedback, getEntryTimestampIso, noteInput],
+  );
+
+  const ageMonths = childProfile ? childProfile.ageMonths : 2;
+  const wakeGuidance = getWakeWindowGuidanceMx(ageMonths, summary.hoursSinceLastSleep);
+  const sleepElapsedSec =
+    sleepStartMs !== null ? Math.max(0, Math.floor((nowMs - sleepStartMs) / 1000)) : 0;
 
   return (
     <section className="space-y-5">
+      {/* Franja visual "Hace cuánto..." */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-2xl border border-border-interactive bg-bg-card p-3.5 space-y-1">
+          <p className="text-[11px] font-bold uppercase text-ink-secondary">
+            Última toma
+          </p>
+          <p className="text-base font-extrabold text-brand-text tabular-nums">
+            {summary.hoursSinceLastFeed !== null
+              ? `Hace ${summary.hoursSinceLastFeed} h`
+              : 'Sin registro'}
+          </p>
+          {suggestedNextSide ? (
+            <p className="text-[11px] text-ink-secondary">
+              Siguiente: {suggestedNextSide === 'breast_left' ? 'Pecho izq' : 'Pecho der'}
+            </p>
+          ) : null}
+        </div>
+        <div className="rounded-2xl border border-border-interactive bg-bg-card p-3.5 space-y-1">
+          <p className="text-[11px] font-bold uppercase text-ink-secondary">
+            Último pañal
+          </p>
+          <p className="text-base font-extrabold text-ink-primary tabular-nums">
+            {summary.hoursSinceLastDiaper !== null
+              ? `Hace ${summary.hoursSinceLastDiaper} h`
+              : 'Sin registro'}
+          </p>
+          <p className="text-[11px] text-ink-secondary">
+            Pipí hoy: {summary.wetDiapers} · Popó: {summary.dirtyDiapers}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-border-interactive bg-bg-card p-3.5 space-y-1">
+          <p className="text-[11px] font-bold uppercase text-ink-secondary">
+            Última siesta
+          </p>
+          <p className="text-base font-extrabold text-ink-primary tabular-nums">
+            {summary.hoursSinceLastSleep !== null
+              ? `Hace ${summary.hoursSinceLastSleep} h`
+              : 'Sin registro'}
+          </p>
+          <p className="text-[11px] text-ink-secondary">{wakeGuidance}</p>
+        </div>
+      </div>
+
       {/* 1-Tap Quick Registration */}
       <div className="rounded-3xl border border-border-interactive bg-bg-card p-5 space-y-4 shadow-sm">
         <div className="space-y-1">
@@ -418,6 +500,95 @@ export function DailyLogPanel() {
             </div>
           ) : null}
         </div>
+
+        {/* Sleep / Nap Tracker */}
+        <div className="space-y-2">
+          <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
+            Sueño y siestas
+          </p>
+          {sleepStartMs !== null ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-brand-primary bg-brand-surface p-3">
+              <div>
+                <p className="text-xs font-bold uppercase text-brand-text">
+                  Siesta en curso
+                </p>
+                <p className="text-2xl font-extrabold tabular-nums text-ink-primary">
+                  {formatTimerClock(sleepElapsedSec)}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleSaveSleep(sleepElapsedSec)}
+                  className="inline-flex min-h-12 items-center rounded-xl bg-brand-primary px-4 py-2 text-xs font-bold text-brand-on"
+                >
+                  Guardar siesta
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSleepStartMs(null)}
+                  className="inline-flex min-h-12 items-center rounded-xl border border-alert-red bg-alert-surface px-3 py-2 text-xs font-bold text-alert-text"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setSleepStartMs(Date.now())}
+                className="inline-flex min-h-12 items-center rounded-xl border-2 border-brand-primary bg-brand-surface px-4 py-2 text-xs font-bold text-brand-text"
+              >
+                Iniciar siesta (cronómetro)
+              </button>
+              {([30, 60, 90, 120] as const).map((mins) => (
+                <button
+                  key={mins}
+                  type="button"
+                  onClick={() => handleSaveSleep(mins * 60)}
+                  className="inline-flex min-h-12 items-center rounded-xl border border-border-interactive bg-bg-elevated px-3 py-2 text-xs font-bold text-ink-primary hover:bg-brand-surface"
+                >
+                  {mins < 60 ? `${mins} min` : `${mins / 60} h`}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Retroactive time + brief note */}
+        <div className="rounded-2xl border border-border-subtle bg-bg-elevated p-3 space-y-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-ink-secondary">Hora del registro:</span>
+            {([
+              { min: 0, label: 'Ahora' },
+              { min: 15, label: '−15 min' },
+              { min: 30, label: '−30 min' },
+              { min: 60, label: '−1 h' },
+            ] as const).map((opt) => (
+              <button
+                key={opt.min}
+                type="button"
+                onClick={() => setRetroOffsetMin(opt.min)}
+                aria-pressed={retroOffsetMin === opt.min}
+                className={`min-h-9 rounded-full border px-3 py-1 text-xs font-bold ${
+                  retroOffsetMin === opt.min
+                    ? 'border-brand-primary bg-brand-primary text-brand-on'
+                    : 'border-border-interactive bg-bg-card text-ink-primary'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <input
+            type="text"
+            value={noteInput}
+            onChange={(e) => setNoteInput(e.target.value)}
+            placeholder="Nota opcional (ej. regurgitó un poco, se durmió en brazos)"
+            className="min-h-10 w-full rounded-xl border border-border-interactive bg-bg-card px-3 py-2 text-xs text-ink-primary"
+          />
+        </div>
       </div>
 
       {/* Summary & Date Range Averages */}
@@ -554,6 +725,18 @@ export function DailyLogPanel() {
               Promedio: {summary.avgDirtyDiapersPerDay} / día
             </p>
           </div>
+
+          <div className="rounded-2xl border border-border-interactive bg-bg-elevated p-3.5 space-y-1">
+            <p className="text-xs font-semibold text-ink-secondary">
+              Sueño / Siestas
+            </p>
+            <p className="text-2xl font-bold text-ink-primary">
+              {summary.totalSleeps} ({summary.totalSleepMin} min)
+            </p>
+            <p className="text-xs font-semibold text-brand-text">
+              Promedio: {summary.avgSleepMinPerDay} min / día
+            </p>
+          </div>
         </div>
 
         {/* History list */}
@@ -580,15 +763,22 @@ export function DailyLogPanel() {
                           : entry.feedType === 'breast_right'
                             ? `Pecho Derecho (${Math.max(1, Math.round((entry.durationSec ?? 0) / 60))} min)`
                             : `Biberón (${entry.volumeMl ?? 0} ml)`
-                        : entry.diaperKind === 'wet'
-                          ? 'Pañal: Pipí'
-                          : entry.diaperKind === 'dirty'
-                            ? `Pañal: Popó (${entry.poopColor ?? 'normal'})`
-                            : `Pañal: Pipí + Popó (${entry.poopColor ?? 'normal'})`}
+                        : entry.kind === 'sleep'
+                          ? `Siesta (${Math.max(1, Math.round(entry.durationSec / 60))} min)`
+                          : entry.diaperKind === 'wet'
+                            ? 'Pañal: Pipí'
+                            : entry.diaperKind === 'dirty'
+                              ? `Pañal: Popó (${entry.poopColor ?? 'normal'})`
+                              : `Pañal: Pipí + Popó (${entry.poopColor ?? 'normal'})`}
                     </span>
                     <span className="ml-2 text-ink-secondary">
                       {formatEntryTime(entry.timestampIso)}
                     </span>
+                    {entry.noteMx ? (
+                      <span className="block text-[11px] text-ink-secondary">
+                        Nota: {entry.noteMx}
+                      </span>
+                    ) : null}
                   </div>
                   <button
                     type="button"

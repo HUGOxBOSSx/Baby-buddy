@@ -5,6 +5,7 @@ import {
   computeTimerElapsedSec,
   filterEntriesByDateRange,
   formatTimerClock,
+  getWakeWindowGuidanceMx,
   resolveDateRangePreset,
   summarizeDailyLog,
   toLocalDateKey,
@@ -41,6 +42,7 @@ function formatEntryTime(iso: string): string {
 export function DailyLogPanel() {
   const {
     palette,
+    childProfile,
     dailyLogs,
     activeFeedTimer,
     addDailyLogEntry,
@@ -59,6 +61,9 @@ export function DailyLogPanel() {
   );
   const [selectedPoopColor, setSelectedPoopColor] =
     useState<PoopColorTag>('mostaza');
+  const [retroOffsetMin, setRetroOffsetMin] = useState<0 | 15 | 30 | 60>(0);
+  const [noteInput, setNoteInput] = useState('');
+  const [sleepStartMs, setSleepStartMs] = useState<number | null>(null);
 
   const [rangePreset, setRangePreset] = useState<DateRangePreset>('today');
   const [customStart, setCustomStart] = useState<string>(() =>
@@ -89,14 +94,14 @@ export function DailyLogPanel() {
   }, []);
 
   useEffect(() => {
-    if (!activeFeedTimer || activeFeedTimer.paused) {
+    if ((!activeFeedTimer || activeFeedTimer.paused) && sleepStartMs === null) {
       return;
     }
     const id = setInterval(() => {
       setNowMs(Date.now());
     }, 1000);
     return () => clearInterval(id);
-  }, [activeFeedTimer]);
+  }, [activeFeedTimer, sleepStartMs]);
 
   const activeRange =
     rangePreset === 'custom'
@@ -117,17 +122,22 @@ export function DailyLogPanel() {
     ? computeTimerElapsedSec(activeFeedTimer, nowMs)
     : 0;
 
+  const getEntryTimestampIso = (now: number) =>
+    new Date(now - retroOffsetMin * 60_000).toISOString();
+
   const handleSaveBottle = (mlValue: number) => {
     const safeMl = Math.max(5, Math.min(500, Math.round(mlValue)));
     const now = Date.now();
     addDailyLogEntry({
       id: `feed-${now}`,
       kind: 'feed',
-      timestampIso: new Date(now).toISOString(),
+      timestampIso: getEntryTimestampIso(now),
       feedType: 'bottle',
       volumeMl: safeMl,
+      noteMx: noteInput.trim() || undefined,
     });
     setShowBottlePicker(false);
+    setNoteInput('');
     flashFeedback(`✓ Biberón (${safeMl} ml) guardado`);
   };
 
@@ -136,10 +146,12 @@ export function DailyLogPanel() {
     addDailyLogEntry({
       id: `diaper-${now}`,
       kind: 'diaper',
-      timestampIso: new Date(now).toISOString(),
+      timestampIso: getEntryTimestampIso(now),
       diaperKind: 'wet',
+      noteMx: noteInput.trim() || undefined,
     });
     setPendingDiaperKind(null);
+    setNoteInput('');
     flashFeedback('✓ Pipí guardado');
   };
 
@@ -149,9 +161,10 @@ export function DailyLogPanel() {
     addDailyLogEntry({
       id: `diaper-${now}`,
       kind: 'diaper',
-      timestampIso: new Date(now).toISOString(),
+      timestampIso: getEntryTimestampIso(now),
       diaperKind: pendingDiaperKind,
       poopColor: selectedPoopColor,
+      noteMx: noteInput.trim() || undefined,
     });
     flashFeedback(
       pendingDiaperKind === 'both'
@@ -159,10 +172,77 @@ export function DailyLogPanel() {
         : '✓ Popó guardada',
     );
     setPendingDiaperKind(null);
+    setNoteInput('');
   };
+
+  const handleSaveSleep = (durationSec: number) => {
+    const safeSec = Math.max(60, Math.round(durationSec));
+    const now = Date.now();
+    addDailyLogEntry({
+      id: `sleep-${now}`,
+      kind: 'sleep',
+      timestampIso: getEntryTimestampIso(now),
+      durationSec: safeSec,
+      noteMx: noteInput.trim() || undefined,
+    });
+    setSleepStartMs(null);
+    setNoteInput('');
+    flashFeedback(`✓ Siesta (${Math.round(safeSec / 60)} min) guardada`);
+  };
+
+  const ageMonths = childProfile ? childProfile.ageMonths : 2;
+  const wakeGuidance = getWakeWindowGuidanceMx(ageMonths, summary.hoursSinceLastSleep);
+  const sleepElapsedSec =
+    sleepStartMs !== null ? Math.max(0, Math.floor((nowMs - sleepStartMs) / 1000)) : 0;
 
   return (
     <View className="gap-4">
+      {/* Franja visual "Hace cuánto..." */}
+      <View className="flex-row flex-wrap gap-2">
+        <View
+          className="flex-1 min-w-[100px] rounded-2xl border p-3 gap-0.5"
+          style={{ backgroundColor: palette.bgCard, borderColor: palette.borderInteractive }}
+        >
+          <Text className="text-[10px] font-bold uppercase" style={{ color: palette.textSecondary }}>
+            Última toma
+          </Text>
+          <Text className="text-sm font-extrabold" style={{ color: palette.brandText }}>
+            {summary.hoursSinceLastFeed !== null
+              ? `Hace ${summary.hoursSinceLastFeed} h`
+              : 'Sin registro'}
+          </Text>
+        </View>
+        <View
+          className="flex-1 min-w-[100px] rounded-2xl border p-3 gap-0.5"
+          style={{ backgroundColor: palette.bgCard, borderColor: palette.borderInteractive }}
+        >
+          <Text className="text-[10px] font-bold uppercase" style={{ color: palette.textSecondary }}>
+            Último pañal
+          </Text>
+          <Text className="text-sm font-extrabold" style={{ color: palette.textPrimary }}>
+            {summary.hoursSinceLastDiaper !== null
+              ? `Hace ${summary.hoursSinceLastDiaper} h`
+              : 'Sin registro'}
+          </Text>
+        </View>
+        <View
+          className="flex-1 min-w-[100px] rounded-2xl border p-3 gap-0.5"
+          style={{ backgroundColor: palette.bgCard, borderColor: palette.borderInteractive }}
+        >
+          <Text className="text-[10px] font-bold uppercase" style={{ color: palette.textSecondary }}>
+            Última siesta
+          </Text>
+          <Text className="text-sm font-extrabold" style={{ color: palette.textPrimary }}>
+            {summary.hoursSinceLastSleep !== null
+              ? `Hace ${summary.hoursSinceLastSleep} h`
+              : 'Sin registro'}
+          </Text>
+        </View>
+      </View>
+      <Text className="text-xs px-1" style={{ color: palette.textSecondary }}>
+        {wakeGuidance}
+      </Text>
+
       {/* 1-Tap Quick Registration */}
       <View
         className="rounded-2xl border p-4 gap-3"
@@ -496,6 +576,129 @@ export function DailyLogPanel() {
             </Pressable>
           </View>
         ) : null}
+
+        <Text className="text-xs font-bold uppercase pt-1" style={{ color: palette.textSecondary }}>
+          Sueño y siestas
+        </Text>
+        {sleepStartMs !== null ? (
+          <View
+            className="rounded-2xl border-2 p-3 gap-2"
+            style={{ backgroundColor: palette.brandSurface, borderColor: palette.brandPrimary }}
+          >
+            <Text className="text-xs font-bold uppercase" style={{ color: palette.brandText }}>
+              Siesta en curso
+            </Text>
+            <Text className="text-2xl font-extrabold" style={{ color: palette.textPrimary }}>
+              {formatTimerClock(sleepElapsedSec)}
+            </Text>
+            <View className="flex-row gap-2">
+              <Pressable
+                onPress={() => handleSaveSleep(sleepElapsedSec)}
+                className="rounded-xl px-4 py-2 justify-center"
+                style={{ minHeight: MIN_TOUCH_TARGET_PX, backgroundColor: palette.brandPrimary }}
+              >
+                <Text className="text-xs font-bold" style={{ color: palette.onBrandPrimary }}>
+                  Guardar siesta
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setSleepStartMs(null)}
+                className="rounded-xl border px-3 py-2 justify-center"
+                style={{
+                  minHeight: MIN_TOUCH_TARGET_PX,
+                  backgroundColor: palette.alertRedSurface,
+                  borderColor: palette.alertRed,
+                }}
+              >
+                <Text className="text-xs font-bold" style={{ color: palette.alertRedText }}>
+                  Cancelar
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : (
+          <View className="flex-row flex-wrap gap-2">
+            <Pressable
+              onPress={() => setSleepStartMs(Date.now())}
+              className="rounded-xl border-2 px-3 py-2 justify-center"
+              style={{
+                minHeight: MIN_TOUCH_TARGET_PX,
+                backgroundColor: palette.brandSurface,
+                borderColor: palette.brandPrimary,
+              }}
+            >
+              <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
+                Iniciar siesta
+              </Text>
+            </Pressable>
+            {([30, 60, 90, 120] as const).map((mins) => (
+              <Pressable
+                key={mins}
+                onPress={() => handleSaveSleep(mins * 60)}
+                className="rounded-xl border px-3 py-2 justify-center"
+                style={{
+                  minHeight: MIN_TOUCH_TARGET_PX,
+                  backgroundColor: palette.bgElevated,
+                  borderColor: palette.borderInteractive,
+                }}
+              >
+                <Text className="text-xs font-bold" style={{ color: palette.textPrimary }}>
+                  {mins < 60 ? `${mins} min` : `${mins / 60} h`}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
+
+        <View
+          className="rounded-xl border p-3 gap-2"
+          style={{ backgroundColor: palette.bgElevated, borderColor: palette.borderInteractive }}
+        >
+          <View className="flex-row flex-wrap items-center gap-1.5">
+            <Text className="text-xs font-bold" style={{ color: palette.textSecondary }}>
+              Hora:
+            </Text>
+            {([
+              { min: 0, label: 'Ahora' },
+              { min: 15, label: '−15m' },
+              { min: 30, label: '−30m' },
+              { min: 60, label: '−1h' },
+            ] as const).map((opt) => {
+              const active = retroOffsetMin === opt.min;
+              return (
+                <Pressable
+                  key={opt.min}
+                  onPress={() => setRetroOffsetMin(opt.min)}
+                  className="rounded-full border px-2.5 py-1"
+                  style={{
+                    backgroundColor: active ? palette.brandPrimary : palette.bgCard,
+                    borderColor: active ? palette.brandPrimary : palette.borderInteractive,
+                  }}
+                >
+                  <Text
+                    className="text-xs font-bold"
+                    style={{ color: active ? palette.onBrandPrimary : palette.textPrimary }}
+                  >
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <TextInput
+            value={noteInput}
+            onChangeText={setNoteInput}
+            placeholder="Nota opcional (ej. regurgitó, se durmió)"
+            placeholderTextColor={palette.textMuted}
+            className="rounded-xl border px-3 py-2 text-xs"
+            style={{
+              minHeight: 40,
+              backgroundColor: palette.bgCard,
+              borderColor: palette.borderInteractive,
+              color: palette.textPrimary,
+            }}
+          />
+        </View>
       </View>
 
       {/* Summary & Date Range Averages */}
@@ -658,6 +861,24 @@ export function DailyLogPanel() {
               Prom: {summary.avgWetDiapersPerDay} / {summary.avgDirtyDiapersPerDay} d
             </Text>
           </View>
+
+          <View
+            className="flex-1 min-w-[140px] rounded-xl border p-3 gap-0.5"
+            style={{
+              backgroundColor: palette.bgElevated,
+              borderColor: palette.borderInteractive,
+            }}
+          >
+            <Text className="text-xs" style={{ color: palette.textSecondary }}>
+              Sueño / Siestas
+            </Text>
+            <Text className="text-xl font-bold" style={{ color: palette.textPrimary }}>
+              {summary.totalSleeps} ({summary.totalSleepMin} min)
+            </Text>
+            <Text className="text-xs font-semibold" style={{ color: palette.brandText }}>
+              Prom: {summary.avgSleepMinPerDay} min / día
+            </Text>
+          </View>
         </View>
 
         <Text className="text-xs font-bold uppercase pt-1" style={{ color: palette.textSecondary }}>
@@ -680,14 +901,17 @@ export function DailyLogPanel() {
                     : entry.feedType === 'breast_right'
                       ? `Pecho Derecho (${Math.max(1, Math.round((entry.durationSec ?? 0) / 60))} min)`
                       : `Biberón (${entry.volumeMl ?? 0} ml)`
-                  : entry.diaperKind === 'wet'
-                    ? 'Pañal: Pipí'
-                    : entry.diaperKind === 'dirty'
-                      ? `Pañal: Popó (${entry.poopColor ?? 'normal'})`
-                      : `Pañal: Pipí + Popó (${entry.poopColor ?? 'normal'})`}
+                  : entry.kind === 'sleep'
+                    ? `Siesta (${Math.max(1, Math.round(entry.durationSec / 60))} min)`
+                    : entry.diaperKind === 'wet'
+                      ? 'Pañal: Pipí'
+                      : entry.diaperKind === 'dirty'
+                        ? `Pañal: Popó (${entry.poopColor ?? 'normal'})`
+                        : `Pañal: Pipí + Popó (${entry.poopColor ?? 'normal'})`}
               </Text>
               <Text className="text-[11px]" style={{ color: palette.textSecondary }}>
                 {formatEntryTime(entry.timestampIso)}
+                {entry.noteMx ? ` · ${entry.noteMx}` : ''}
               </Text>
             </View>
             <Pressable

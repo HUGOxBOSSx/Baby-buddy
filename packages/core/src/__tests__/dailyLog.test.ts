@@ -3,6 +3,7 @@ import {
   computeTimerElapsedSec,
   countInclusiveDays,
   formatTimerClock,
+  getWakeWindowGuidanceMx,
   resolveDateRangePreset,
   summarizeDailyLog,
   type ActiveFeedTimer,
@@ -94,5 +95,28 @@ describe('dailyLog domain', () => {
     };
     expect(computeTimerElapsedSec(paused, 999_999)).toBe(125);
     expect(formatTimerClock(125)).toBe('02:05');
+  });
+
+  it('summarizes sleep entries and computes wake window guidance', () => {
+    const now = new Date('2026-11-25T12:00:00.000Z');
+    const summary = summarizeDailyLog(
+      [
+        {
+          id: 's1',
+          kind: 'sleep',
+          timestampIso: '2026-11-25T10:30:00.000Z',
+          durationSec: 3600,
+          noteMx: 'Siesta tranquila',
+        },
+      ],
+      { startDateKey: '2026-11-25', endDateKey: '2026-11-25' },
+      now,
+    );
+    expect(summary.totalSleeps).toBe(1);
+    expect(summary.totalSleepMin).toBe(60);
+    expect(summary.hoursSinceLastSleep).toBe(1.5);
+    expect(getWakeWindowGuidanceMx(2, summary.hoursSinceLastSleep)).toContain(
+      '45–90 min',
+    );
   });
 });

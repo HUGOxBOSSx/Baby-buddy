@@ -8,6 +8,7 @@ import {
 } from '@baby-buddy/core';
 import { useState } from 'react';
 import { Pressable, Share, Text, TextInput, View } from 'react-native';
+import { GrowthChartCard } from './GrowthChartCard';
 import { useThemeContext } from './ThemeProvider';
 
 type HealthSubTab = 'fiebre' | 'vacunas' | 'crecimiento' | 'reporte';
@@ -275,6 +276,18 @@ export function HealthJournalPanel() {
           <Text className="text-xs font-semibold" style={{ color: palette.brandText }}>
             {healthState.completedVaccineIds.length} de {MX_VACCINE_CHECKLIST.length} aplicadas
           </Text>
+          <View
+            className="h-2.5 w-full overflow-hidden rounded-full"
+            style={{ backgroundColor: palette.bgElevated }}
+          >
+            <View
+              className="h-full rounded-full"
+              style={{
+                width: `${Math.round((healthState.completedVaccineIds.length / MX_VACCINE_CHECKLIST.length) * 100)}%`,
+                backgroundColor: palette.brandPrimary,
+              }}
+            />
+          </View>
           {MX_VACCINE_CHECKLIST.map((vac) => {
             const done = healthState.completedVaccineIds.includes(vac.id);
             return (
@@ -307,6 +320,12 @@ export function HealthJournalPanel() {
 
       {subTab === 'crecimiento' ? (
         <View className="gap-2">
+          <GrowthChartCard
+            entries={healthState.growth}
+            birthDateIso={childProfile?.birthDateIso}
+            fallbackAgeMonths={ageMonths}
+            sex={childProfile?.sex}
+          />
           <View className="flex-row flex-wrap gap-2">
             <TextInput
               value={weightInput}

@@ -8,6 +8,7 @@ import {
   resolveDateRangePreset,
   summarizeDailyLog,
 } from '@baby-buddy/core';
+import { GrowthChartCard } from '@/components/GrowthChartCard';
 import { useAppState } from '@/components/ThemeProvider';
 
 type HealthSubTab = 'fiebre' | 'vacunas' | 'crecimiento' | 'reporte';
@@ -268,9 +269,19 @@ export function HealthJournalPanel() {
 
       {subTab === 'vacunas' ? (
         <div className="space-y-3">
-          <p className="text-xs font-semibold text-brand-text">
-            {healthState.completedVaccineIds.length} de {MX_VACCINE_CHECKLIST.length} aplicadas (referencia Cartilla Nacional de Vacunación MX)
-          </p>
+          <div className="space-y-1.5">
+            <p className="text-xs font-semibold text-brand-text">
+              {healthState.completedVaccineIds.length} de {MX_VACCINE_CHECKLIST.length} aplicadas (referencia Cartilla Nacional de Vacunación MX)
+            </p>
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-bg-elevated">
+              <div
+                className="h-full rounded-full bg-brand-primary transition-all"
+                style={{
+                  width: `${Math.round((healthState.completedVaccineIds.length / MX_VACCINE_CHECKLIST.length) * 100)}%`,
+                }}
+              />
+            </div>
+          </div>
           <div className="grid gap-2 sm:grid-cols-2">
             {MX_VACCINE_CHECKLIST.map((vac) => {
               const done = healthState.completedVaccineIds.includes(vac.id);
@@ -302,6 +313,12 @@ export function HealthJournalPanel() {
 
       {subTab === 'crecimiento' ? (
         <div className="space-y-3 rounded-2xl border border-border-subtle bg-bg-elevated p-4">
+          <GrowthChartCard
+            entries={healthState.growth}
+            birthDateIso={childProfile?.birthDateIso}
+            fallbackAgeMonths={ageMonths}
+            sex={childProfile?.sex}
+          />
           <h3 className="text-sm font-bold text-ink-primary">
             Peso (kg) y Talla (cm)
           </h3>
