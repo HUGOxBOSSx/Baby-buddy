@@ -80,6 +80,7 @@ const WEATHER_CONDITIONS: readonly {
   readonly label: string;
 }[] = [
   { id: 'soleado', label: 'Soleado' },
+  { id: 'despejado_noche', label: 'Despejado (noche)' },
   { id: 'nublado', label: 'Nublado' },
   { id: 'lluvia', label: 'Lluvia' },
 ] as const;
@@ -253,9 +254,10 @@ export function RopaClimaView() {
           wind_speed_10m?: number;
           rain?: number;
           weather_code?: number;
+          is_day?: number;
         };
       }>(
-        `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,wind_speed_10m,rain,weather_code`,
+        `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,wind_speed_10m,rain,weather_code,is_day`,
         6000,
       );
 
@@ -268,8 +270,21 @@ export function RopaClimaView() {
         const wind = (data.current?.wind_speed_10m ?? 0) >= 18;
         const rain = (data.current?.rain ?? 0) > 0;
         const code = data.current?.weather_code ?? 0;
+        const isDay =
+          typeof data.current?.is_day === 'number'
+            ? data.current.is_day === 1
+            : (() => {
+                const h = new Date().getHours();
+                return h >= 7 && h < 19;
+              })();
         const cond: OutdoorWeatherCondition =
-          rain || code >= 51 ? 'lluvia' : code >= 2 ? 'nublado' : 'soleado';
+          rain || code >= 51
+            ? 'lluvia'
+            : code >= 2
+              ? 'nublado'
+              : isDay
+                ? 'soleado'
+                : 'despejado_noche';
         setOutdoorTempC(clamped);
         setContext((prev) => ({
           ...prev,

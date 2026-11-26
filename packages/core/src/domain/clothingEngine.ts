@@ -17,7 +17,7 @@ export type ThermalBand =
 export type ComfortZone = 'cold' | 'optimal' | 'overheat' | 'unsafe_sleep';
 export type BabyHealthStatus = 'termino_sano' | 'prematuro' | 'fiebre';
 export type WallEffectMode = 'auto' | 'frio' | 'caliente';
-export type OutdoorWeatherCondition = 'soleado' | 'nublado' | 'lluvia';
+export type OutdoorWeatherCondition = 'soleado' | 'despejado_noche' | 'nublado' | 'lluvia';
 export type IndoorLocation = 'cuna' | 'cama_colecho' | 'despierto_casa' | 'ninguno';
 export type OutdoorTransport = 'ninguno' | 'portabebe' | 'carriola' | 'silla_auto';
 
