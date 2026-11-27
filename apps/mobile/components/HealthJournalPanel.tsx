@@ -113,15 +113,15 @@ export function HealthJournalPanel() {
         borderColor: palette.borderInteractive,
       }}
     >
-      <Text className="text-lg font-bold" style={{ color: palette.textPrimary }}>
-        Bitácora de salud y Cartilla MX
+      <Text className="text-base font-bold" style={{ color: palette.textPrimary }}>
+        Bitácora de salud
       </Text>
 
       <View className="flex-row flex-wrap gap-1.5">
         {(
           [
-            { id: 'fiebre', label: 'Fiebre y Meds' },
-            { id: 'vacunas', label: 'Vacunas MX' },
+            { id: 'fiebre', label: 'Fiebre y meds' },
+            { id: 'vacunas', label: 'Vacunas' },
             { id: 'crecimiento', label: 'Crecimiento' },
             { id: 'reporte', label: 'Reporte' },
           ] as const

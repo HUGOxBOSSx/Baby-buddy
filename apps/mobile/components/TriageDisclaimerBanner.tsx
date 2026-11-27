@@ -21,7 +21,7 @@ export function TriageDisclaimerBanner() {
 
   return (
     <View
-      className="rounded-2xl border-2 p-4 gap-3"
+      className="rounded-2xl border-2 p-4 gap-2.5"
       style={{
         backgroundColor: palette.alertRedSurface,
         borderColor: palette.alertRed,
@@ -33,44 +33,22 @@ export function TriageDisclaimerBanner() {
       <View className="flex-row items-center justify-between flex-wrap gap-2">
         <StatusBadge severity="urgent_red" />
         {noPaywallConfirmed ? (
-          <View
-            className="rounded-lg border px-2.5 py-1"
-            style={{
-              backgroundColor: palette.bgCard,
-              borderColor: palette.borderInteractive,
-            }}
+          <Text
+            className="text-xs font-bold"
+            style={{ color: palette.alertRedText }}
           >
-            <Text
-              className="text-xs font-bold"
-              style={{ color: palette.textPrimary }}
-            >
-              Sin costo ni suscripción
-            </Text>
-          </View>
+            Gratis siempre
+          </Text>
         ) : null}
       </View>
 
-      <View className="gap-1">
-        <Text
-          className="text-base font-bold"
-          style={{ color: palette.textPrimary }}
-        >
-          {disclaimer.titleMx}
-        </Text>
-        <Text className="text-sm" style={{ color: palette.textPrimary }}>
-          {disclaimer.bodyMx}
-        </Text>
-        <Text
-          className="text-sm font-semibold"
-          style={{ color: palette.alertRedText }}
-        >
-          {disclaimer.emergencyActionLabelMx}
-        </Text>
-      </View>
+      <Text className="text-xs" style={{ color: palette.textPrimary }}>
+        {disclaimer.bodyMx}
+      </Text>
 
       <Pressable
         onPress={handleEmergencyCall}
-        className="min-h-[48px] min-w-[48px] flex-row items-center justify-center rounded-xl px-4 py-3 gap-2"
+        className="min-h-[48px] min-w-[48px] flex-row items-center justify-center rounded-xl px-4 py-2.5 gap-2"
         style={{
           minHeight: MIN_TOUCH_TARGET_PX,
           minWidth: MIN_TOUCH_TARGET_PX,
@@ -83,10 +61,10 @@ export function TriageDisclaimerBanner() {
           <Feather name="phone" size={18} color={palette.onAlertRedButton} />
         ) : null}
         <Text
-          className="text-base font-bold"
+          className="text-sm font-bold"
           style={{ color: palette.onAlertRedButton }}
         >
-          Llamar al 911 — Emergencias (Gratis)
+          Llamar al 911 (Gratis)
         </Text>
       </Pressable>
     </View>

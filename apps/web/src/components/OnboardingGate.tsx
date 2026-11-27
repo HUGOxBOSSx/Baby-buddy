@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import {
   DISCLAIMERS_MX,
-  ETHICAL_GUARDRAILS,
   calculateAgeMonthsFromBirthDate,
   decodeFamilyBabyCode,
   formatChildAgeMx,
@@ -123,10 +122,10 @@ export function OnboardingGate() {
         {disclaimer.bodyMx}
       </p>
 
-      <div className="rounded-2xl border border-border-interactive bg-bg-elevated p-4 space-y-3">
+      <div className="rounded-2xl border border-border-subtle bg-bg-elevated p-4 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm font-bold text-ink-primary">
-            Tu bebé (opcional en este paso)
+            Tu bebé (opcional)
           </p>
           <div className="flex flex-wrap gap-1.5">
             <button
@@ -139,7 +138,7 @@ export function OnboardingGate() {
                   : 'border-border-interactive bg-bg-card text-ink-primary'
               }`}
             >
-              Registrar a mi bebé
+              Nuevo bebé
             </button>
             <button
               type="button"
@@ -151,7 +150,7 @@ export function OnboardingGate() {
                   : 'border-border-interactive bg-bg-card text-ink-primary'
               }`}
             >
-              Ya lo registró un familiar
+              Tengo código
             </button>
           </div>
         </div>
@@ -231,31 +230,28 @@ export function OnboardingGate() {
       </div>
 
       <p className="text-xs text-ink-muted">
-        Modo offline local · Sin anuncios (
-        {String(ETHICAL_GUARDRAILS.adsOnChildScreens)}) · Sin paywall en 911 (
-        {String(ETHICAL_GUARDRAILS.paywallOnEmergencyTriage)}) · Sin venta de datos (
-        {String(ETHICAL_GUARDRAILS.dataSellingEnabled)})
+        100% local · Unidades métricas (°C, kg, cm, ml) · Sin venta de datos · 911 siempre gratis
       </p>
 
       <div
         role="alert"
-        className="rounded-xl border-2 border-alert-red bg-alert-surface p-4 space-y-3"
+        className="rounded-xl border-2 border-alert-red bg-alert-surface p-3.5 space-y-2"
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <StatusBadge severity="urgent_red" />
           <span className="text-xs font-semibold text-alert-text">
-            Disponible siempre sin costo ni registro
+            Gratis siempre
           </span>
         </div>
-        <p className="text-sm font-semibold text-ink-primary">
+        <p className="text-xs font-semibold text-ink-primary">
           {disclaimer.emergencyActionLabelMx}
         </p>
         <a
           href={`tel:${disclaimer.emergencyNumber}`}
-          className="inline-flex min-h-12 min-w-12 items-center justify-center gap-2 rounded-xl bg-alert-text px-5 py-3 text-sm font-bold text-alert-on hover:opacity-95"
+          className="inline-flex min-h-12 w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-alert-text px-5 py-2.5 text-sm font-bold text-alert-on hover:opacity-95"
         >
           <PhoneCallIcon className="h-5 w-5 shrink-0" />
-          <span>Emergencias {disclaimer.emergencyNumber}</span>
+          <span>Llamar al {disclaimer.emergencyNumber}</span>
         </a>
       </div>
     </section>

@@ -65,6 +65,7 @@ export function DailyLogPanel() {
     useState<PoopColorTag>('mostaza');
   const [retroOffsetMin, setRetroOffsetMin] = useState<0 | 15 | 30 | 60>(0);
   const [noteInput, setNoteInput] = useState('');
+  const [showNoteInput, setShowNoteInput] = useState(false);
   const [sleepStartMs, setSleepStartMs] = useState<number | null>(null);
 
   const [rangePreset, setRangePreset] = useState<DateRangePreset>('today');
@@ -251,16 +252,10 @@ export function DailyLogPanel() {
       </div>
 
       {/* 1-Tap Quick Registration */}
-      <div className="rounded-3xl border border-border-interactive bg-bg-card p-5 space-y-4 shadow-sm">
-        <div className="space-y-1">
-          <h2 className="text-lg font-bold text-ink-primary">
-            Registro rápido (1 toque)
-          </h2>
-          <p className="text-xs text-ink-secondary">
-            Toca pecho izquierdo o derecho para iniciar el cronómetro, o registra
-            biberón y pañales al instante.
-          </p>
-        </div>
+      <div className="rounded-2xl border border-border-subtle bg-bg-card p-4 sm:p-5 space-y-4 shadow-sm">
+        <h2 className="text-base font-bold text-ink-primary">
+          Registro rápido
+        </h2>
 
         {saveFeedback ? (
           <div
@@ -318,48 +313,45 @@ export function DailyLogPanel() {
           <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
             Tomas
           </p>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-3 gap-2">
             <button
               type="button"
               onClick={() => startFeedTimer('breast_left')}
-              className="flex min-h-14 flex-col items-center justify-center rounded-2xl border-2 border-brand-primary bg-brand-surface px-4 py-3 text-center hover:opacity-90"
+              className="flex min-h-12 flex-col items-center justify-center rounded-xl border border-brand-primary bg-brand-surface px-2 py-2.5 text-center hover:opacity-90"
             >
-              <span className="text-sm font-bold text-brand-text">
-                Pecho Izquierdo
+              <span className="text-xs sm:text-sm font-bold text-brand-text">
+                Pecho Izq.
               </span>
-              <span className="text-[11px] font-semibold text-ink-secondary">
-                {suggestedNextSide === 'breast_left'
-                  ? 'Siguiente sugerido · Iniciar timer'
-                  : 'Iniciar cronómetro'}
-              </span>
+              {suggestedNextSide === 'breast_left' ? (
+                <span className="mt-0.5 rounded-full bg-brand-primary px-2 py-0.5 text-[10px] font-bold text-brand-on">
+                  Sugerido
+                </span>
+              ) : null}
             </button>
 
             <button
               type="button"
               onClick={() => startFeedTimer('breast_right')}
-              className="flex min-h-14 flex-col items-center justify-center rounded-2xl border-2 border-brand-primary bg-brand-surface px-4 py-3 text-center hover:opacity-90"
+              className="flex min-h-12 flex-col items-center justify-center rounded-xl border border-brand-primary bg-brand-surface px-2 py-2.5 text-center hover:opacity-90"
             >
-              <span className="text-sm font-bold text-brand-text">
-                Pecho Derecho
+              <span className="text-xs sm:text-sm font-bold text-brand-text">
+                Pecho Der.
               </span>
-              <span className="text-[11px] font-semibold text-ink-secondary">
-                {suggestedNextSide === 'breast_right'
-                  ? 'Siguiente sugerido · Iniciar timer'
-                  : 'Iniciar cronómetro'}
-              </span>
+              {suggestedNextSide === 'breast_right' ? (
+                <span className="mt-0.5 rounded-full bg-brand-primary px-2 py-0.5 text-[10px] font-bold text-brand-on">
+                  Sugerido
+                </span>
+              ) : null}
             </button>
 
             <button
               type="button"
               onClick={() => setShowBottlePicker((v) => !v)}
               aria-expanded={showBottlePicker}
-              className="flex min-h-14 flex-col items-center justify-center rounded-2xl border-2 border-border-interactive bg-bg-elevated px-4 py-3 text-center hover:bg-brand-surface"
+              className="flex min-h-12 flex-col items-center justify-center rounded-xl border border-border-interactive bg-bg-elevated px-2 py-2.5 text-center hover:bg-brand-surface"
             >
-              <span className="text-sm font-bold text-ink-primary">
-                Biberón (ml)
-              </span>
-              <span className="text-[11px] font-semibold text-ink-secondary">
-                Elegir cantidad
+              <span className="text-xs sm:text-sm font-bold text-ink-primary">
+                Biberón
               </span>
             </button>
           </div>
@@ -410,17 +402,14 @@ export function DailyLogPanel() {
           <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
             Pañales y evacuaciones
           </p>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-3 gap-2">
             <button
               type="button"
               onClick={handleQuickWetDiaper}
-              className="flex min-h-14 flex-col items-center justify-center rounded-2xl border-2 border-border-interactive bg-bg-elevated px-4 py-3 text-center hover:bg-brand-surface"
+              className="flex min-h-12 items-center justify-center rounded-xl border border-border-interactive bg-bg-elevated px-2 py-2.5 text-center hover:bg-brand-surface"
             >
-              <span className="text-sm font-bold text-ink-primary">
-                Solo Pipí
-              </span>
-              <span className="text-[11px] font-semibold text-ink-secondary">
-                Guardar en 1 toque
+              <span className="text-xs sm:text-sm font-bold text-ink-primary">
+                Pipí
               </span>
             </button>
 
@@ -430,17 +419,14 @@ export function DailyLogPanel() {
                 setPendingDiaperKind((k) => (k === 'dirty' ? null : 'dirty'))
               }
               aria-pressed={pendingDiaperKind === 'dirty'}
-              className={`flex min-h-14 flex-col items-center justify-center rounded-2xl border-2 px-4 py-3 text-center ${
+              className={`flex min-h-12 items-center justify-center rounded-xl border px-2 py-2.5 text-center ${
                 pendingDiaperKind === 'dirty'
                   ? 'border-brand-primary bg-brand-surface'
                   : 'border-border-interactive bg-bg-elevated'
               }`}
             >
-              <span className="text-sm font-bold text-ink-primary">
-                Solo Popó
-              </span>
-              <span className="text-[11px] font-semibold text-ink-secondary">
-                Elegir color
+              <span className="text-xs sm:text-sm font-bold text-ink-primary">
+                Popó
               </span>
             </button>
 
@@ -450,17 +436,14 @@ export function DailyLogPanel() {
                 setPendingDiaperKind((k) => (k === 'both' ? null : 'both'))
               }
               aria-pressed={pendingDiaperKind === 'both'}
-              className={`flex min-h-14 flex-col items-center justify-center rounded-2xl border-2 px-4 py-3 text-center ${
+              className={`flex min-h-12 items-center justify-center rounded-xl border px-2 py-2.5 text-center ${
                 pendingDiaperKind === 'both'
                   ? 'border-brand-primary bg-brand-surface'
                   : 'border-border-interactive bg-bg-elevated'
               }`}
             >
-              <span className="text-sm font-bold text-ink-primary">
-                Pipí + Popó
-              </span>
-              <span className="text-[11px] font-semibold text-ink-secondary">
-                Elegir color
+              <span className="text-xs sm:text-sm font-bold text-ink-primary">
+                Ambos
               </span>
             </button>
           </div>
@@ -558,57 +541,68 @@ export function DailyLogPanel() {
           )}
         </div>
 
-        {/* Retroactive time + brief note */}
-        <div className="rounded-2xl border border-border-subtle bg-bg-elevated p-3 space-y-2.5">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold text-ink-secondary">Hora del registro:</span>
-            {([
-              { min: 0, label: 'Ahora' },
-              { min: 15, label: '−15 min' },
-              { min: 30, label: '−30 min' },
-              { min: 60, label: '−1 h' },
-            ] as const).map((opt) => (
-              <button
-                key={opt.min}
-                type="button"
-                onClick={() => setRetroOffsetMin(opt.min)}
-                aria-pressed={retroOffsetMin === opt.min}
-                className={`min-h-9 rounded-full border px-3 py-1 text-xs font-bold ${
-                  retroOffsetMin === opt.min
-                    ? 'border-brand-primary bg-brand-primary text-brand-on'
-                    : 'border-border-interactive bg-bg-card text-ink-primary'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
+        {/* Retroactive time + collapsible note */}
+        <div className="space-y-2 border-t border-border-subtle pt-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-bold text-ink-secondary">Hora:</span>
+              {([
+                { min: 0, label: 'Ahora' },
+                { min: 15, label: '−15m' },
+                { min: 30, label: '−30m' },
+                { min: 60, label: '−1h' },
+              ] as const).map((opt) => (
+                <button
+                  key={opt.min}
+                  type="button"
+                  onClick={() => setRetroOffsetMin(opt.min)}
+                  aria-pressed={retroOffsetMin === opt.min}
+                  className={`min-h-9 rounded-full border px-2.5 py-1 text-xs font-bold ${
+                    retroOffsetMin === opt.min
+                      ? 'border-brand-primary bg-brand-primary text-brand-on'
+                      : 'border-border-interactive bg-bg-elevated text-ink-primary'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowNoteInput((v) => !v)}
+              className="text-xs font-semibold text-brand-text hover:underline"
+            >
+              {showNoteInput || noteInput ? 'Ocultar nota' : '+ Nota opcional'}
+            </button>
           </div>
-          <input
-            type="text"
-            value={noteInput}
-            onChange={(e) => setNoteInput(e.target.value)}
-            placeholder="Nota opcional (ej. regurgitó un poco, se durmió en brazos)"
-            className="min-h-10 w-full rounded-xl border border-border-interactive bg-bg-card px-3 py-2 text-xs text-ink-primary"
-          />
+          {showNoteInput || noteInput ? (
+            <input
+              type="text"
+              value={noteInput}
+              onChange={(e) => setNoteInput(e.target.value)}
+              placeholder="Nota breve (ej. regurgitó un poco, se durmió en brazos)"
+              className="min-h-10 w-full rounded-xl border border-border-interactive bg-bg-elevated px-3 py-2 text-xs text-ink-primary"
+            />
+          ) : null}
         </div>
       </div>
 
       {/* Summary & Date Range Averages */}
-      <div className="rounded-3xl border border-border-interactive bg-bg-card p-5 space-y-4 shadow-sm">
+      <div className="rounded-2xl border border-border-subtle bg-bg-card p-4 sm:p-5 space-y-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="text-lg font-bold text-ink-primary">
+            <h2 className="text-base font-bold text-ink-primary">
               Resumen y promedios
             </h2>
             <p className="text-xs text-ink-secondary">
-              Periodo: {activeRange.startDateKey} a {activeRange.endDateKey} (
+              {activeRange.startDateKey} a {activeRange.endDateKey} (
               {summary.daysInRange}{' '}
               {summary.daysInRange === 1 ? 'día' : 'días'})
             </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-2 overflow-x-auto pb-1">
           {RANGE_PRESETS.map((preset) => {
             const active = rangePreset === preset.id;
             return (
@@ -617,7 +611,7 @@ export function DailyLogPanel() {
                 type="button"
                 onClick={() => setRangePreset(preset.id)}
                 aria-pressed={active}
-                className={`inline-flex min-h-10 items-center rounded-full border px-3.5 py-1.5 text-xs font-bold ${
+                className={`inline-flex min-h-10 shrink-0 items-center rounded-full border px-3.5 py-1.5 text-xs font-bold whitespace-nowrap ${
                   active
                     ? 'border-brand-primary bg-brand-primary text-brand-on'
                     : 'border-border-interactive bg-bg-elevated text-ink-primary'

@@ -122,6 +122,7 @@ export default function RopaYClimaScreen() {
     DEFAULT_CLOTHING_CONTEXT,
   );
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [showTogInfo, setShowTogInfo] = useState(false);
   const [activeGuide, setActiveGuide] = useState<GarmentTogGuide | null>(null);
   const [customLayers, setCustomLayers] = useState<SelectedLayersInput | null>(
     null,
@@ -280,62 +281,70 @@ export default function RopaYClimaScreen() {
       style={{ backgroundColor: palette.bgPrimary }}
       contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 32 }}
     >
-      <View className="gap-1">
+      <View className="gap-0.5">
         <Text
-          className="text-2xl font-bold"
+          className="text-xl font-bold"
           style={{ color: palette.textPrimary }}
         >
-          ¿Cuánta ropa le pongo?
+          Ropa y Clima
         </Text>
-        <Text className="text-sm" style={{ color: palette.textSecondary }}>
-          Etapa: {STAGE_SPECS[effectiveStage].label} · −5 °C a 50 °C
+        <Text className="text-xs" style={{ color: palette.textSecondary }}>
+          Etapa: {STAGE_SPECS[effectiveStage].label}
         </Text>
       </View>
 
       {childProfile ? null : <StageSelector />}
 
-      {/* Franja compacta de clima exterior siempre visible arriba */}
+      {/* Franja compacta de clima exterior en 1 línea */}
       <View
-        className="rounded-2xl border px-3 py-2 gap-1"
+        className="rounded-2xl border px-3 py-2 flex-row items-center justify-between gap-2"
         style={{
           backgroundColor: palette.bgElevated,
           borderColor: palette.borderInteractive,
         }}
       >
-        <View className="flex-row items-center justify-between flex-wrap gap-2">
-          <Text className="text-xs font-semibold flex-1" style={{ color: palette.textSecondary }}>
+        <View className="flex-1 min-w-0">
+          <Text
+            numberOfLines={1}
+            className="text-xs font-semibold"
+            style={{ color: palette.textSecondary }}
+          >
             Exterior:{' '}
             {outdoorTempC !== undefined
               ? `${outdoorTempC} °C · ${
                   WEATHER_CONDITIONS.find((w) => w.id === context.weatherCondition)?.label
-                } · ${context.isWindy ? 'Viento' : 'Sin viento'}`
-              : 'Sin detectar (manual)'}
+                }${context.isWindy ? ' · Viento' : ''}`
+              : 'Manual'}
           </Text>
-          <Pressable
-            onPress={() => void handleDetectWeather()}
-            disabled={detectingWeather}
-            className="rounded-xl border px-3 py-1.5 justify-center"
-            style={{
-              minHeight: MIN_TOUCH_TARGET_PX,
-              backgroundColor: palette.brandSurface,
-              borderColor: palette.brandPrimary,
-            }}
-          >
-            <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
-              {detectingWeather ? 'Detectando...' : 'Detectar clima'}
+          {weatherNote ? (
+            <Text
+              numberOfLines={1}
+              className="text-[11px]"
+              style={{ color: palette.textSecondary }}
+            >
+              {weatherNote}
             </Text>
-          </Pressable>
+          ) : null}
         </View>
-        {weatherNote ? (
-          <Text className="text-[11px]" style={{ color: palette.textSecondary }}>
-            {weatherNote}
+        <Pressable
+          onPress={() => void handleDetectWeather()}
+          disabled={detectingWeather}
+          className="rounded-xl border px-3 py-1.5 justify-center"
+          style={{
+            minHeight: MIN_TOUCH_TARGET_PX,
+            backgroundColor: palette.brandSurface,
+            borderColor: palette.brandPrimary,
+          }}
+        >
+          <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
+            {detectingWeather ? 'Buscando...' : 'Actualizar'}
           </Text>
-        ) : null}
+        </Pressable>
       </View>
 
-      {/* 1. Hasta arriba fuera del desplegable: Temperatura y Entorno */}
+      {/* 1. Temperatura y Entorno */}
       <View
-        className="rounded-3xl border p-4 gap-4"
+        className="rounded-2xl border p-4 gap-3.5"
         style={{
           backgroundColor: palette.bgCard,
           borderColor: palette.borderInteractive,
@@ -505,28 +514,38 @@ export default function RopaYClimaScreen() {
         ) : null}
       </View>
 
-      {/* Banner explicativo de TOG */}
+      {/* Banner explicativo colapsable de TOG */}
       <View
-        className="rounded-2xl border px-3.5 py-2.5 gap-1"
+        className="rounded-2xl border px-3.5 py-2.5 gap-1.5"
         style={{
           backgroundColor: palette.brandSurface,
           borderColor: palette.brandPrimary,
         }}
       >
-        <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
-          ¿Qué significa TOG?
-        </Text>
-        <Text className="text-xs leading-4" style={{ color: palette.textSecondary }}>
-          TOG mide qué tanto calor retiene una prenda (a mayor número, más
-          abriga). El número a la derecha de cada prenda (+0.5, +1.0, +2.5…) es
-          su valor TOG y se suma automáticamente. Toca el botón ? en prendas de
-          frío, sacos o cobijas para identificar cuál tienes.
-        </Text>
+        <Pressable
+          onPress={() => setShowTogInfo((v) => !v)}
+          className="flex-row items-center justify-between"
+          style={{ minHeight: 36 }}
+        >
+          <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
+            ¿Qué significa TOG?
+          </Text>
+          <Text className="text-xs font-semibold" style={{ color: palette.brandText }}>
+            {showTogInfo ? 'Ocultar' : 'Ver'}
+          </Text>
+        </Pressable>
+        {showTogInfo ? (
+          <Text className="text-xs leading-4" style={{ color: palette.textSecondary }}>
+            TOG mide qué tanto calor retiene una prenda (a mayor número, más
+            abriga). El valor a la derecha (+0.5, +1.0, +2.5…) se suma
+            automáticamente. Toca ? en prendas de frío para identificar cuál tienes.
+          </Text>
+        ) : null}
       </View>
 
-      {/* 2. Menú desplegable colapsable (cerrado por defecto) */}
+      {/* 2. Menú desplegable colapsable */}
       <View
-        className="rounded-3xl border p-4 gap-3"
+        className="rounded-2xl border p-4 gap-3"
         style={{
           backgroundColor: palette.bgCard,
           borderColor: palette.borderInteractive,

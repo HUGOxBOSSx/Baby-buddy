@@ -15,12 +15,12 @@ export function HoyView() {
         className="flex items-center gap-3"
         title={STAGE_OVERVIEWS[activeStageId].headlineMx}
       >
-        <MascotAvatar variant="home" size="lg" />
-        <div className="space-y-1">
+        <MascotAvatar variant="home" size="md" />
+        <div className="space-y-0.5">
           <p className="text-xs font-semibold uppercase tracking-wide text-brand-text">
-            Hoy · {themeMode === 'night_3am' ? 'Modo nocturno activo' : 'Modo Día Calma'}
+            Hoy · {themeMode === 'night_3am' ? 'Modo nocturno' : 'Modo Día'}
           </p>
-          <h1 className="text-2xl font-bold text-ink-primary sm:text-3xl">
+          <h1 className="text-xl font-bold text-ink-primary sm:text-2xl">
             Registro diario
           </h1>
         </div>

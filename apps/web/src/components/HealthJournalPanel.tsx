@@ -118,25 +118,19 @@ export function HealthJournalPanel() {
   return (
     <section
       aria-label="Bitácora de salud, vacunas y reporte para pediatra"
-      className="rounded-3xl border border-border-interactive bg-bg-card p-5 space-y-4 shadow-sm"
+      className="rounded-2xl border border-border-subtle bg-bg-card p-5 space-y-4 shadow-sm"
     >
-      <div className="space-y-1">
-        <h2 className="text-lg font-bold text-ink-primary">
-          Bitácora de salud y Cartilla MX
-        </h2>
-        <p className="text-xs text-ink-secondary">
-          Registra temperatura (°C), medicamentos indicados por tu pediatra,
-          vacunas, crecimiento (kg/cm) y genera un reporte listo para consulta.
-        </p>
-      </div>
+      <h2 className="text-base font-bold text-ink-primary">
+        Bitácora de salud
+      </h2>
 
       <div className="flex flex-wrap gap-2">
         {(
           [
-            { id: 'fiebre', label: 'Fiebre y Meds' },
-            { id: 'vacunas', label: 'Vacunas MX' },
-            { id: 'crecimiento', label: 'Crecimiento (kg/cm)' },
-            { id: 'reporte', label: 'Reporte Pediatra' },
+            { id: 'fiebre', label: 'Fiebre y meds' },
+            { id: 'vacunas', label: 'Vacunas' },
+            { id: 'crecimiento', label: 'Crecimiento' },
+            { id: 'reporte', label: 'Reporte' },
           ] as const
         ).map((t) => {
           const active = subTab === t.id;

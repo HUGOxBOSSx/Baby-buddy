@@ -5,7 +5,6 @@ import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import {
   CHILD_SEX_LABELS_MX,
-  ETHICAL_GUARDRAILS,
   STAGE_SPECS,
   formatChildAgeMx,
 } from '@baby-buddy/core';
@@ -197,53 +196,50 @@ export function AppShell({ children }: { readonly children: ReactNode }) {
           </button>
 
           <p className="px-1 text-[11px] leading-snug text-ink-muted">
-            Educativo · Local · Sin anuncios (
-            {String(ETHICAL_GUARDRAILS.adsOnChildScreens)})
+            Educativo · 100% local · 911 siempre gratis
           </p>
         </div>
       </aside>
 
       {/* Main Column */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Mobile Compact Header */}
-        <header className="space-y-2 border-b border-border-interactive bg-bg-card px-4 py-2.5 md:hidden">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="truncate text-base font-bold text-ink-primary">
-                {childProfile ? childProfile.nicknameMx : 'Baby Buddy MX'}
-              </p>
-              <p className="truncate text-xs text-ink-secondary">
-                {babyBarSummary ?? `${activeStage.label} · ${isNight ? 'Modo nocturno' : 'Modo Día'}`}
-              </p>
-            </div>
-            <span className="inline-flex min-h-12 shrink-0 items-center rounded-full border border-brand-primary bg-brand-surface px-3 py-1 text-xs font-semibold text-brand-text">
+        {/* Mobile Compact Header (1 row) */}
+        <header className="border-b border-border-subtle bg-bg-card px-4 py-2 md:hidden">
+          <div className="flex items-center justify-between gap-2">
+            <Link
+              href="/salud#perfil-bebe"
+              className="flex min-h-12 min-w-0 flex-1 items-center gap-2 rounded-xl px-1.5 py-1 hover:bg-bg-elevated"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-bold text-ink-primary">
+                  {childProfile ? childProfile.nicknameMx : 'Baby Buddy MX'}{' '}
+                  <span className="text-xs font-semibold text-brand-text">
+                    · {childProfile ? 'Editar' : 'Configurar'}
+                  </span>
+                </p>
+                <p className="truncate text-xs text-ink-secondary">
+                  {babyBarSummary ??
+                    `${activeStage.label} · ${isNight ? 'Modo nocturno' : 'Modo Día'}`}
+                </p>
+              </div>
+            </Link>
+            <span className="inline-flex min-h-9 shrink-0 items-center rounded-full border border-brand-primary bg-brand-surface px-3 py-1 text-xs font-semibold text-brand-text">
               {activeStage.shortLabel}
             </span>
           </div>
-          <Link
-            href="/salud#perfil-bebe"
-            className="flex w-full items-center justify-center rounded-lg border border-border-interactive bg-bg-elevated px-3 py-1.5 text-xs font-semibold text-brand-text hover:bg-brand-surface"
-          >
-            {childProfile
-              ? 'Cambiar datos del bebé'
-              : 'Configurar datos del bebé'}
-          </Link>
         </header>
 
         <main
           id="contenido-principal"
           tabIndex={-1}
-          className="mx-auto w-full max-w-4xl flex-1 px-4 py-6 pb-24 md:px-8 md:pb-8"
+          className="mx-auto w-full max-w-4xl flex-1 px-4 py-5 pb-24 md:px-8 md:pb-8"
         >
           {children}
         </main>
 
-        <footer className="hidden md:block border-t border-border-interactive bg-bg-card px-8 py-4 text-xs text-ink-muted">
-          Baby Buddy MX · Contenido educativo en español de México y unidades
-          métricas (°C, kg, cm, ml). Sin anuncios infantiles (
-          {String(ETHICAL_GUARDRAILS.adsOnChildScreens)}) · Sin paywall en
-          urgencias 911 ({String(ETHICAL_GUARDRAILS.paywallOnEmergencyTriage)}) ·
-          Sin venta de datos ({String(ETHICAL_GUARDRAILS.dataSellingEnabled)}).
+        <footer className="hidden md:block border-t border-border-subtle bg-bg-card px-8 py-4 text-xs text-ink-muted">
+          Baby Buddy MX · Contenido educativo en español de México (°C, kg, cm,
+          ml) · 100% local · Sin venta de datos · 911 siempre gratis.
         </footer>
       </div>
 

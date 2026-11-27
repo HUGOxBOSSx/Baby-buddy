@@ -25,18 +25,16 @@ export default function HoyScreen() {
           className="flex-row items-center gap-3"
           accessibilityHint={STAGE_OVERVIEWS[selectedStage].headlineMx}
         >
-          <MascotAvatar variant="home" size="lg" />
-          <View className="flex-1 gap-1">
+          <MascotAvatar variant="home" size="md" />
+          <View className="flex-1 gap-0.5">
             <Text
               className="text-xs font-bold uppercase tracking-wide"
               style={{ color: palette.brandText }}
             >
-              {isNight
-                ? 'Modo nocturno activo · Baja luminosidad'
-                : 'Modo Calma activo · Orientación diaria'}
+              {isNight ? 'Modo nocturno' : 'Modo Día'}
             </Text>
             <Text
-              className="text-2xl font-bold"
+              className="text-xl font-bold"
               style={{ color: palette.textPrimary }}
             >
               Registro diario

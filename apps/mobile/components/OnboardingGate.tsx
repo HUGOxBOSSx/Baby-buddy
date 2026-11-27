@@ -223,14 +223,14 @@ export function OnboardingGate() {
         </View>
 
         <View
-          className="rounded-2xl border p-4 gap-3"
+          className="rounded-2xl border p-4 gap-2.5"
           style={{
             backgroundColor: palette.bgElevated,
             borderColor: palette.borderInteractive,
           }}
         >
           <Text className="text-sm font-bold" style={{ color: palette.textPrimary }}>
-            Tu bebé (opcional en este paso)
+            Tu bebé (opcional)
           </Text>
           <View className="flex-row flex-wrap gap-2">
             <Pressable
@@ -255,7 +255,7 @@ export function OnboardingGate() {
                       : palette.textPrimary,
                 }}
               >
-                Registrar a mi bebé
+                Nuevo bebé
               </Text>
             </Pressable>
             <Pressable
@@ -280,7 +280,7 @@ export function OnboardingGate() {
                       : palette.textPrimary,
                 }}
               >
-                Ya lo registró un familiar
+                Tengo código
               </Text>
             </Pressable>
           </View>
@@ -390,23 +390,31 @@ export function OnboardingGate() {
         </Pressable>
 
         <View
-          className="rounded-2xl border-2 p-4 gap-3"
+          className="rounded-2xl border-2 p-3.5 gap-2"
           style={{
             backgroundColor: palette.alertRedSurface,
             borderColor: palette.alertRed,
           }}
           accessibilityRole="alert"
         >
-          <StatusBadge severity="urgent_red" />
+          <View className="flex-row items-center justify-between flex-wrap gap-2">
+            <StatusBadge severity="urgent_red" />
+            <Text
+              className="text-xs font-bold"
+              style={{ color: palette.alertRedText }}
+            >
+              Gratis siempre
+            </Text>
+          </View>
           <Text
-            className="text-sm font-semibold"
+            className="text-xs font-semibold"
             style={{ color: palette.textPrimary }}
           >
             {disclaimer.emergencyActionLabelMx}
           </Text>
           <Pressable
             onPress={handleEmergencyCall}
-            className="min-h-[48px] min-w-[48px] flex-row items-center justify-center rounded-xl px-4 py-3 gap-2"
+            className="min-h-[48px] min-w-[48px] flex-row items-center justify-center rounded-xl px-4 py-2.5 gap-2"
             style={{
               minHeight: MIN_TOUCH_TARGET_PX,
               minWidth: MIN_TOUCH_TARGET_PX,
@@ -422,7 +430,7 @@ export function OnboardingGate() {
               className="text-sm font-bold"
               style={{ color: palette.onAlertRedButton }}
             >
-              Emergencias 911 (Acceso gratuito)
+              Llamar al 911 (Gratis)
             </Text>
           </Pressable>
         </View>

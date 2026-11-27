@@ -34,7 +34,7 @@ const TABS: readonly { readonly id: ViewTab; readonly label: string }[] = [
   { id: 'es_normal', label: 'Es normal' },
   { id: 'no_es_normal', label: 'No es normal' },
   { id: 'urgencia', label: 'Urgencia' },
-  { id: 'popo', label: 'Tabla popó' },
+  { id: 'popo', label: 'Popó' },
 ] as const;
 
 const SUB_FILTERS: readonly {
@@ -43,8 +43,8 @@ const SUB_FILTERS: readonly {
 }[] = [
   { id: 'green_home', label: 'Verde' },
   { id: 'yellow_pediatrician', label: 'Amarillo' },
-  { id: 'orange_urgent', label: 'Naranja · Consulta hoy' },
-  { id: 'red_911', label: 'Rojo · 911' },
+  { id: 'orange_urgent', label: 'Consulta hoy' },
+  { id: 'red_911', label: 'Urgencia 911' },
 ] as const;
 
 const TRIAGE_GROUP_ORDER: readonly TriageLevel[] = [
@@ -296,15 +296,15 @@ export default function GuiasScreen() {
     >
       <View className="flex-row items-center gap-3">
         <MascotAvatar variant="es_normal" size="md" />
-        <View className="flex-1 gap-1">
+        <View className="flex-1 gap-0.5">
           <Text
-            className="text-2xl font-bold"
+            className="text-xl font-bold"
             style={{ color: palette.textPrimary }}
           >
             ¿Es normal?
           </Text>
           <Text className="text-xs" style={{ color: palette.textSecondary }}>
-            Orientación por síntomas, etapa, primeros auxilios y tabla de popó.
+            Guías por etapa y síntomas.
           </Text>
         </View>
       </View>
@@ -312,7 +312,7 @@ export default function GuiasScreen() {
       <TextInput
         value={query}
         onChangeText={setQuery}
-        placeholder="Busca: hipo, fiebre, pujos, berrinche, anís..."
+        placeholder="Buscar: fiebre, hipo, popó, berrinche..."
         placeholderTextColor={palette.textMuted}
         className="rounded-2xl border px-4 py-3 text-sm"
         style={{
@@ -323,18 +323,9 @@ export default function GuiasScreen() {
         }}
       />
 
-      <View
-        className="rounded-2xl border p-3 gap-3"
-        style={{
-          backgroundColor: palette.bgElevated,
-          borderColor: palette.borderInteractive,
-        }}
-      >
-        <View className="gap-1.5">
-          <Text className="text-[11px] font-bold uppercase" style={{ color: palette.textSecondary }}>
-            1. Tipo de situación
-          </Text>
-          <View className="flex-row flex-wrap gap-2">
+      <View className="gap-2">
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View className="flex-row gap-2">
             {TABS.map((t) => {
               const active = tab === t.id;
               const isUrgencia = t.id === 'urgencia';
@@ -342,7 +333,7 @@ export default function GuiasScreen() {
                 <Pressable
                   key={t.id}
                   onPress={() => setTab(t.id)}
-                  className="rounded-full border px-3 py-2 justify-center"
+                  className="rounded-full border px-3.5 py-2 justify-center"
                   style={{
                     minHeight: MIN_TOUCH_TARGET_PX,
                     backgroundColor: isUrgencia
@@ -373,17 +364,11 @@ export default function GuiasScreen() {
               );
             })}
           </View>
-        </View>
+        </ScrollView>
 
         {tab !== 'popo' && availableSubFilters.length > 1 ? (
-          <View
-            className="gap-1.5 border-t pt-2.5"
-            style={{ borderTopColor: palette.borderInteractive }}
-          >
-            <Text className="text-[11px] font-bold uppercase" style={{ color: palette.textSecondary }}>
-              2. Nivel de atención
-            </Text>
-            <View className="flex-row flex-wrap gap-1.5">
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View className="flex-row gap-1.5">
               {availableSubFilters.map((c) => {
                 const active = effectiveSubFilter === c.id;
                 return (
@@ -415,50 +400,42 @@ export default function GuiasScreen() {
                 );
               })}
             </View>
-          </View>
+          </ScrollView>
         ) : null}
 
         {tab !== 'popo' && availableCategories.length > 0 ? (
-          <View
-            className="gap-1.5 border-t pt-2.5"
-            style={{ borderTopColor: palette.borderInteractive }}
-          >
-            <Text className="text-[11px] font-bold uppercase" style={{ color: palette.textSecondary }}>
-              {availableSubFilters.length > 1 ? '3. Tema' : '2. Tema'}
-            </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View className="flex-row gap-1.5">
-                {availableCategories.map((cat) => {
-                  const active = effectiveCategory === cat;
-                  return (
-                    <Pressable
-                      key={cat}
-                      onPress={() => setCategoryFilter(cat)}
-                      className="rounded-full border px-3 py-1.5 justify-center"
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View className="flex-row gap-1.5">
+              {availableCategories.map((cat) => {
+                const active = effectiveCategory === cat;
+                return (
+                  <Pressable
+                    key={cat}
+                    onPress={() => setCategoryFilter(cat)}
+                    className="rounded-full border px-3 py-1.5 justify-center"
+                    style={{
+                      minHeight: 36,
+                      backgroundColor: active
+                        ? palette.brandSurface
+                        : palette.bgCard,
+                      borderColor: active
+                        ? palette.brandPrimary
+                        : palette.borderInteractive,
+                    }}
+                  >
+                    <Text
+                      className="text-xs font-semibold"
                       style={{
-                        minHeight: 36,
-                        backgroundColor: active
-                          ? palette.brandSurface
-                          : palette.bgCard,
-                        borderColor: active
-                          ? palette.brandPrimary
-                          : palette.borderInteractive,
+                        color: active ? palette.brandText : palette.textSecondary,
                       }}
                     >
-                      <Text
-                        className="text-xs font-semibold"
-                        style={{
-                          color: active ? palette.brandText : palette.textSecondary,
-                        }}
-                      >
-                        {cat}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </ScrollView>
-          </View>
+                      {cat}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </ScrollView>
         ) : null}
       </View>
 
@@ -583,7 +560,7 @@ export default function GuiasScreen() {
                     <Text className="text-xs font-semibold" style={{ color: palette.brandText }}>
                       {guide.quickAnswerMx}
                     </Text>
-                    <Text className="text-xs" style={{ color: palette.textSecondary }}>
+                    <Text numberOfLines={2} className="text-xs" style={{ color: palette.textSecondary }}>
                       {guide.summaryMx}
                     </Text>
 

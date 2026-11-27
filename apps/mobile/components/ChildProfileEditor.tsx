@@ -67,11 +67,8 @@ export function ChildProfileEditor() {
         borderColor: palette.borderInteractive,
       }}
     >
-      <Text className="text-lg font-bold" style={{ color: palette.textPrimary }}>
-        Datos del bebé (etapa automática)
-      </Text>
-      <Text className="text-xs" style={{ color: palette.textSecondary }}>
-        Con la fecha de nacimiento, su edad y etapa se actualizan en automático.
+      <Text className="text-base font-bold" style={{ color: palette.textPrimary }}>
+        Perfil del bebé
       </Text>
 
       <View className="gap-1">

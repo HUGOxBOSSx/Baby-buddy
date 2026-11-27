@@ -26,7 +26,7 @@ const TABS: readonly { readonly id: ViewTab; readonly label: string }[] = [
   { id: 'es_normal', label: 'Es normal' },
   { id: 'no_es_normal', label: 'No es normal' },
   { id: 'urgencia', label: 'Urgencia' },
-  { id: 'popo', label: 'Tabla popó' },
+  { id: 'popo', label: 'Popó' },
 ] as const;
 
 const SUB_FILTERS: readonly {
@@ -35,8 +35,8 @@ const SUB_FILTERS: readonly {
 }[] = [
   { id: 'green_home', label: 'Verde' },
   { id: 'yellow_pediatrician', label: 'Amarillo' },
-  { id: 'orange_urgent', label: 'Naranja · Atención / Consulta hoy' },
-  { id: 'red_911', label: 'Rojo · 911 / Inmediato' },
+  { id: 'orange_urgent', label: 'Consulta hoy' },
+  { id: 'red_911', label: 'Urgencia 911' },
 ] as const;
 
 const TRIAGE_GROUP_ORDER: readonly TriageLevel[] = [
@@ -106,11 +106,11 @@ export function GuiasView() {
     <div className="space-y-6">
       <header className="flex items-center gap-3">
         <MascotAvatar variant="es_normal" size="md" />
-        <div className="flex-1 space-y-1">
+        <div className="flex-1 space-y-0.5">
           <p className="text-xs font-semibold uppercase tracking-wide text-brand-text">
-            Buscador 3:00 AM · Orientación por síntomas y etapa
+            Guías por etapa y síntomas
           </p>
-          <h1 className="text-2xl font-bold text-ink-primary sm:text-3xl">
+          <h1 className="text-xl font-bold text-ink-primary sm:text-2xl">
             ¿Es normal?
           </h1>
         </div>
@@ -123,96 +123,81 @@ export function GuiasView() {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Busca: hipo, fiebre, pujos, berrinche, anís, atragantamiento..."
+            placeholder="Buscar: fiebre, hipo, popó, berrinche..."
             className="block min-h-12 w-full rounded-2xl border border-border-interactive bg-bg-card px-4 py-3 text-sm text-ink-primary shadow-sm"
           />
         </label>
 
-        <div className="space-y-3 rounded-2xl border border-border-subtle bg-bg-elevated p-3.5">
-          <div className="space-y-1.5">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-ink-secondary">
-              1. Tipo de situación
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {TABS.map((t) => {
-                const active = tab === t.id;
-                const isUrgencia = t.id === 'urgencia';
+        <div className="space-y-2.5">
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {TABS.map((t) => {
+              const active = tab === t.id;
+              const isUrgencia = t.id === 'urgencia';
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setTab(t.id)}
+                  aria-pressed={active}
+                  className={`inline-flex min-h-11 shrink-0 items-center rounded-full border px-4 py-2 text-xs font-bold whitespace-nowrap ${
+                    isUrgencia
+                      ? active
+                        ? 'border-alert-red bg-alert-surface text-alert-text ring-2 ring-alert-red'
+                        : 'border-alert-red bg-alert-surface text-alert-text'
+                      : active
+                        ? 'border-brand-primary bg-brand-primary text-brand-on'
+                        : 'border-border-interactive bg-bg-card text-ink-primary'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {tab !== 'popo' && availableSubFilters.length > 1 ? (
+            <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Filtrar por nivel de atención">
+              {availableSubFilters.map((c) => {
+                const active = effectiveSubFilter === c.id;
                 return (
                   <button
-                    key={t.id}
+                    key={c.id}
                     type="button"
-                    onClick={() => setTab(t.id)}
+                    onClick={() => setSubFilter(c.id)}
                     aria-pressed={active}
-                    className={`inline-flex min-h-11 items-center rounded-full border px-4 py-2 text-xs font-bold ${
-                      isUrgencia
-                        ? active
-                          ? 'border-alert-red bg-alert-surface text-alert-text ring-2 ring-alert-red'
-                          : 'border-alert-red bg-alert-surface text-alert-text'
-                        : active
-                          ? 'border-brand-primary bg-brand-primary text-brand-on'
-                          : 'border-border-interactive bg-bg-card text-ink-primary'
+                    className={`inline-flex min-h-10 shrink-0 items-center rounded-full border px-3 py-1.5 text-xs font-semibold whitespace-nowrap ${
+                      active
+                        ? 'border-brand-primary bg-brand-primary text-brand-on'
+                        : 'border-border-interactive bg-bg-card text-ink-primary'
                     }`}
                   >
-                    {t.label}
+                    {c.label}
                   </button>
                 );
               })}
             </div>
-          </div>
-
-          {tab !== 'popo' && availableSubFilters.length > 1 ? (
-            <div className="space-y-1.5 border-t border-border-subtle pt-3">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-ink-secondary">
-                2. Nivel de atención
-              </p>
-              <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por nivel de atención">
-                {availableSubFilters.map((c) => {
-                  const active = effectiveSubFilter === c.id;
-                  return (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => setSubFilter(c.id)}
-                      aria-pressed={active}
-                      className={`inline-flex min-h-10 items-center rounded-full border px-3 py-1.5 text-xs font-semibold ${
-                        active
-                          ? 'border-brand-primary bg-brand-primary text-brand-on'
-                          : 'border-border-interactive bg-bg-card text-ink-primary'
-                      }`}
-                    >
-                      {c.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
           ) : null}
 
           {tab !== 'popo' && availableCategories.length > 0 ? (
-            <div className="space-y-1.5 border-t border-border-subtle pt-3">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-ink-secondary">
-                {availableSubFilters.length > 1 ? '3. Tema' : '2. Tema'}
-              </p>
-              <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtrar por tema">
-                {availableCategories.map((cat) => {
-                  const active = effectiveCategory === cat;
-                  return (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => setCategoryFilter(cat)}
-                      aria-pressed={active}
-                      className={`inline-flex min-h-9 items-center rounded-full border px-3 py-1 text-xs font-semibold ${
-                        active
-                          ? 'border-brand-primary bg-brand-surface text-brand-text'
-                          : 'border-border-interactive bg-bg-card text-ink-secondary'
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  );
-                })}
-              </div>
+            <div className="flex gap-1.5 overflow-x-auto pb-1" role="group" aria-label="Filtrar por tema">
+              {availableCategories.map((cat) => {
+                const active = effectiveCategory === cat;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setCategoryFilter(cat)}
+                    aria-pressed={active}
+                    className={`inline-flex min-h-9 shrink-0 items-center rounded-full border px-3 py-1 text-xs font-semibold whitespace-nowrap ${
+                      active
+                        ? 'border-brand-primary bg-brand-surface text-brand-text'
+                        : 'border-border-interactive bg-bg-card text-ink-secondary'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                );
+              })}
             </div>
           ) : null}
         </div>
@@ -325,13 +310,13 @@ export function GuiasView() {
                 {group.items.map((guide: ClinicalGuideEntry) => (
                   <article
                     key={guide.slug}
-                    className="rounded-2xl border border-border-interactive bg-bg-card p-5 space-y-3 shadow-sm"
+                    className="rounded-2xl border border-border-subtle bg-bg-card p-4 space-y-2.5 shadow-sm"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <h2 className="text-lg font-bold text-ink-primary">
+                      <h2 className="text-base font-bold text-ink-primary">
                         {guide.titleMx}
                       </h2>
-                      <span className="rounded-full border border-border-interactive bg-bg-elevated px-3 py-1 text-xs font-semibold text-brand-text">
+                      <span className="rounded-full border border-border-subtle bg-bg-elevated px-2.5 py-0.5 text-xs font-semibold text-brand-text">
                         {guide.categoryMx}
                       </span>
                     </div>
@@ -340,7 +325,7 @@ export function GuiasView() {
                       <p className="text-sm font-semibold text-brand-text">
                         {guide.quickAnswerMx}
                       </p>
-                      <p className="text-sm text-ink-secondary">
+                      <p className="line-clamp-2 text-xs text-ink-secondary">
                         {guide.summaryMx}
                       </p>
                     </div>

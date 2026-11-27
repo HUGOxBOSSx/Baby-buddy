@@ -77,53 +77,50 @@ export default function TabsLayout() {
           <View
             style={{
               paddingTop: insets.top + 6,
-              paddingBottom: 8,
+              paddingBottom: 6,
               paddingHorizontal: 12,
               backgroundColor: palette.bgCard,
               borderBottomWidth: 1,
               borderBottomColor: palette.borderInteractive,
-              gap: 6,
             }}
           >
-            <View className="flex-row items-center justify-between gap-2.5">
-              <MascotAvatar variant="home" size="sm" />
-              <Text
-                numberOfLines={1}
-                className="flex-1 min-w-0 text-sm font-bold"
-                style={{ color: palette.textPrimary }}
+            <View className="flex-row items-center justify-between gap-2">
+              <Pressable
+                onPress={() => router.push('/(tabs)/salud')}
+                className="flex-1 min-w-0 flex-row items-center gap-2 rounded-xl pr-2"
+                style={{ minHeight: MIN_TOUCH_TARGET_PX }}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  childProfile
+                    ? 'Cambiar datos del bebé'
+                    : 'Configurar datos del bebé'
+                }
               >
-                {babyHeader ?? 'Baby Buddy MX'}
-              </Text>
+                <MascotAvatar variant="home" size="sm" />
+                <View className="flex-1 min-w-0">
+                  <Text
+                    numberOfLines={1}
+                    className="text-sm font-bold"
+                    style={{ color: palette.textPrimary }}
+                  >
+                    {babyHeader ?? 'Baby Buddy MX'}
+                  </Text>
+                  <View className="flex-row items-center gap-1">
+                    {iconsLoaded ? (
+                      <Feather name="edit-2" size={11} color={palette.brandText} />
+                    ) : null}
+                    <Text
+                      numberOfLines={1}
+                      className="text-[11px] font-semibold"
+                      style={{ color: palette.brandText }}
+                    >
+                      {childProfile ? 'Editar perfil' : 'Configurar bebé'}
+                    </Text>
+                  </View>
+                </View>
+              </Pressable>
               <HeaderModeToggle />
             </View>
-            <Pressable
-              onPress={() => router.push('/(tabs)/salud')}
-              hitSlop={{ top: 10, bottom: 10, left: 4, right: 4 }}
-              className="w-full flex-row items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5"
-              style={{
-                backgroundColor: palette.bgElevated,
-                borderColor: palette.borderInteractive,
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={
-                childProfile
-                  ? 'Cambiar datos del bebé'
-                  : 'Configurar datos del bebé'
-              }
-            >
-              {iconsLoaded ? (
-                <Feather name="edit-2" size={12} color={palette.brandText} />
-              ) : null}
-              <Text
-                numberOfLines={1}
-                className="text-[11px] font-bold"
-                style={{ color: palette.brandText }}
-              >
-                {childProfile
-                  ? 'Cambiar datos del bebé'
-                  : 'Configurar datos del bebé'}
-              </Text>
-            </Pressable>
           </View>
         ),
         tabBarActiveTintColor: palette.brandText,

@@ -323,17 +323,16 @@ export function RopaClimaView() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
-      <header className="space-y-1.5">
-        <h1 className="text-2xl font-bold text-ink-primary sm:text-3xl">
-          ¿Cuánta ropa le pongo?
+    <div className="mx-auto max-w-3xl space-y-4">
+      <header className="space-y-1">
+        <h1 className="text-xl font-bold text-ink-primary sm:text-2xl">
+          Ropa y Clima
         </h1>
-        <p className="text-sm text-ink-secondary">
-          Etapa activa:{' '}
+        <p className="text-xs text-ink-secondary">
+          Etapa:{' '}
           <strong className="text-ink-primary">
             {STAGE_SPECS[effectiveStage].label}
-          </strong>{' '}
-          · Rango −5 °C a 50 °C.
+          </strong>
         </p>
       </header>
 
@@ -345,34 +344,36 @@ export function RopaClimaView() {
         />
       )}
 
-      {/* Franja compacta de clima exterior siempre visible arriba */}
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border-interactive bg-bg-elevated px-4 py-2 text-xs">
-        <span className="font-semibold text-ink-secondary tabular-nums">
-          Clima exterior:{' '}
-          <strong className="text-ink-primary">
-            {outdoorTempC !== undefined
-              ? `${outdoorTempC} °C · ${
-                  WEATHER_CONDITIONS.find((w) => w.id === context.weatherCondition)?.label
-                } · ${context.isWindy ? 'Con viento' : 'Sin viento'}`
-              : 'Sin detectar (manual)'}
-          </strong>
-        </span>
+      {/* Franja compacta de clima exterior en 1 línea */}
+      <div className="flex items-center justify-between gap-2 rounded-2xl border border-border-subtle bg-bg-elevated px-3.5 py-2 text-xs">
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-semibold text-ink-secondary tabular-nums">
+            Exterior:{' '}
+            <strong className="text-ink-primary">
+              {outdoorTempC !== undefined
+                ? `${outdoorTempC} °C · ${
+                    WEATHER_CONDITIONS.find((w) => w.id === context.weatherCondition)?.label
+                  }${context.isWindy ? ' · Viento' : ''}`
+                : 'Manual'}
+            </strong>
+          </p>
+          {weatherNote ? (
+            <p className="truncate text-[11px] text-ink-secondary">{weatherNote}</p>
+          ) : null}
+        </div>
         <button
           type="button"
           onClick={handleDetectWeather}
-          className="inline-flex min-h-12 items-center rounded-xl border border-brand-primary bg-brand-surface px-3 py-1.5 text-xs font-bold text-brand-text"
+          className="inline-flex min-h-12 shrink-0 items-center rounded-xl border border-brand-primary bg-brand-surface px-3.5 py-1.5 text-xs font-bold text-brand-text"
         >
-          Detectar clima
+          {detectingWeather ? 'Buscando...' : 'Actualizar'}
         </button>
       </div>
-      {weatherNote ? (
-        <p className="text-xs text-ink-secondary px-1">{weatherNote}</p>
-      ) : null}
 
-      {/* 1. Hasta arriba fuera del desplegable: Temperatura y Entorno */}
+      {/* 1. Temperatura y Entorno */}
       <section
         aria-label="Selector de temperatura y entorno"
-        className="rounded-3xl border border-border-interactive bg-bg-card p-5 space-y-4 shadow-sm"
+        className="rounded-2xl border border-border-subtle bg-bg-card p-4 sm:p-5 space-y-4 shadow-sm"
       >
         <div className="grid grid-cols-2 gap-2">
           {(['cuarto', 'exterior'] as const).map((env) => {
@@ -465,26 +466,18 @@ export function RopaClimaView() {
         </div>
 
         {environment === 'cuarto' ? (
-          <div className="space-y-2 rounded-2xl border border-border-interactive bg-bg-elevated p-3">
+          <div className="space-y-2">
             <button
               type="button"
               onClick={() => toggleFlag('coldWalls')}
               aria-pressed={context.coldWalls}
-              className={`flex min-h-12 w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-xs font-bold ${
+              className={`flex min-h-12 w-full items-center justify-between gap-2 rounded-xl border px-3.5 py-2 text-left text-xs font-bold ${
                 context.coldWalls
                   ? 'border-brand-primary bg-brand-surface text-brand-text'
-                  : 'border-border-interactive bg-bg-card text-ink-primary'
+                  : 'border-border-interactive bg-bg-elevated text-ink-primary'
               }`}
             >
-              <div className="space-y-0.5">
-                <span className="block">
-                  Cuna pegada a pared que da a la calle o ventana
-                </span>
-                <span className="block text-[11px] font-normal text-ink-secondary">
-                  Las paredes que dan al exterior transmiten frío o calor según
-                  la diferencia de temperatura con afuera.
-                </span>
-              </div>
+              <span>Pared exterior o ventana</span>
               <span className="shrink-0 tabular-nums">
                 {context.coldWalls ? rec.wallEffectLabelMx : 'Desactivado'}
               </span>
@@ -538,25 +531,23 @@ export function RopaClimaView() {
         ) : null}
       </section>
 
-      {/* Banner explicativo de TOG */}
-      <aside
-        aria-label="Qué significa TOG"
-        className="rounded-2xl border border-brand-primary/40 bg-brand-surface px-4 py-3 text-xs space-y-1"
-      >
-        <p className="font-bold text-brand-text">¿Qué significa TOG?</p>
-        <p className="leading-relaxed text-ink-secondary">
+      {/* Banner explicativo colapsable de TOG */}
+      <details className="rounded-2xl border border-border-subtle bg-brand-surface px-4 py-3 text-xs">
+        <summary className="cursor-pointer font-bold text-brand-text">
+          ¿Qué significa TOG?
+        </summary>
+        <p className="mt-1.5 leading-relaxed text-ink-secondary">
           TOG mide qué tanto calor retiene una prenda (a mayor número, más
-          abriga). El número a la derecha de cada prenda (+0.5, +1.0, +2.5…) es
-          su valor TOG y se suma automáticamente. Toca el botón{' '}
-          <strong className="text-ink-primary">?</strong> en prendas de frío,
-          sacos o cobijas para identificar cuál tienes.
+          abriga). El valor a la derecha de cada prenda (+0.5, +1.0, +2.5…) se
+          suma automáticamente. Toca <strong className="text-ink-primary">?</strong>{' '}
+          en prendas de frío, sacos o cobijas para identificar cuál tienes.
         </p>
-      </aside>
+      </details>
 
-      {/* 2. Menú desplegable colapsable (arriba del resumen, cerrado por defecto) */}
+      {/* 2. Menú desplegable colapsable */}
       <section
         aria-label="Configurar ropa y contexto"
-        className="rounded-3xl border border-border-interactive bg-bg-card p-5 space-y-4 shadow-sm"
+        className="rounded-2xl border border-border-subtle bg-bg-card p-4 sm:p-5 space-y-4 shadow-sm"
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>

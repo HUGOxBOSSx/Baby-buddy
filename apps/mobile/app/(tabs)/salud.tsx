@@ -58,16 +58,15 @@ export default function SaludScreen() {
     >
         <View className="flex-row items-center justify-between flex-wrap gap-2">
           <MascotAvatar variant="salud" size="md" />
-          <View className="flex-1 gap-1">
+          <View className="flex-1 gap-0.5">
             <Text
-              className="text-2xl font-bold"
+              className="text-xl font-bold"
               style={{ color: palette.textPrimary }}
             >
-              Salud, Emergencias y Privacidad
+              Salud
             </Text>
-            <Text className="text-sm" style={{ color: palette.textSecondary }}>
-              Orientación de urgencias 911 sin suscripción y control total de tus
-              datos locales.
+            <Text className="text-xs" style={{ color: palette.textSecondary }}>
+              Bitácora, vacunas MX y emergencias 911.
             </Text>
           </View>
           <StatusBadge severity="urgent_red" />
@@ -359,29 +358,17 @@ export default function SaludScreen() {
       <View
         className="rounded-2xl border p-4 gap-2"
         style={{
-          backgroundColor: palette.brandSurface,
-          borderColor: palette.brandPrimary,
+          backgroundColor: palette.bgCard,
+          borderColor: palette.borderInteractive,
         }}
       >
-        <Text
-          className="text-sm font-bold"
-          style={{ color: palette.brandText }}
-        >
-          Compromisos éticos verificados
-        </Text>
-        <Text className="text-xs" style={{ color: palette.textPrimary }}>
-          • Sin anuncios en pantallas infantiles:{' '}
-          {ETHICAL_GUARDRAILS.adsOnChildScreens === false ? 'Cumplido' : 'No'}
-        </Text>
-        <Text className="text-xs" style={{ color: palette.textPrimary }}>
-          • Sin paywall en 911 ni alertas rojas:{' '}
-          {ETHICAL_GUARDRAILS.paywallOnEmergencyTriage === false
-            ? 'Cumplido'
-            : 'No'}
-        </Text>
-        <Text className="text-xs" style={{ color: palette.textPrimary }}>
-          • Sin venta de datos:{' '}
-          {ETHICAL_GUARDRAILS.dataSellingEnabled === false ? 'Cumplido' : 'No'}
+        <Text className="text-xs" style={{ color: palette.textSecondary }}>
+          100% local · Sin anuncios en pantallas infantiles (
+          {ETHICAL_GUARDRAILS.adsOnChildScreens === false ? 'sí' : 'no'}) · 911
+          siempre gratis (
+          {ETHICAL_GUARDRAILS.paywallOnEmergencyTriage === false ? 'sí' : 'no'})
+          · Sin venta de datos (
+          {ETHICAL_GUARDRAILS.dataSellingEnabled === false ? 'sí' : 'no'})
         </Text>
       </View>
 

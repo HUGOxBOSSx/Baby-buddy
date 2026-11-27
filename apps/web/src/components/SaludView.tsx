@@ -40,42 +40,42 @@ export function SaludView() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
+    <div className="space-y-5">
+      <header className="flex items-center gap-3">
         <MascotAvatar variant="salud" size="md" />
-        <p className="text-xs text-ink-secondary">
-          Bitácora clínica local, Cartilla MX y datos de tu bebé en un solo lugar.
-        </p>
-      </div>
-      <HealthJournalPanel />
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-alert-text">
-          Orientación de salud y privacidad local
-        </p>
-        <h1 className="text-2xl font-bold text-ink-primary sm:text-3xl">
-          Salud, Emergencias 911 y Tus Datos
-        </h1>
+        <div className="space-y-0.5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-alert-text">
+            Bitácora, vacunas y emergencias 911
+          </p>
+          <h1 className="text-xl font-bold text-ink-primary sm:text-2xl">
+            Salud
+          </h1>
+        </div>
       </header>
 
-      <ChildProfileEditor />
+      <HealthJournalPanel />
 
-      <section
-        aria-labelledby="horario-nocturno-titulo"
-        className="rounded-2xl border border-border-interactive bg-bg-card p-5 space-y-4 shadow-sm"
+      <details
+        open={!childProfile}
+        className="rounded-2xl border border-border-subtle bg-bg-card p-4 sm:p-5"
       >
-        <div className="space-y-1">
-          <h2
-            id="horario-nocturno-titulo"
-            className="text-lg font-bold text-ink-primary"
-          >
-            Horario automático de Modo nocturno
-          </h2>
-          <p className="text-sm text-ink-secondary">
-            Por defecto el Modo nocturno se activa automáticamente de 20:00 a
-            07:00 h. Puedes ajustar las horas o cambiarlo manualmente en
-            cualquier momento.
-          </p>
+        <summary className="cursor-pointer text-sm font-bold text-ink-primary">
+          Perfil del bebé y código familiar
+        </summary>
+        <div className="mt-4">
+          <ChildProfileEditor />
         </div>
+      </details>
+
+      <details className="rounded-2xl border border-border-subtle bg-bg-card p-4 sm:p-5">
+        <summary className="cursor-pointer text-sm font-bold text-ink-primary">
+          Horario automático de Modo nocturno
+        </summary>
+        <div className="mt-4 space-y-4">
+          <p className="text-xs text-ink-secondary">
+            Por defecto se activa de 20:00 a 07:00 h. Puedes cambiarlo manualmente
+            cuando quieras.
+          </p>
 
         <div className="flex flex-wrap gap-2">
           <button
@@ -151,26 +151,18 @@ export function SaludView() {
             </select>
           </label>
         </div>
-      </section>
-
-      <section
-        aria-labelledby="datos-locales-titulo"
-        className="rounded-2xl border border-border-interactive bg-bg-card p-5 space-y-4 shadow-sm"
-      >
-        <div className="space-y-1">
-          <h2
-            id="datos-locales-titulo"
-            className="text-lg font-bold text-ink-primary"
-          >
-            Datos locales y privacidad
-          </h2>
-          <p className="text-sm text-ink-secondary">
-            Tus preferencias y datos de demostración se guardan únicamente en el
-            almacenamiento local de este navegador. Puedes cargar un perfil demo
-            o eliminar por completo todos los registros locales de Baby Buddy MX.
-            En esta versión no existe una cuenta remota.
-          </p>
         </div>
+      </details>
+
+      <details className="rounded-2xl border border-border-subtle bg-bg-card p-4 sm:p-5">
+        <summary className="cursor-pointer text-sm font-bold text-ink-primary">
+          Datos locales y privacidad ({snapshotSummary.itemCount} registros)
+        </summary>
+        <div className="mt-4 space-y-4">
+          <p className="text-xs text-ink-secondary">
+            Tus registros se guardan únicamente en este navegador, sin cuentas
+            remotas ni venta de datos.
+          </p>
 
         <div className="rounded-xl border border-border-interactive bg-bg-elevated p-4 text-sm space-y-2">
           <p className="font-semibold text-ink-primary">
@@ -208,7 +200,8 @@ export function SaludView() {
 
           <AccountDeletionDialog />
         </div>
-      </section>
+        </div>
+      </details>
 
       <details className="rounded-2xl border border-border-interactive bg-bg-card p-5">
         <summary className="cursor-pointer text-sm font-bold text-ink-primary">

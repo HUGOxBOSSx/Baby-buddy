@@ -69,20 +69,14 @@ export function ChildProfileEditor() {
     <section
       id="perfil-bebe"
       aria-labelledby="perfil-bebe-titulo"
-      className="rounded-2xl border border-border-interactive bg-bg-card p-5 space-y-4 shadow-sm"
+      className="rounded-2xl border border-border-subtle bg-bg-card p-5 space-y-4 shadow-sm"
     >
-      <div className="space-y-1">
-        <h2
-          id="perfil-bebe-titulo"
-          className="text-lg font-bold text-ink-primary"
-        >
-          Datos del bebé (etapa automática por fecha de nacimiento)
-        </h2>
-        <p className="text-sm text-ink-secondary">
-          Al guardar su fecha de nacimiento, su edad y etapa se actualizan en
-          automático y se ocultan las demás etapas.
-        </p>
-      </div>
+      <h2
+        id="perfil-bebe-titulo"
+        className="text-base font-bold text-ink-primary"
+      >
+        Perfil del bebé
+      </h2>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">

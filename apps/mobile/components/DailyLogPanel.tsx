@@ -14,7 +14,7 @@ import {
   type PoopColorTag,
 } from '@baby-buddy/core';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useThemeContext } from './ThemeProvider';
 
 const RANGE_PRESETS: readonly {
@@ -65,6 +65,7 @@ export function DailyLogPanel() {
     useState<PoopColorTag>('mostaza');
   const [retroOffsetMin, setRetroOffsetMin] = useState<0 | 15 | 30 | 60>(0);
   const [noteInput, setNoteInput] = useState('');
+  const [showNoteInput, setShowNoteInput] = useState(false);
   const [sleepStartMs, setSleepStartMs] = useState<number | null>(null);
 
   const [rangePreset, setRangePreset] = useState<DateRangePreset>('today');
@@ -253,8 +254,8 @@ export function DailyLogPanel() {
           borderColor: palette.borderInteractive,
         }}
       >
-        <Text className="text-lg font-bold" style={{ color: palette.textPrimary }}>
-          Registro rápido (1 toque)
+        <Text className="text-base font-bold" style={{ color: palette.textPrimary }}>
+          Registro rápido
         </Text>
 
         {saveFeedback ? (
@@ -333,55 +334,56 @@ export function DailyLogPanel() {
         <Text className="text-xs font-bold uppercase" style={{ color: palette.textSecondary }}>
           Tomas
         </Text>
-        <View className="flex-row flex-wrap gap-2">
+        <View className="flex-row gap-2">
           <Pressable
             onPress={() => startFeedTimer('breast_left')}
-            className="flex-1 min-w-[100px] rounded-2xl border-2 px-3 py-3 items-center justify-center"
+            className="flex-1 rounded-xl border px-2 py-2.5 items-center justify-center"
             style={{
-              minHeight: 56,
+              minHeight: MIN_TOUCH_TARGET_PX,
               backgroundColor: palette.brandSurface,
               borderColor: palette.brandPrimary,
             }}
           >
-            <Text className="text-sm font-bold" style={{ color: palette.brandText }}>
-              Pecho Izq
+            <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
+              Pecho Izq.
             </Text>
-            <Text className="text-[11px]" style={{ color: palette.textSecondary }}>
-              {suggestedNextSide === 'breast_left' ? 'Sugerido · Timer' : 'Iniciar timer'}
-            </Text>
+            {suggestedNextSide === 'breast_left' ? (
+              <Text className="text-[10px] font-bold" style={{ color: palette.brandText }}>
+                Sugerido
+              </Text>
+            ) : null}
           </Pressable>
 
           <Pressable
             onPress={() => startFeedTimer('breast_right')}
-            className="flex-1 min-w-[100px] rounded-2xl border-2 px-3 py-3 items-center justify-center"
+            className="flex-1 rounded-xl border px-2 py-2.5 items-center justify-center"
             style={{
-              minHeight: 56,
+              minHeight: MIN_TOUCH_TARGET_PX,
               backgroundColor: palette.brandSurface,
               borderColor: palette.brandPrimary,
             }}
           >
-            <Text className="text-sm font-bold" style={{ color: palette.brandText }}>
-              Pecho Der
+            <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
+              Pecho Der.
             </Text>
-            <Text className="text-[11px]" style={{ color: palette.textSecondary }}>
-              {suggestedNextSide === 'breast_right' ? 'Sugerido · Timer' : 'Iniciar timer'}
-            </Text>
+            {suggestedNextSide === 'breast_right' ? (
+              <Text className="text-[10px] font-bold" style={{ color: palette.brandText }}>
+                Sugerido
+              </Text>
+            ) : null}
           </Pressable>
 
           <Pressable
             onPress={() => setShowBottlePicker((v) => !v)}
-            className="flex-1 min-w-[100px] rounded-2xl border-2 px-3 py-3 items-center justify-center"
+            className="flex-1 rounded-xl border px-2 py-2.5 items-center justify-center"
             style={{
-              minHeight: 56,
+              minHeight: MIN_TOUCH_TARGET_PX,
               backgroundColor: palette.bgElevated,
               borderColor: palette.borderInteractive,
             }}
           >
-            <Text className="text-sm font-bold" style={{ color: palette.textPrimary }}>
-              Biberón (ml)
-            </Text>
-            <Text className="text-[11px]" style={{ color: palette.textSecondary }}>
-              Elegir cantidad
+            <Text className="text-xs font-bold" style={{ color: palette.textPrimary }}>
+              Biberón
             </Text>
           </Pressable>
         </View>
@@ -446,21 +448,18 @@ export function DailyLogPanel() {
         <Text className="text-xs font-bold uppercase pt-1" style={{ color: palette.textSecondary }}>
           Pañales y evacuaciones
         </Text>
-        <View className="flex-row flex-wrap gap-2">
+        <View className="flex-row gap-2">
           <Pressable
             onPress={handleQuickWetDiaper}
-            className="flex-1 min-w-[100px] rounded-2xl border-2 px-3 py-3 items-center justify-center"
+            className="flex-1 rounded-xl border px-2 py-2.5 items-center justify-center"
             style={{
-              minHeight: 56,
+              minHeight: MIN_TOUCH_TARGET_PX,
               backgroundColor: palette.bgElevated,
               borderColor: palette.borderInteractive,
             }}
           >
-            <Text className="text-sm font-bold" style={{ color: palette.textPrimary }}>
-              Solo Pipí
-            </Text>
-            <Text className="text-[11px]" style={{ color: palette.textSecondary }}>
-              1 toque
+            <Text className="text-xs font-bold" style={{ color: palette.textPrimary }}>
+              Pipí
             </Text>
           </Pressable>
 
@@ -468,9 +467,9 @@ export function DailyLogPanel() {
             onPress={() =>
               setPendingDiaperKind((k) => (k === 'dirty' ? null : 'dirty'))
             }
-            className="flex-1 min-w-[100px] rounded-2xl border-2 px-3 py-3 items-center justify-center"
+            className="flex-1 rounded-xl border px-2 py-2.5 items-center justify-center"
             style={{
-              minHeight: 56,
+              minHeight: MIN_TOUCH_TARGET_PX,
               backgroundColor:
                 pendingDiaperKind === 'dirty'
                   ? palette.brandSurface
@@ -481,11 +480,8 @@ export function DailyLogPanel() {
                   : palette.borderInteractive,
             }}
           >
-            <Text className="text-sm font-bold" style={{ color: palette.textPrimary }}>
-              Solo Popó
-            </Text>
-            <Text className="text-[11px]" style={{ color: palette.textSecondary }}>
-              Color
+            <Text className="text-xs font-bold" style={{ color: palette.textPrimary }}>
+              Popó
             </Text>
           </Pressable>
 
@@ -493,9 +489,9 @@ export function DailyLogPanel() {
             onPress={() =>
               setPendingDiaperKind((k) => (k === 'both' ? null : 'both'))
             }
-            className="flex-1 min-w-[100px] rounded-2xl border-2 px-3 py-3 items-center justify-center"
+            className="flex-1 rounded-xl border px-2 py-2.5 items-center justify-center"
             style={{
-              minHeight: 56,
+              minHeight: MIN_TOUCH_TARGET_PX,
               backgroundColor:
                 pendingDiaperKind === 'both'
                   ? palette.brandSurface
@@ -506,11 +502,8 @@ export function DailyLogPanel() {
                   : palette.borderInteractive,
             }}
           >
-            <Text className="text-sm font-bold" style={{ color: palette.textPrimary }}>
-              Pipí + Popó
-            </Text>
-            <Text className="text-[11px]" style={{ color: palette.textSecondary }}>
-              Color
+            <Text className="text-xs font-bold" style={{ color: palette.textPrimary }}>
+              Ambos
             </Text>
           </Pressable>
         </View>
@@ -652,54 +645,60 @@ export function DailyLogPanel() {
           </View>
         )}
 
-        <View
-          className="rounded-xl border p-3 gap-2"
-          style={{ backgroundColor: palette.bgElevated, borderColor: palette.borderInteractive }}
-        >
-          <View className="flex-row flex-wrap items-center gap-1.5">
-            <Text className="text-xs font-bold" style={{ color: palette.textSecondary }}>
-              Hora:
-            </Text>
-            {([
-              { min: 0, label: 'Ahora' },
-              { min: 15, label: '−15m' },
-              { min: 30, label: '−30m' },
-              { min: 60, label: '−1h' },
-            ] as const).map((opt) => {
-              const active = retroOffsetMin === opt.min;
-              return (
-                <Pressable
-                  key={opt.min}
-                  onPress={() => setRetroOffsetMin(opt.min)}
-                  className="rounded-full border px-2.5 py-1"
-                  style={{
-                    backgroundColor: active ? palette.brandPrimary : palette.bgCard,
-                    borderColor: active ? palette.brandPrimary : palette.borderInteractive,
-                  }}
-                >
-                  <Text
-                    className="text-xs font-bold"
-                    style={{ color: active ? palette.onBrandPrimary : palette.textPrimary }}
+        <View className="gap-2 pt-1">
+          <View className="flex-row flex-wrap items-center justify-between gap-2">
+            <View className="flex-row flex-wrap items-center gap-1.5">
+              <Text className="text-xs font-bold" style={{ color: palette.textSecondary }}>
+                Hora:
+              </Text>
+              {([
+                { min: 0, label: 'Ahora' },
+                { min: 15, label: '−15m' },
+                { min: 30, label: '−30m' },
+                { min: 60, label: '−1h' },
+              ] as const).map((opt) => {
+                const active = retroOffsetMin === opt.min;
+                return (
+                  <Pressable
+                    key={opt.min}
+                    onPress={() => setRetroOffsetMin(opt.min)}
+                    className="rounded-full border px-2.5 py-1"
+                    style={{
+                      backgroundColor: active ? palette.brandPrimary : palette.bgElevated,
+                      borderColor: active ? palette.brandPrimary : palette.borderInteractive,
+                    }}
                   >
-                    {opt.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
+                    <Text
+                      className="text-xs font-bold"
+                      style={{ color: active ? palette.onBrandPrimary : palette.textPrimary }}
+                    >
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Pressable onPress={() => setShowNoteInput((v) => !v)}>
+              <Text className="text-xs font-semibold" style={{ color: palette.brandText }}>
+                {showNoteInput || noteInput ? 'Ocultar nota' : '+ Nota'}
+              </Text>
+            </Pressable>
           </View>
-          <TextInput
-            value={noteInput}
-            onChangeText={setNoteInput}
-            placeholder="Nota opcional (ej. regurgitó, se durmió)"
-            placeholderTextColor={palette.textMuted}
-            className="rounded-xl border px-3 py-2 text-xs"
-            style={{
-              minHeight: 40,
-              backgroundColor: palette.bgCard,
-              borderColor: palette.borderInteractive,
-              color: palette.textPrimary,
-            }}
-          />
+          {showNoteInput || noteInput ? (
+            <TextInput
+              value={noteInput}
+              onChangeText={setNoteInput}
+              placeholder="Nota breve (ej. regurgitó, se durmió)"
+              placeholderTextColor={palette.textMuted}
+              className="rounded-xl border px-3 py-2 text-xs"
+              style={{
+                minHeight: 40,
+                backgroundColor: palette.bgElevated,
+                borderColor: palette.borderInteractive,
+                color: palette.textPrimary,
+              }}
+            />
+          ) : null}
         </View>
       </View>
 
@@ -712,7 +711,7 @@ export function DailyLogPanel() {
         }}
       >
         <View>
-          <Text className="text-lg font-bold" style={{ color: palette.textPrimary }}>
+          <Text className="text-base font-bold" style={{ color: palette.textPrimary }}>
             Resumen y promedios
           </Text>
           <Text className="text-xs" style={{ color: palette.textSecondary }}>
@@ -721,7 +720,11 @@ export function DailyLogPanel() {
           </Text>
         </View>
 
-        <View className="flex-row flex-wrap gap-1.5">
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 6 }}
+        >
           {RANGE_PRESETS.map((preset) => {
             const active = rangePreset === preset.id;
             return (
@@ -750,7 +753,7 @@ export function DailyLogPanel() {
               </Pressable>
             );
           })}
-        </View>
+        </ScrollView>
 
         {rangePreset === 'custom' ? (
           <View className="flex-row flex-wrap gap-2">
