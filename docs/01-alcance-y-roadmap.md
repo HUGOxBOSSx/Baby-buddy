@@ -20,8 +20,8 @@ Baby Buddy MX acompaña a familias con niñas y niños de 0 a 6 años en México
 | 1 | Monorepo, diseño, navegación, avisos, privacidad local, CI y documentación | Completado |
 | 2 | Motor de ropa y clima de −5 °C a 50 °C, interfaz móvil y calculadora web pública | Completado |
 | 3 | Buscador de guías, biblioteca de calma, problemas y soluciones, semáforo de cuatro niveles | Completado |
-| 4 | Perfil local, registro diario (tomas, pañales, sueño/siestas, notas), modo nocturno y funcionamiento sin conexión | Completado (local); sincronización remota pendiente |
-| 5 | Salud México: fiebre, medicamentos, inmunizaciones, gráficas de crecimiento OMS 2006 y reporte para consulta | En validación |
+| 4 | Perfil local, registro diario (tomas, extracción, sólidos, pañales, sueño/siestas con ventana sugerida, notas), modo nocturno y funcionamiento sin conexión | Completado (local); sincronización remota pendiente |
+| 5 | Salud México: fiebre, medicamentos, inmunizaciones, gráficas de crecimiento OMS 2006 (kg/cm) + perímetro cefálico (cm) y reporte para consulta | En validación |
 | 6 | Asistente restringido al corpus editorial aprobado, con filtros previos y citas | Pendiente |
 | 7 | Despliegue gratuito, validación en dispositivos, Plan Pro (Guías/Familia), banner discreto en plan gratuito (fuera de 911 y horario nocturno fijo 22:00–06:00 h) y preparación de lanzamiento | Pendiente |
 

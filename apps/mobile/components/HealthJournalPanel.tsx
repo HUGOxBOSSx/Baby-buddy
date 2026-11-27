@@ -35,6 +35,7 @@ export function HealthJournalPanel() {
   const [medDose, setMedDose] = useState('');
   const [weightInput, setWeightInput] = useState('');
   const [heightInput, setHeightInput] = useState('');
+  const [headCmInput, setHeadCmInput] = useState('');
 
   const ageMonths = childProfile ? childProfile.ageMonths : 2;
   const parsedTemp = Number.parseFloat(tempInput);
@@ -93,16 +94,23 @@ export function HealthJournalPanel() {
   const handleAddGrowth = () => {
     const w = Number.parseFloat(weightInput);
     const h = Number.parseFloat(heightInput);
-    if (!Number.isFinite(w) && !Number.isFinite(h)) return;
+    const hc = Number.parseFloat(headCmInput);
+    if (!Number.isFinite(w) && !Number.isFinite(h) && !Number.isFinite(hc)) {
+      return;
+    }
     const now = Date.now();
     addGrowthLog({
       id: `growth-${now}`,
       timestampIso: new Date(now).toISOString(),
       weightKg: Number.isFinite(w) ? Math.round(w * 100) / 100 : undefined,
       heightCm: Number.isFinite(h) ? Math.round(h * 10) / 10 : undefined,
+      headCircumferenceCm: Number.isFinite(hc)
+        ? Math.round(hc * 10) / 10
+        : undefined,
     });
     setWeightInput('');
     setHeightInput('');
+    setHeadCmInput('');
   };
 
   return (
@@ -357,7 +365,21 @@ export function HealthJournalPanel() {
               keyboardType="decimal-pad"
               placeholder="Talla (cm)"
               placeholderTextColor={palette.textMuted}
-              className="rounded-xl border px-3 py-2 flex-1 min-w-[100px] text-sm"
+              className="rounded-xl border px-3 py-2 flex-1 min-w-[90px] text-sm"
+              style={{
+                minHeight: MIN_TOUCH_TARGET_PX,
+                backgroundColor: palette.bgElevated,
+                borderColor: palette.borderInteractive,
+                color: palette.textPrimary,
+              }}
+            />
+            <TextInput
+              value={headCmInput}
+              onChangeText={setHeadCmInput}
+              keyboardType="decimal-pad"
+              placeholder="PC (cm)"
+              placeholderTextColor={palette.textMuted}
+              className="rounded-xl border px-3 py-2 flex-1 min-w-[90px] text-sm"
               style={{
                 minHeight: MIN_TOUCH_TARGET_PX,
                 backgroundColor: palette.bgElevated,
@@ -383,7 +405,11 @@ export function HealthJournalPanel() {
             >
               <Text className="text-xs flex-1 pr-2" style={{ color: palette.textPrimary }}>
                 {g.weightKg !== undefined ? `${g.weightKg} kg` : '—'} ·{' '}
-                {g.heightCm !== undefined ? `${g.heightCm} cm` : '—'} ({g.timestampIso.slice(0, 10)})
+                {g.heightCm !== undefined ? `${g.heightCm} cm` : '—'}
+                {g.headCircumferenceCm !== undefined
+                  ? ` · ${g.headCircumferenceCm} cm PC`
+                  : ''}{' '}
+                ({g.timestampIso.slice(0, 10)})
               </Text>
               <Pressable onPress={() => deleteGrowthLog(g.id)}>
                 <Text className="text-[11px] font-semibold" style={{ color: palette.textSecondary }}>

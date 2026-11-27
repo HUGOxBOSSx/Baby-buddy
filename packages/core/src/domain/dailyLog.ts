@@ -1,4 +1,9 @@
-export type FeedType = 'breast_left' | 'breast_right' | 'bottle';
+export type FeedType =
+  | 'breast_left'
+  | 'breast_right'
+  | 'bottle'
+  | 'pumping'
+  | 'solids';
 export type DiaperKind = 'wet' | 'dirty' | 'both';
 export type PoopColorTag =
   | 'mostaza'
@@ -16,6 +21,8 @@ export interface FeedLogEntry {
   readonly feedType: FeedType;
   readonly durationSec?: number;
   readonly volumeMl?: number;
+  readonly foodMx?: string;
+  readonly isNewFood?: boolean;
   readonly noteMx?: string;
 }
 
@@ -69,6 +76,11 @@ export interface DailyLogSummary {
   readonly bottleFeeds: number;
   readonly totalBottleMl: number;
   readonly avgBottleMlPerDay: number;
+  readonly pumpingFeeds: number;
+  readonly totalPumpingMl: number;
+  readonly avgPumpingMlPerDay: number;
+  readonly solidsCount: number;
+  readonly avgSolidsPerDay: number;
   readonly totalDiapers: number;
   readonly avgDiapersPerDay: number;
   readonly wetDiapers: number;
@@ -83,6 +95,7 @@ export interface DailyLogSummary {
   readonly hoursSinceLastDiaper: number | null;
   readonly hoursSinceLastFeed: number | null;
   readonly hoursSinceLastSleep: number | null;
+  readonly lastSleepIso: string | null;
   readonly hydrationAlertMx: string | null;
   readonly stoolAlertMx: string | null;
 }
@@ -219,6 +232,9 @@ export function summarizeDailyLog(
   let totalBreastSec = 0;
   let bottleFeeds = 0;
   let totalBottleMl = 0;
+  let pumpingFeeds = 0;
+  let totalPumpingMl = 0;
+  let solidsCount = 0;
   let totalDiapers = 0;
   let wetDiapers = 0;
   let dirtyDiapers = 0;
@@ -227,13 +243,20 @@ export function summarizeDailyLog(
 
   for (const entry of inRange) {
     if (entry.kind === 'feed') {
-      totalFeeds += 1;
-      if (entry.feedType === 'bottle') {
-        bottleFeeds += 1;
-        totalBottleMl += entry.volumeMl ?? 0;
+      if (entry.feedType === 'pumping') {
+        pumpingFeeds += 1;
+        totalPumpingMl += entry.volumeMl ?? 0;
       } else {
-        breastFeeds += 1;
-        totalBreastSec += entry.durationSec ?? 0;
+        totalFeeds += 1;
+        if (entry.feedType === 'bottle') {
+          bottleFeeds += 1;
+          totalBottleMl += entry.volumeMl ?? 0;
+        } else if (entry.feedType === 'solids') {
+          solidsCount += 1;
+        } else {
+          breastFeeds += 1;
+          totalBreastSec += entry.durationSec ?? 0;
+        }
       }
     } else if (entry.kind === 'sleep') {
       totalSleeps += 1;
@@ -267,7 +290,9 @@ export function summarizeDailyLog(
       : null;
 
   const nowMs = now.getTime();
-  const lastFeed = sortedAll.find((e) => e.kind === 'feed');
+  const lastFeed = sortedAll.find(
+    (e) => e.kind === 'feed' && e.feedType !== 'pumping',
+  );
   const hoursSinceLastFeed = lastFeed
     ? round1(
         Math.max(0, (nowMs - new Date(lastFeed.timestampIso).getTime()) / 3_600_000),
@@ -330,6 +355,11 @@ export function summarizeDailyLog(
     bottleFeeds,
     totalBottleMl,
     avgBottleMlPerDay: round1(totalBottleMl / daysInRange),
+    pumpingFeeds,
+    totalPumpingMl,
+    avgPumpingMlPerDay: round1(totalPumpingMl / daysInRange),
+    solidsCount,
+    avgSolidsPerDay: round1(solidsCount / daysInRange),
     totalDiapers,
     avgDiapersPerDay: round1(totalDiapers / daysInRange),
     wetDiapers,
@@ -344,6 +374,7 @@ export function summarizeDailyLog(
     hoursSinceLastDiaper,
     hoursSinceLastFeed,
     hoursSinceLastSleep,
+    lastSleepIso: lastSleep ? lastSleep.timestampIso : null,
     hydrationAlertMx,
     stoolAlertMx,
   };
@@ -438,4 +469,51 @@ export function getWakeWindowGuidanceMx(
       ? `${Math.round(hoursSinceLastSleep * 60)} min`
       : `${hoursSinceLastSleep} h`;
   return `Lleva ${awakeStr} despierto · Ventana orientativa: ${windowLabel}.`;
+}
+
+function formatLocalHm(date: Date): string {
+  return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+}
+
+export function suggestNextNapWindowMx(
+  ageMonths: number,
+  lastSleepIso: string | null,
+  now: Date = new Date(),
+): string {
+  if (ageMonths >= 36) {
+    return 'Siesta opcional según su descanso diario.';
+  }
+  let minMin = 240;
+  let maxMin = 360;
+  if (ageMonths < 3) {
+    minMin = 45;
+    maxMin = 90;
+  } else if (ageMonths < 6) {
+    minMin = 90;
+    maxMin = 150;
+  } else if (ageMonths < 12) {
+    minMin = 150;
+    maxMin = 210;
+  }
+
+  if (!lastSleepIso) {
+    return 'Registra una siesta para sugerir la siguiente ventana.';
+  }
+  const lastSleepMs = new Date(lastSleepIso).getTime();
+  if (Number.isNaN(lastSleepMs)) {
+    return 'Registra una siesta para sugerir la siguiente ventana.';
+  }
+
+  const start = new Date(lastSleepMs + minMin * 60_000);
+  const end = new Date(lastSleepMs + maxMin * 60_000);
+  const rangeStr = `${formatLocalHm(start)}–${formatLocalHm(end)}`;
+  const nowMs = now.getTime();
+
+  if (nowMs < start.getTime()) {
+    return `Próxima siesta sugerida: ${rangeStr}`;
+  }
+  if (nowMs <= end.getTime()) {
+    return `Ventana de siesta abierta ahora (${rangeStr})`;
+  }
+  return `Ventana sugerida pasada (${rangeStr}); observa señales de sueño.`;
 }

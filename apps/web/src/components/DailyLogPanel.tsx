@@ -10,6 +10,7 @@ import {
   formatTimerClock,
   getWakeWindowGuidanceMx,
   resolveDateRangePreset,
+  suggestNextNapWindowMx,
   summarizeDailyLog,
   toLocalDateKey,
   type DateRangePreset,
@@ -58,6 +59,11 @@ export function DailyLogPanel() {
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
   const [showBottlePicker, setShowBottlePicker] = useState(false);
   const [bottleMlInput, setBottleMlInput] = useState('90');
+  const [showPumpingPicker, setShowPumpingPicker] = useState(false);
+  const [pumpingMlInput, setPumpingMlInput] = useState('90');
+  const [showSolidsPicker, setShowSolidsPicker] = useState(false);
+  const [solidsFoodInput, setSolidsFoodInput] = useState('');
+  const [solidsIsNew, setSolidsIsNew] = useState(false);
   const [pendingDiaperKind, setPendingDiaperKind] = useState<DiaperKind | null>(
     null,
   );
@@ -149,6 +155,52 @@ export function DailyLogPanel() {
     [addDailyLogEntry, flashFeedback, getEntryTimestampIso, noteInput],
   );
 
+  const handleSavePumping = useCallback(
+    (mlValue: number) => {
+      const safeMl = Math.max(5, Math.min(500, Math.round(mlValue)));
+      const now = Date.now();
+      addDailyLogEntry({
+        id: `pump-${now}`,
+        kind: 'feed',
+        timestampIso: getEntryTimestampIso(now),
+        feedType: 'pumping',
+        volumeMl: safeMl,
+        noteMx: noteInput.trim() || undefined,
+      });
+      setShowPumpingPicker(false);
+      setNoteInput('');
+      flashFeedback(`✓ Extracción (${safeMl} ml) guardada`);
+    },
+    [addDailyLogEntry, flashFeedback, getEntryTimestampIso, noteInput],
+  );
+
+  const handleSaveSolids = useCallback(() => {
+    const food = solidsFoodInput.trim();
+    if (!food) return;
+    const now = Date.now();
+    addDailyLogEntry({
+      id: `solid-${now}`,
+      kind: 'feed',
+      timestampIso: getEntryTimestampIso(now),
+      feedType: 'solids',
+      foodMx: food,
+      isNewFood: solidsIsNew,
+      noteMx: noteInput.trim() || undefined,
+    });
+    setSolidsFoodInput('');
+    setSolidsIsNew(false);
+    setShowSolidsPicker(false);
+    setNoteInput('');
+    flashFeedback(`✓ Sólidos (${food}) guardados`);
+  }, [
+    addDailyLogEntry,
+    flashFeedback,
+    getEntryTimestampIso,
+    noteInput,
+    solidsFoodInput,
+    solidsIsNew,
+  ]);
+
   const handleQuickWetDiaper = useCallback(() => {
     const now = Date.now();
     addDailyLogEntry({
@@ -203,6 +255,11 @@ export function DailyLogPanel() {
 
   const ageMonths = childProfile ? childProfile.ageMonths : 2;
   const wakeGuidance = getWakeWindowGuidanceMx(ageMonths, summary.hoursSinceLastSleep);
+  const napSuggestion = suggestNextNapWindowMx(
+    ageMonths,
+    summary.lastSleepIso,
+    new Date(nowMs),
+  );
   const sleepElapsedSec =
     sleepStartMs !== null ? Math.max(0, Math.floor((nowMs - sleepStartMs) / 1000)) : 0;
 
@@ -248,6 +305,9 @@ export function DailyLogPanel() {
               : 'Sin registro'}
           </p>
           <p className="text-[11px] text-ink-secondary">{wakeGuidance}</p>
+          <p className="text-[11px] font-semibold text-brand-text">
+            {napSuggestion}
+          </p>
         </div>
       </div>
 
@@ -346,7 +406,11 @@ export function DailyLogPanel() {
 
             <button
               type="button"
-              onClick={() => setShowBottlePicker((v) => !v)}
+              onClick={() => {
+                setShowBottlePicker((v) => !v);
+                setShowPumpingPicker(false);
+                setShowSolidsPicker(false);
+              }}
               aria-expanded={showBottlePicker}
               className="flex min-h-12 flex-col items-center justify-center rounded-xl border border-border-interactive bg-bg-elevated px-2 py-2.5 text-center hover:bg-brand-surface"
             >
@@ -355,6 +419,114 @@ export function DailyLogPanel() {
               </span>
             </button>
           </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setShowPumpingPicker((v) => !v);
+                setShowBottlePicker(false);
+                setShowSolidsPicker(false);
+              }}
+              aria-expanded={showPumpingPicker}
+              className={`flex min-h-11 items-center justify-center rounded-xl border px-3 py-2 text-xs font-bold ${
+                showPumpingPicker
+                  ? 'border-brand-primary bg-brand-surface text-brand-text'
+                  : 'border-border-interactive bg-bg-elevated text-ink-primary'
+              }`}
+            >
+              Extracción (ml)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowSolidsPicker((v) => !v);
+                setShowBottlePicker(false);
+                setShowPumpingPicker(false);
+              }}
+              aria-expanded={showSolidsPicker}
+              className={`flex min-h-11 items-center justify-center rounded-xl border px-3 py-2 text-xs font-bold ${
+                showSolidsPicker
+                  ? 'border-brand-primary bg-brand-surface text-brand-text'
+                  : 'border-border-interactive bg-bg-elevated text-ink-primary'
+              }`}
+            >
+              Sólidos / comida
+            </button>
+          </div>
+
+          {showPumpingPicker ? (
+            <div className="rounded-2xl border border-border-subtle bg-bg-elevated p-4 space-y-3">
+              <p className="text-xs font-bold text-ink-primary">
+                Extracción de leche (ml):
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {BOTTLE_PRESET_ML.map((ml) => (
+                  <button
+                    key={`pump-${ml}`}
+                    type="button"
+                    onClick={() => handleSavePumping(ml)}
+                    className="inline-flex min-h-11 items-center rounded-xl border border-brand-primary bg-brand-surface px-3.5 py-2 text-xs font-bold text-brand-text"
+                  >
+                    {ml} ml
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="number"
+                  min={5}
+                  max={500}
+                  value={pumpingMlInput}
+                  onChange={(e) => setPumpingMlInput(e.target.value)}
+                  className="min-h-11 w-28 rounded-xl border border-border-interactive bg-bg-card px-3 py-2 text-sm text-ink-primary"
+                  aria-label="Mililitros de extracción"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleSavePumping(Number.parseFloat(pumpingMlInput) || 90)
+                  }
+                  className="inline-flex min-h-11 items-center rounded-xl bg-brand-primary px-4 py-2 text-xs font-bold text-brand-on"
+                >
+                  Guardar extracción
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {showSolidsPicker ? (
+            <div className="rounded-2xl border border-border-subtle bg-bg-elevated p-4 space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="text"
+                  value={solidsFoodInput}
+                  onChange={(e) => setSolidsFoodInput(e.target.value)}
+                  placeholder="Alimento (ej. aguacate, avena)"
+                  className="min-h-11 flex-1 min-w-[160px] rounded-xl border border-border-interactive bg-bg-card px-3 py-2 text-xs text-ink-primary"
+                />
+                <button
+                  type="button"
+                  onClick={() => setSolidsIsNew((v) => !v)}
+                  aria-pressed={solidsIsNew}
+                  className={`inline-flex min-h-11 items-center rounded-xl border px-3 py-2 text-xs font-bold ${
+                    solidsIsNew
+                      ? 'border-brand-primary bg-brand-primary text-brand-on'
+                      : 'border-border-interactive bg-bg-card text-ink-primary'
+                  }`}
+                >
+                  {solidsIsNew ? '✓ Alimento nuevo' : 'Alimento nuevo'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveSolids}
+                  className="inline-flex min-h-11 items-center rounded-xl bg-brand-primary px-4 py-2 text-xs font-bold text-brand-on"
+                >
+                  Guardar sólidos
+                </button>
+              </div>
+            </div>
+          ) : null}
 
           {showBottlePicker ? (
             <div className="rounded-2xl border border-border-interactive bg-bg-elevated p-4 space-y-3">
@@ -733,6 +905,20 @@ export function DailyLogPanel() {
               Promedio: {summary.avgSleepMinPerDay} min / día
             </p>
           </div>
+
+          {summary.totalPumpingMl > 0 || summary.solidsCount > 0 ? (
+            <div className="rounded-2xl border border-border-subtle bg-bg-elevated p-3.5 space-y-1">
+              <p className="text-xs font-semibold text-ink-secondary">
+                Extracción / Sólidos
+              </p>
+              <p className="text-sm font-bold text-ink-primary">
+                {summary.totalPumpingMl} ml · {summary.solidsCount} comidas
+              </p>
+              <p className="text-xs font-semibold text-brand-text">
+                Prom: {summary.avgPumpingMlPerDay} ml/d · {summary.avgSolidsPerDay}/d
+              </p>
+            </div>
+          ) : null}
         </div>
 
         {/* History list */}
@@ -758,7 +944,11 @@ export function DailyLogPanel() {
                           ? `Pecho Izquierdo (${Math.max(1, Math.round((entry.durationSec ?? 0) / 60))} min)`
                           : entry.feedType === 'breast_right'
                             ? `Pecho Derecho (${Math.max(1, Math.round((entry.durationSec ?? 0) / 60))} min)`
-                            : `Biberón (${entry.volumeMl ?? 0} ml)`
+                            : entry.feedType === 'pumping'
+                              ? `Extracción (${entry.volumeMl ?? 0} ml)`
+                              : entry.feedType === 'solids'
+                                ? `Sólidos: ${entry.foodMx ?? 'Comida'}${entry.isNewFood ? ' (nuevo)' : ''}`
+                                : `Biberón (${entry.volumeMl ?? 0} ml)`
                         : entry.kind === 'sleep'
                           ? `Siesta (${Math.max(1, Math.round(entry.durationSec / 60))} min)`
                           : entry.diaperKind === 'wet'

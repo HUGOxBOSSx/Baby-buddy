@@ -92,6 +92,7 @@ packages/content/src/
 - Móvil: className (NativeWind) y style solo para valores de paleta o medidas dinámicas.
 - Área táctil mínima MIN_TOUCH_TARGET_PX = 48. Flujo 3:00 AM hacia Salud hacia 911 en <= 3 toques.
 - Nunca ocultar el 911 y nunca usar blanco puro como fondo en modo noche.
+- UI minimalista: header global compacto en 1 fila táctil (`>= 48 px`), tarjetas pasivas con borde sutil (`border-border-subtle`) reservando `border-border-interactive` para controles interactivos, filtros largos en 1 fila desplazable horizontalmente, cero booleans técnicos `(false)` en UI visible y copy corto en es-MX sin subtítulos repetitivos.
 
 ## 8. Contenido clínico
 - Todo ítem de packages/content exige ClinicalMetadata completa: version, sources[] no vacío,

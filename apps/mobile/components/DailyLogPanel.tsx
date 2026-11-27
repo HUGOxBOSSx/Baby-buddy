@@ -7,6 +7,7 @@ import {
   formatTimerClock,
   getWakeWindowGuidanceMx,
   resolveDateRangePreset,
+  suggestNextNapWindowMx,
   summarizeDailyLog,
   toLocalDateKey,
   type DateRangePreset,
@@ -58,6 +59,11 @@ export function DailyLogPanel() {
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
   const [showBottlePicker, setShowBottlePicker] = useState(false);
   const [bottleMlInput, setBottleMlInput] = useState('90');
+  const [showPumpingPicker, setShowPumpingPicker] = useState(false);
+  const [pumpingMlInput, setPumpingMlInput] = useState('90');
+  const [showSolidsPicker, setShowSolidsPicker] = useState(false);
+  const [solidsFoodInput, setSolidsFoodInput] = useState('');
+  const [solidsIsNew, setSolidsIsNew] = useState(false);
   const [pendingDiaperKind, setPendingDiaperKind] = useState<DiaperKind | null>(
     null,
   );
@@ -144,6 +150,42 @@ export function DailyLogPanel() {
     flashFeedback(`✓ Biberón (${safeMl} ml) guardado`);
   };
 
+  const handleSavePumping = (mlValue: number) => {
+    const safeMl = Math.max(5, Math.min(500, Math.round(mlValue)));
+    const now = Date.now();
+    addDailyLogEntry({
+      id: `pump-${now}`,
+      kind: 'feed',
+      timestampIso: getEntryTimestampIso(now),
+      feedType: 'pumping',
+      volumeMl: safeMl,
+      noteMx: noteInput.trim() || undefined,
+    });
+    setShowPumpingPicker(false);
+    setNoteInput('');
+    flashFeedback(`✓ Extracción (${safeMl} ml) guardada`);
+  };
+
+  const handleSaveSolids = () => {
+    const food = solidsFoodInput.trim();
+    if (!food) return;
+    const now = Date.now();
+    addDailyLogEntry({
+      id: `solid-${now}`,
+      kind: 'feed',
+      timestampIso: getEntryTimestampIso(now),
+      feedType: 'solids',
+      foodMx: food,
+      isNewFood: solidsIsNew,
+      noteMx: noteInput.trim() || undefined,
+    });
+    setSolidsFoodInput('');
+    setSolidsIsNew(false);
+    setShowSolidsPicker(false);
+    setNoteInput('');
+    flashFeedback(`✓ Sólidos (${food}) guardados`);
+  };
+
   const handleQuickWetDiaper = () => {
     const now = Date.now();
     addDailyLogEntry({
@@ -195,6 +237,11 @@ export function DailyLogPanel() {
 
   const ageMonths = childProfile ? childProfile.ageMonths : 2;
   const wakeGuidance = getWakeWindowGuidanceMx(ageMonths, summary.hoursSinceLastSleep);
+  const napSuggestion = suggestNextNapWindowMx(
+    ageMonths,
+    summary.lastSleepIso,
+    new Date(nowMs),
+  );
   const sleepElapsedSec =
     sleepStartMs !== null ? Math.max(0, Math.floor((nowMs - sleepStartMs) / 1000)) : 0;
 
@@ -244,6 +291,9 @@ export function DailyLogPanel() {
       </View>
       <Text className="text-xs px-1" style={{ color: palette.textSecondary }}>
         {wakeGuidance}
+      </Text>
+      <Text className="text-xs font-semibold px-1" style={{ color: palette.brandText }}>
+        {napSuggestion}
       </Text>
 
       {/* 1-Tap Quick Registration */}
@@ -374,7 +424,11 @@ export function DailyLogPanel() {
           </Pressable>
 
           <Pressable
-            onPress={() => setShowBottlePicker((v) => !v)}
+            onPress={() => {
+              setShowBottlePicker((v) => !v);
+              setShowPumpingPicker(false);
+              setShowSolidsPicker(false);
+            }}
             className="flex-1 rounded-xl border px-2 py-2.5 items-center justify-center"
             style={{
               minHeight: MIN_TOUCH_TARGET_PX,
@@ -387,6 +441,160 @@ export function DailyLogPanel() {
             </Text>
           </Pressable>
         </View>
+
+        <View className="flex-row gap-2">
+          <Pressable
+            onPress={() => {
+              setShowPumpingPicker((v) => !v);
+              setShowBottlePicker(false);
+              setShowSolidsPicker(false);
+            }}
+            className="flex-1 rounded-xl border px-3 py-2 items-center justify-center"
+            style={{
+              minHeight: MIN_TOUCH_TARGET_PX,
+              backgroundColor: showPumpingPicker ? palette.brandSurface : palette.bgElevated,
+              borderColor: showPumpingPicker ? palette.brandPrimary : palette.borderInteractive,
+            }}
+          >
+            <Text
+              className="text-xs font-bold"
+              style={{ color: showPumpingPicker ? palette.brandText : palette.textPrimary }}
+            >
+              Extracción (ml)
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              setShowSolidsPicker((v) => !v);
+              setShowBottlePicker(false);
+              setShowPumpingPicker(false);
+            }}
+            className="flex-1 rounded-xl border px-3 py-2 items-center justify-center"
+            style={{
+              minHeight: MIN_TOUCH_TARGET_PX,
+              backgroundColor: showSolidsPicker ? palette.brandSurface : palette.bgElevated,
+              borderColor: showSolidsPicker ? palette.brandPrimary : palette.borderInteractive,
+            }}
+          >
+            <Text
+              className="text-xs font-bold"
+              style={{ color: showSolidsPicker ? palette.brandText : palette.textPrimary }}
+            >
+              Sólidos / comida
+            </Text>
+          </Pressable>
+        </View>
+
+        {showPumpingPicker ? (
+          <View
+            className="rounded-xl border p-3 gap-2"
+            style={{
+              backgroundColor: palette.bgElevated,
+              borderColor: palette.borderInteractive,
+            }}
+          >
+            <View className="flex-row flex-wrap gap-2">
+              {BOTTLE_PRESET_ML.map((ml) => (
+                <Pressable
+                  key={`pump-${ml}`}
+                  onPress={() => handleSavePumping(ml)}
+                  className="rounded-xl border px-3 py-2 justify-center"
+                  style={{
+                    minHeight: MIN_TOUCH_TARGET_PX,
+                    backgroundColor: palette.brandSurface,
+                    borderColor: palette.brandPrimary,
+                  }}
+                >
+                  <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
+                    {ml} ml
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            <View className="flex-row items-center gap-2">
+              <TextInput
+                value={pumpingMlInput}
+                onChangeText={setPumpingMlInput}
+                keyboardType="numeric"
+                className="rounded-xl border px-3 py-2 w-24 text-sm"
+                style={{
+                  minHeight: MIN_TOUCH_TARGET_PX,
+                  backgroundColor: palette.bgCard,
+                  borderColor: palette.borderInteractive,
+                  color: palette.textPrimary,
+                }}
+              />
+              <Pressable
+                onPress={() =>
+                  handleSavePumping(Number.parseFloat(pumpingMlInput) || 90)
+                }
+                className="rounded-xl px-4 py-2 justify-center"
+                style={{
+                  minHeight: MIN_TOUCH_TARGET_PX,
+                  backgroundColor: palette.brandPrimary,
+                }}
+              >
+                <Text className="text-xs font-bold" style={{ color: palette.onBrandPrimary }}>
+                  Guardar extracción
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
+
+        {showSolidsPicker ? (
+          <View
+            className="rounded-xl border p-3 gap-2"
+            style={{
+              backgroundColor: palette.bgElevated,
+              borderColor: palette.borderInteractive,
+            }}
+          >
+            <TextInput
+              value={solidsFoodInput}
+              onChangeText={setSolidsFoodInput}
+              placeholder="Alimento (ej. aguacate, avena)"
+              placeholderTextColor={palette.textMuted}
+              className="rounded-xl border px-3 py-2 text-xs"
+              style={{
+                minHeight: MIN_TOUCH_TARGET_PX,
+                backgroundColor: palette.bgCard,
+                borderColor: palette.borderInteractive,
+                color: palette.textPrimary,
+              }}
+            />
+            <View className="flex-row flex-wrap items-center gap-2">
+              <Pressable
+                onPress={() => setSolidsIsNew((v) => !v)}
+                className="rounded-xl border px-3 py-2 justify-center"
+                style={{
+                  minHeight: MIN_TOUCH_TARGET_PX,
+                  backgroundColor: solidsIsNew ? palette.brandPrimary : palette.bgCard,
+                  borderColor: solidsIsNew ? palette.brandPrimary : palette.borderInteractive,
+                }}
+              >
+                <Text
+                  className="text-xs font-bold"
+                  style={{ color: solidsIsNew ? palette.onBrandPrimary : palette.textPrimary }}
+                >
+                  {solidsIsNew ? '✓ Alimento nuevo' : 'Alimento nuevo'}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={handleSaveSolids}
+                className="rounded-xl px-4 py-2 justify-center"
+                style={{
+                  minHeight: MIN_TOUCH_TARGET_PX,
+                  backgroundColor: palette.brandPrimary,
+                }}
+              >
+                <Text className="text-xs font-bold" style={{ color: palette.onBrandPrimary }}>
+                  Guardar sólidos
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
 
         {showBottlePicker ? (
           <View
@@ -884,6 +1092,26 @@ export function DailyLogPanel() {
               Prom: {summary.avgSleepMinPerDay} min / día
             </Text>
           </View>
+
+          {summary.totalPumpingMl > 0 || summary.solidsCount > 0 ? (
+            <View
+              className="flex-1 min-w-[140px] rounded-xl border p-3 gap-0.5"
+              style={{
+                backgroundColor: palette.bgElevated,
+                borderColor: palette.borderInteractive,
+              }}
+            >
+              <Text className="text-xs" style={{ color: palette.textSecondary }}>
+                Extracción / Sólidos
+              </Text>
+              <Text className="text-sm font-bold" style={{ color: palette.textPrimary }}>
+                {summary.totalPumpingMl} ml · {summary.solidsCount} comidas
+              </Text>
+              <Text className="text-xs font-semibold" style={{ color: palette.brandText }}>
+                {summary.avgPumpingMlPerDay} ml/d · {summary.avgSolidsPerDay}/d
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         <Text className="text-xs font-bold uppercase pt-1" style={{ color: palette.textSecondary }}>
@@ -905,7 +1133,11 @@ export function DailyLogPanel() {
                     ? `Pecho Izquierdo (${Math.max(1, Math.round((entry.durationSec ?? 0) / 60))} min)`
                     : entry.feedType === 'breast_right'
                       ? `Pecho Derecho (${Math.max(1, Math.round((entry.durationSec ?? 0) / 60))} min)`
-                      : `Biberón (${entry.volumeMl ?? 0} ml)`
+                      : entry.feedType === 'pumping'
+                        ? `Extracción (${entry.volumeMl ?? 0} ml)`
+                        : entry.feedType === 'solids'
+                          ? `Sólidos: ${entry.foodMx ?? 'Comida'}${entry.isNewFood ? ' (nuevo)' : ''}`
+                          : `Biberón (${entry.volumeMl ?? 0} ml)`
                   : entry.kind === 'sleep'
                     ? `Siesta (${Math.max(1, Math.round(entry.durationSec / 60))} min)`
                     : entry.diaperKind === 'wet'

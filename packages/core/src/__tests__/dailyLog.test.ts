@@ -5,6 +5,7 @@ import {
   formatTimerClock,
   getWakeWindowGuidanceMx,
   resolveDateRangePreset,
+  suggestNextNapWindowMx,
   summarizeDailyLog,
   type ActiveFeedTimer,
   type DailyLogEntry,
@@ -158,5 +159,53 @@ describe('dailyLog domain', () => {
     expect(getWakeWindowGuidanceMx(2, summary.hoursSinceLastSleep)).toContain(
       '45–90 min',
     );
+  });
+
+  it('tracks pumping separately from feeds, counts solids, and suggests nap windows', () => {
+    const baseSleep = new Date(2026, 10, 25, 10, 0, 0);
+    const entries: DailyLogEntry[] = [
+      {
+        id: 'p1',
+        kind: 'feed',
+        timestampIso: new Date(2026, 10, 25, 9, 0, 0).toISOString(),
+        feedType: 'pumping',
+        volumeMl: 120,
+      },
+      {
+        id: 'sol1',
+        kind: 'feed',
+        timestampIso: new Date(2026, 10, 25, 11, 0, 0).toISOString(),
+        feedType: 'solids',
+        foodMx: 'Aguacate',
+        isNewFood: true,
+      },
+      {
+        id: 'sl1',
+        kind: 'sleep',
+        timestampIso: baseSleep.toISOString(),
+        durationSec: 2700,
+      },
+    ];
+    const summary = summarizeDailyLog(
+      entries,
+      { startDateKey: '2026-11-25', endDateKey: '2026-11-25' },
+      new Date(2026, 10, 25, 11, 45, 0),
+    );
+    expect(summary.totalFeeds).toBe(1);
+    expect(summary.pumpingFeeds).toBe(1);
+    expect(summary.totalPumpingMl).toBe(120);
+    expect(summary.solidsCount).toBe(1);
+    expect(summary.avgSolidsPerDay).toBe(1);
+
+    // 4 months -> 90..150 min window -> 11:30–12:30
+    expect(
+      suggestNextNapWindowMx(4, summary.lastSleepIso, new Date(2026, 10, 25, 11, 0, 0)),
+    ).toContain('Próxima siesta sugerida: 11:30–12:30');
+    expect(
+      suggestNextNapWindowMx(4, summary.lastSleepIso, new Date(2026, 10, 25, 12, 0, 0)),
+    ).toContain('Ventana de siesta abierta ahora (11:30–12:30)');
+    expect(
+      suggestNextNapWindowMx(4, summary.lastSleepIso, new Date(2026, 10, 25, 13, 0, 0)),
+    ).toContain('Ventana sugerida pasada (11:30–12:30)');
   });
 });

@@ -34,6 +34,7 @@ export function HealthJournalPanel() {
   const [medDose, setMedDose] = useState('');
   const [weightInput, setWeightInput] = useState('');
   const [heightInput, setHeightInput] = useState('');
+  const [headCmInput, setHeadCmInput] = useState('');
   const [copied, setCopied] = useState(false);
 
   const ageMonths = childProfile ? childProfile.ageMonths : 2;
@@ -72,17 +73,24 @@ export function HealthJournalPanel() {
   const handleAddGrowth = useCallback(() => {
     const w = Number.parseFloat(weightInput);
     const h = Number.parseFloat(heightInput);
-    if (!Number.isFinite(w) && !Number.isFinite(h)) return;
+    const hc = Number.parseFloat(headCmInput);
+    if (!Number.isFinite(w) && !Number.isFinite(h) && !Number.isFinite(hc)) {
+      return;
+    }
     const now = Date.now();
     addGrowthLog({
       id: `growth-${now}`,
       timestampIso: new Date(now).toISOString(),
       weightKg: Number.isFinite(w) ? Math.round(w * 100) / 100 : undefined,
       heightCm: Number.isFinite(h) ? Math.round(h * 10) / 10 : undefined,
+      headCircumferenceCm: Number.isFinite(hc)
+        ? Math.round(hc * 10) / 10
+        : undefined,
     });
     setWeightInput('');
     setHeightInput('');
-  }, [addGrowthLog, heightInput, weightInput]);
+    setHeadCmInput('');
+  }, [addGrowthLog, headCmInput, heightInput, weightInput]);
 
   const summary3d = summarizeDailyLog(
     dailyLogs,
@@ -324,7 +332,7 @@ export function HealthJournalPanel() {
             sex={childProfile?.sex}
           />
           <h3 className="text-sm font-bold text-ink-primary">
-            Peso (kg) y Talla (cm)
+            Peso (kg), Talla (cm) y P. cefálico (cm)
           </h3>
           <div className="flex flex-wrap items-center gap-2">
             <input
@@ -335,7 +343,7 @@ export function HealthJournalPanel() {
               value={weightInput}
               onChange={(e) => setWeightInput(e.target.value)}
               placeholder="Peso (kg)"
-              className="min-h-12 w-32 rounded-xl border border-border-interactive bg-bg-card px-3 py-2 text-sm text-ink-primary"
+              className="min-h-12 w-28 rounded-xl border border-border-interactive bg-bg-card px-3 py-2 text-sm text-ink-primary"
             />
             <input
               type="number"
@@ -345,7 +353,18 @@ export function HealthJournalPanel() {
               value={heightInput}
               onChange={(e) => setHeightInput(e.target.value)}
               placeholder="Talla (cm)"
-              className="min-h-12 w-32 rounded-xl border border-border-interactive bg-bg-card px-3 py-2 text-sm text-ink-primary"
+              className="min-h-12 w-28 rounded-xl border border-border-interactive bg-bg-card px-3 py-2 text-sm text-ink-primary"
+            />
+            <input
+              type="number"
+              step="0.1"
+              min="25"
+              max="65"
+              value={headCmInput}
+              onChange={(e) => setHeadCmInput(e.target.value)}
+              placeholder="PC (cm)"
+              aria-label="Perímetro cefálico en centímetros"
+              className="min-h-12 w-28 rounded-xl border border-border-interactive bg-bg-card px-3 py-2 text-sm text-ink-primary"
             />
             <button
               type="button"
@@ -364,6 +383,9 @@ export function HealthJournalPanel() {
                 <strong className="text-ink-primary">
                   {g.weightKg !== undefined ? `${g.weightKg} kg` : '—'} ·{' '}
                   {g.heightCm !== undefined ? `${g.heightCm} cm` : '—'}
+                  {g.headCircumferenceCm !== undefined
+                    ? ` · ${g.headCircumferenceCm} cm PC`
+                    : ''}
                 </strong>{' '}
                 <span className="text-ink-secondary">
                   · {g.timestampIso.slice(0, 10)}

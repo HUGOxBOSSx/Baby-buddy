@@ -40,13 +40,22 @@ describe('healthLog domain', () => {
       dailySummary3d: summary,
       health: {
         ...EMPTY_HEALTH_LOG_STATE,
-        growth: [{ id: 'g1', timestampIso: '2026-11-25T10:00:00Z', weightKg: 6.2, heightCm: 62 }],
+        growth: [
+          {
+            id: 'g1',
+            timestampIso: '2026-11-25T10:00:00Z',
+            weightKg: 6.2,
+            heightCm: 62,
+            headCircumferenceCm: 41.5,
+          },
+        ],
       },
       generatedAtIso: '2026-11-25T12:00:00Z',
     });
     expect(report).toContain('REPORTE PARA PEDIATRA');
     expect(report).toContain('6.2 kg');
     expect(report).toContain('62 cm');
+    expect(report).toContain('PC 41.5 cm');
   });
 
   it('includes 7-day and 30-day monthly averages in pediatrician report when provided', () => {

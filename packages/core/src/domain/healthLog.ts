@@ -20,6 +20,7 @@ export interface GrowthLogEntry {
   readonly timestampIso: string;
   readonly weightKg?: number;
   readonly heightCm?: number;
+  readonly headCircumferenceCm?: number;
 }
 
 export interface VaccineChecklistItem {
@@ -118,6 +119,11 @@ function formatSummaryBlock(title: string, summary: DailyLogSummary): readonly s
     title,
     `Tomas totales: ${summary.totalFeeds} (promedio ${summary.avgFeedsPerDay}/día)`,
     `Pecho: ${summary.totalBreastMin} min (promedio ${summary.avgBreastMinPerDay} min/día) · Biberón: ${summary.totalBottleMl} ml (promedio ${summary.avgBottleMlPerDay} ml/día)`,
+    ...(summary.totalPumpingMl > 0 || summary.solidsCount > 0
+      ? [
+          `Extracción: ${summary.totalPumpingMl} ml · Sólidos: ${summary.solidsCount}`,
+        ]
+      : []),
     `Pañales mojados (pipí): ${summary.wetDiapers} (promedio ${summary.avgWetDiapersPerDay}/día)`,
     `Evacuaciones (popó): ${summary.dirtyDiapers} (promedio ${summary.avgDirtyDiapersPerDay}/día)`,
     `Sueño: ${summary.totalSleepMin} min (promedio ${summary.avgSleepMinPerDay} min/día)`,
@@ -190,7 +196,7 @@ export function buildPediatricianReportText(input: {
           .slice(0, 5)
           .map(
             (g) =>
-              `• ${g.timestampIso.slice(0, 10)}: ${g.weightKg !== undefined ? `${g.weightKg} kg` : '—'} · ${g.heightCm !== undefined ? `${g.heightCm} cm` : '—'}`,
+              `• ${g.timestampIso.slice(0, 10)}: ${g.weightKg !== undefined ? `${g.weightKg} kg` : '—'} · ${g.heightCm !== undefined ? `${g.heightCm} cm` : '—'}${g.headCircumferenceCm !== undefined ? ` · PC ${g.headCircumferenceCm} cm` : ''}`,
           )
       : ['• Sin registros de peso/talla']),
     '',
