@@ -25,8 +25,12 @@ export function SaludView() {
     seedDemoData,
     themeSchedule,
     setThemeSchedule,
+    pendingSyncCount,
+    exportFamilyBackup,
+    importFamilyBackup,
   } = useAppState();
   const [isSeeding, setIsSeeding] = useState(false);
+  const [backupMessage, setBackupMessage] = useState<string | null>(null);
 
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
@@ -199,6 +203,55 @@ export function SaludView() {
           </button>
 
           <AccountDeletionDialog />
+        </div>
+
+        <div className="rounded-xl border border-border-subtle bg-bg-elevated p-4 space-y-2.5">
+          <p className="text-xs font-bold text-ink-primary">
+            Respaldo y fusión familiar (offline-first)
+          </p>
+          <p className="text-xs text-ink-secondary">
+            Cambios locales en cola de sincronización: {pendingSyncCount}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                const json = exportFamilyBackup();
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `baby-buddy-mx-respaldo-${new Date().toISOString().slice(0, 10)}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                setBackupMessage('✓ Respaldo descargado.');
+              }}
+              className="inline-flex min-h-11 items-center rounded-xl border border-brand-primary bg-brand-surface px-4 py-2 text-xs font-bold text-brand-text"
+            >
+              Descargar respaldo (.json)
+            </button>
+            <label className="inline-flex min-h-11 cursor-pointer items-center rounded-xl border border-border-interactive bg-bg-card px-4 py-2 text-xs font-bold text-ink-primary hover:bg-brand-surface">
+              <span>Importar / fusionar (.json)</span>
+              <input
+                type="file"
+                accept="application/json,.json"
+                className="sr-only"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  void file.text().then((text) => {
+                    const res = importFamilyBackup(text);
+                    setBackupMessage(res.messageMx);
+                  });
+                }}
+              />
+            </label>
+          </div>
+          {backupMessage ? (
+            <p className="text-xs font-semibold text-brand-text">
+              {backupMessage}
+            </p>
+          ) : null}
         </div>
         </div>
       </details>

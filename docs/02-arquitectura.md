@@ -43,9 +43,9 @@ Requisitos:
 - Área táctil mínima de 48 píxeles.
 - El semáforo combina icono, texto y color.
 
-## Persistencia futura
+## Persistencia y sincronización offline-first
 
-Los registros estructurados del Hito 4 requerirán almacenamiento local consultable, cola de sincronización e identificadores de cliente idempotentes. La base remota y las políticas de acceso se diseñarán junto con las cuentas, no antes.
+La capa de dominio incluye en `packages/core/src/domain/syncQueue.ts` una cola de mutaciones idempotente (`enqueueSyncMutation`), fusión determinista sin duplicados para perfiles, registros diarios y bitácora de salud (`mergeChildProfiles`, `mergeDailyLogEntries`, `mergeHealthLogState`), respaldo JSON portable (`FamilyBackupPayloadV1`) y el puerto `CloudSyncPort` listo para conectar Supabase cuando se habiliten cuentas en la nube.
 
 ## Decisiones que no deben romperse
 

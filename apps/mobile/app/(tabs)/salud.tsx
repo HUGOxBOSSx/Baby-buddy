@@ -5,7 +5,7 @@ import {
   STAGE_SPECS,
 } from '@baby-buddy/core';
 import { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Share, Text, TextInput, View } from 'react-native';
 import { AccountDeletionSheet } from '../../components/AccountDeletionSheet';
 import { ChildProfileEditor } from '../../components/ChildProfileEditor';
 import { HealthJournalPanel } from '../../components/HealthJournalPanel';
@@ -29,10 +29,16 @@ export default function SaludScreen() {
     iconsLoaded,
     themeSchedule,
     setThemeSchedule,
+    pendingSyncCount,
+    exportFamilyBackup,
+    importFamilyBackup,
   } = useThemeContext();
   const [deletionSheetVisible, setDeletionSheetVisible] = useState(false);
   const [seeding, setSeeding] = useState(false);
   const [showTechInfo, setShowTechInfo] = useState(false);
+  const [showBackupImport, setShowBackupImport] = useState(false);
+  const [backupJsonInput, setBackupJsonInput] = useState('');
+  const [backupFeedback, setBackupFeedback] = useState<string | null>(null);
 
   const supabaseHealth = offlineSupabaseStub.getStatus();
   const geminiHealth = offlineGeminiStub.getStatus();
@@ -299,6 +305,88 @@ export default function SaludScreen() {
               Eliminar datos de este dispositivo
             </Text>
           </Pressable>
+
+          <View
+            className="rounded-xl border p-3 gap-2"
+            style={{
+              backgroundColor: palette.bgElevated,
+              borderColor: palette.borderInteractive,
+            }}
+          >
+            <Text className="text-xs font-bold" style={{ color: palette.textPrimary }}>
+              Respaldo familiar (cola offline: {pendingSyncCount})
+            </Text>
+            <View className="flex-row flex-wrap gap-2">
+              <Pressable
+                onPress={() => {
+                  const json = exportFamilyBackup();
+                  void Share.share({ message: json });
+                }}
+                className="flex-1 rounded-xl border px-3 py-2 items-center justify-center"
+                style={{
+                  minHeight: MIN_TOUCH_TARGET_PX,
+                  backgroundColor: palette.brandSurface,
+                  borderColor: palette.brandPrimary,
+                }}
+              >
+                <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
+                  Compartir respaldo
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setShowBackupImport((v) => !v)}
+                className="flex-1 rounded-xl border px-3 py-2 items-center justify-center"
+                style={{
+                  minHeight: MIN_TOUCH_TARGET_PX,
+                  backgroundColor: palette.bgCard,
+                  borderColor: palette.borderInteractive,
+                }}
+              >
+                <Text className="text-xs font-bold" style={{ color: palette.textPrimary }}>
+                  {showBackupImport ? 'Ocultar' : 'Importar JSON'}
+                </Text>
+              </Pressable>
+            </View>
+            {showBackupImport ? (
+              <View className="gap-2 pt-1">
+                <TextInput
+                  value={backupJsonInput}
+                  onChangeText={setBackupJsonInput}
+                  placeholder="Pega aquí el respaldo JSON..."
+                  placeholderTextColor={palette.textMuted}
+                  multiline
+                  className="rounded-xl border p-2.5 text-xs"
+                  style={{
+                    minHeight: 72,
+                    backgroundColor: palette.bgCard,
+                    borderColor: palette.borderInteractive,
+                    color: palette.textPrimary,
+                  }}
+                />
+                <Pressable
+                  onPress={() => {
+                    const res = importFamilyBackup(backupJsonInput);
+                    setBackupFeedback(res.messageMx);
+                    if (res.ok) setBackupJsonInput('');
+                  }}
+                  className="rounded-xl px-4 py-2 items-center justify-center"
+                  style={{
+                    minHeight: MIN_TOUCH_TARGET_PX,
+                    backgroundColor: palette.brandPrimary,
+                  }}
+                >
+                  <Text className="text-xs font-bold" style={{ color: palette.onBrandPrimary }}>
+                    Fusionar respaldo
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
+            {backupFeedback ? (
+              <Text className="text-xs font-semibold" style={{ color: palette.brandText }}>
+                {backupFeedback}
+              </Text>
+            ) : null}
+          </View>
         </View>
       </View>
 

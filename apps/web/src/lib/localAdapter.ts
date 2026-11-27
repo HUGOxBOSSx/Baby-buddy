@@ -8,11 +8,18 @@ import {
   LOCAL_STORAGE_PREFIX,
   LocalAccountLifecycleAdapter,
   createChildProfileSummary,
+  enqueueSyncMutation,
+  exportFamilyBackupJson,
   isStageId,
   isValidHour,
+  mergeChildProfiles,
+  mergeDailyLogEntries,
+  mergeHealthLogState,
   parseActiveFeedTimer,
   parseDailyLogEntries,
+  parseFamilyBackupJson,
   parseHealthLogState,
+  parseSyncQueue,
   resolveEffectiveThemeMode,
   resolveLiveChildProfile,
   type AccountDeletionResult,
@@ -123,6 +130,7 @@ export interface LocalAppSnapshot {
   readonly dailyLogs: readonly DailyLogEntry[];
   readonly activeFeedTimer: ActiveFeedTimer | null;
   readonly healthState: HealthLogState;
+  readonly pendingSyncCount: number;
   readonly snapshotSummary: StoredSnapshotSummary;
   readonly statusMessage: string;
   readonly lastDeletionResult: AccountDeletionResult | null;
@@ -138,6 +146,7 @@ export const SERVER_APP_SNAPSHOT: LocalAppSnapshot = {
   dailyLogs: [],
   activeFeedTimer: null,
   healthState: EMPTY_HEALTH_LOG_STATE,
+  pendingSyncCount: 0,
   snapshotSummary: {
     hasActiveProfile: false,
     onboardingAccepted: false,
@@ -309,6 +318,9 @@ export function getLocalAppSnapshot(): LocalAppSnapshot {
   const rawActiveChildId = browserStorage.getItemSync(
     LOCAL_STORAGE_KEYS.activeChildId,
   );
+  const rawSyncQueue = browserStorage.getItemSync(
+    LOCAL_STORAGE_KEYS.syncQueue,
+  );
   const ownedKeys = browserStorage
     .keysSync()
     .filter((k) => k.startsWith(LOCAL_STORAGE_PREFIX))
@@ -328,6 +340,7 @@ export function getLocalAppSnapshot(): LocalAppSnapshot {
     rawProfile ?? '',
     rawProfiles ?? '',
     rawActiveChildId ?? '',
+    rawSyncQueue ?? '',
     ownedKeys.join(','),
     transientStatusMessage,
     deletionSig,
@@ -389,6 +402,7 @@ export function getLocalAppSnapshot(): LocalAppSnapshot {
     dailyLogs: parseDailyLogEntries(rawDailyLogs),
     activeFeedTimer: parseActiveFeedTimer(rawActiveTimer),
     healthState: parseHealthLogState(rawHealthState),
+    pendingSyncCount: parseSyncQueue(rawSyncQueue).length,
     snapshotSummary: {
       hasActiveProfile: rawProfile !== null && rawProfile.trim().length > 0,
       onboardingAccepted,
@@ -436,6 +450,28 @@ export function setStoredThemeSchedule(schedule: ThemeScheduleConfig): void {
   notifyLocalStoreChange();
 }
 
+function recordSyncMutation(
+  entityType: 'profile' | 'daily_log' | 'health_log',
+  entityId: string,
+  operation: 'upsert' | 'delete',
+): void {
+  const currentQueue = parseSyncQueue(
+    browserStorage.getItemSync(LOCAL_STORAGE_KEYS.syncQueue),
+  );
+  const nowIso = new Date().toISOString();
+  const nextQueue = enqueueSyncMutation(currentQueue, {
+    id: `sync-${Date.now()}-${entityId}`,
+    entityType,
+    entityId,
+    operation,
+    updatedAtIso: nowIso,
+  });
+  browserStorage.setItemSync(
+    LOCAL_STORAGE_KEYS.syncQueue,
+    JSON.stringify(nextQueue),
+  );
+}
+
 export function saveStoredChildProfile(
   input: Omit<CreateChildProfileInput, 'id'>,
 ): ChildProfileSummary {
@@ -458,6 +494,7 @@ export function saveStoredChildProfile(
     JSON.stringify(profile),
   );
   browserStorage.setItemSync(LOCAL_STORAGE_KEYS.activeStageId, profile.stageId);
+  recordSyncMutation('profile', profile.id, 'upsert');
   transientStatusMessage = `Datos de ${profile.nicknameMx} guardados (${profile.stageId}).`;
   notifyLocalStoreChange();
   return profile;
@@ -482,6 +519,7 @@ export function addStoredChildProfile(
     JSON.stringify(profile),
   );
   browserStorage.setItemSync(LOCAL_STORAGE_KEYS.activeStageId, profile.stageId);
+  recordSyncMutation('profile', profile.id, 'upsert');
   transientStatusMessage = `Perfil agregado: ${profile.nicknameMx}.`;
   notifyLocalStoreChange();
   return profile;
@@ -552,6 +590,7 @@ export function addStoredDailyLogEntry(entry: DailyLogEntry): void {
   const current = getLocalAppSnapshot().dailyLogs;
   const next = [entry, ...current];
   browserStorage.setItemSync(LOCAL_STORAGE_KEYS.dailyLogs, JSON.stringify(next));
+  recordSyncMutation('daily_log', entry.id, 'upsert');
   transientStatusMessage =
     entry.kind === 'feed' ? 'Toma registrada.' : 'Pañal registrado.';
   notifyLocalStoreChange();
@@ -561,6 +600,7 @@ export function deleteStoredDailyLogEntry(id: string): void {
   const current = getLocalAppSnapshot().dailyLogs;
   const next = current.filter((e) => e.id !== id);
   browserStorage.setItemSync(LOCAL_STORAGE_KEYS.dailyLogs, JSON.stringify(next));
+  recordSyncMutation('daily_log', id, 'delete');
   transientStatusMessage = 'Registro eliminado.';
   notifyLocalStoreChange();
 }
@@ -630,6 +670,7 @@ function saveStoredHealthState(next: HealthLogState, msg: string): void {
     LOCAL_STORAGE_KEYS.healthState,
     JSON.stringify(next),
   );
+  recordSyncMutation('health_log', 'health_state', 'upsert');
   transientStatusMessage = msg;
   notifyLocalStoreChange();
 }
@@ -705,4 +746,75 @@ export function toggleStoredMilestoneCompleted(milestoneId: string): void {
     { ...cur, completedMilestoneIds: nextIds },
     exists ? 'Hito desmarcado.' : 'Hito marcado como logrado.',
   );
+}
+
+export function exportStoredFamilyBackup(): string {
+  const snap = getLocalAppSnapshot();
+  return exportFamilyBackupJson({
+    exportedAtIso: new Date().toISOString(),
+    childProfiles: snap.childProfiles,
+    activeChildId: snap.childProfile?.id ?? null,
+    dailyLogs: snap.dailyLogs,
+    healthState: snap.healthState,
+  });
+}
+
+export function importStoredFamilyBackup(rawJson: string): {
+  readonly ok: boolean;
+  readonly messageMx: string;
+} {
+  const parsed = parseFamilyBackupJson(rawJson);
+  if (!parsed) {
+    return {
+      ok: false,
+      messageMx: 'Archivo de respaldo no válido (formato JSON incorrecto).',
+    };
+  }
+  const snap = getLocalAppSnapshot();
+  const mergedProfiles = mergeChildProfiles(
+    snap.childProfiles,
+    parsed.childProfiles,
+  );
+  const mergedLogs = mergeDailyLogEntries(snap.dailyLogs, parsed.dailyLogs);
+  const mergedHealth = mergeHealthLogState(snap.healthState, parsed.healthState);
+  const activeProfile =
+    snap.childProfile ??
+    (parsed.activeChildId
+      ? mergedProfiles.find((p) => p.id === parsed.activeChildId)
+      : undefined) ??
+    mergedProfiles[0] ??
+    null;
+
+  browserStorage.setItemSync(
+    LOCAL_STORAGE_KEYS.childProfiles,
+    JSON.stringify(mergedProfiles),
+  );
+  if (activeProfile) {
+    browserStorage.setItemSync(
+      LOCAL_STORAGE_KEYS.activeChildId,
+      activeProfile.id,
+    );
+    browserStorage.setItemSync(
+      LOCAL_STORAGE_KEYS.childProfile,
+      JSON.stringify(activeProfile),
+    );
+    browserStorage.setItemSync(
+      LOCAL_STORAGE_KEYS.activeStageId,
+      activeProfile.stageId,
+    );
+  }
+  browserStorage.setItemSync(
+    LOCAL_STORAGE_KEYS.dailyLogs,
+    JSON.stringify(mergedLogs),
+  );
+  browserStorage.setItemSync(
+    LOCAL_STORAGE_KEYS.healthState,
+    JSON.stringify(mergedHealth),
+  );
+  transientStatusMessage = `Respaldo fusionado (${mergedLogs.length} registros diarios).`;
+  notifyLocalStoreChange();
+  return {
+    ok: true,
+    messageMx: `✓ Respaldo fusionado: ${mergedProfiles.length} perfil(es) y ${mergedLogs.length} registros diarios.`,
+  };
 }

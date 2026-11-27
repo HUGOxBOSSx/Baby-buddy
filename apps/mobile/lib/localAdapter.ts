@@ -16,6 +16,7 @@ import {
   parseActiveFeedTimer,
   parseDailyLogEntries,
   parseHealthLogState,
+  parseSyncQueue,
   resolveLiveChildProfile,
   type ActiveFeedTimer,
   type ChildProfileSummary,
@@ -24,6 +25,7 @@ import {
   type HealthLogState,
   type KeyValueStoragePort,
   type StageId,
+  type SyncQueueItem,
   type ThemeMode,
   type ThemeScheduleConfig,
 } from '@baby-buddy/core';
@@ -299,6 +301,22 @@ export async function savePersistedHealthState(
   await mobileStorage.setItem(
     LOCAL_STORAGE_KEYS.healthState,
     JSON.stringify(state),
+  );
+}
+
+export async function loadPersistedSyncQueue(): Promise<
+  readonly SyncQueueItem[]
+> {
+  const raw = await mobileStorage.getItem(LOCAL_STORAGE_KEYS.syncQueue);
+  return parseSyncQueue(raw);
+}
+
+export async function savePersistedSyncQueue(
+  queue: readonly SyncQueueItem[],
+): Promise<void> {
+  await mobileStorage.setItem(
+    LOCAL_STORAGE_KEYS.syncQueue,
+    JSON.stringify(queue),
   );
 }
 

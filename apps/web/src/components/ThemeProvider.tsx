@@ -37,8 +37,10 @@ import {
   deleteStoredGrowthLog,
   deleteStoredMedicationLog,
   deleteStoredTemperatureLog,
+  exportStoredFamilyBackup,
   getLocalAppSnapshot,
   getServerAppSnapshot,
+  importStoredFamilyBackup,
   notifyLocalStoreChange,
   saveStoredActiveFeedTimer,
   saveStoredChildProfile,
@@ -65,6 +67,7 @@ export interface AppStateContextValue {
   readonly dailyLogs: readonly DailyLogEntry[];
   readonly activeFeedTimer: ActiveFeedTimer | null;
   readonly healthState: HealthLogState;
+  readonly pendingSyncCount: number;
   readonly snapshotSummary: StoredSnapshotSummary;
   readonly statusMessage: string;
   readonly lastDeletionResult: AccountDeletionResult | null;
@@ -98,6 +101,11 @@ export interface AppStateContextValue {
   readonly deleteGrowthLog: (id: string) => void;
   readonly toggleVaccineCompleted: (vaccineId: string) => void;
   readonly toggleMilestoneCompleted: (milestoneId: string) => void;
+  readonly exportFamilyBackup: () => string;
+  readonly importFamilyBackup: (rawJson: string) => {
+    readonly ok: boolean;
+    readonly messageMx: string;
+  };
 }
 
 const AppStateContext = createContext<AppStateContextValue | null>(null);
@@ -134,6 +142,7 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       dailyLogs: snapshot.dailyLogs,
       activeFeedTimer: snapshot.activeFeedTimer,
       healthState: snapshot.healthState,
+      pendingSyncCount: snapshot.pendingSyncCount,
       snapshotSummary: snapshot.snapshotSummary,
       statusMessage: snapshot.statusMessage,
       lastDeletionResult: snapshot.lastDeletionResult,
@@ -161,6 +170,8 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       deleteGrowthLog: deleteStoredGrowthLog,
       toggleVaccineCompleted: toggleStoredVaccineCompleted,
       toggleMilestoneCompleted: toggleStoredMilestoneCompleted,
+      exportFamilyBackup: exportStoredFamilyBackup,
+      importFamilyBackup: importStoredFamilyBackup,
     }),
     [snapshot],
   );

@@ -7,7 +7,13 @@ import {
   STAGE_SPECS,
   assertEthicalComplianceConfig,
   createChildProfileSummary,
+  enqueueSyncMutation,
+  exportFamilyBackupJson,
   getThemePalette,
+  mergeChildProfiles,
+  mergeDailyLogEntries,
+  mergeHealthLogState,
+  parseFamilyBackupJson,
   resolveEffectiveThemeMode,
   type AccountDeletionResult,
   type ActiveFeedTimer,
@@ -19,6 +25,9 @@ import {
   type MedicationLogEntry,
   type StageId,
   type StoredSnapshotSummary,
+  type SyncEntityType,
+  type SyncOperation,
+  type SyncQueueItem,
   type TemperatureLogEntry,
   type ThemeMode,
   type ThemePalette,
@@ -41,6 +50,7 @@ import {
   loadPersistedDailyLogs,
   loadPersistedHealthState,
   loadPersistedStageId,
+  loadPersistedSyncQueue,
   loadPersistedThemeMode,
   loadPersistedThemeSchedule,
   savePersistedActiveFeedTimer,
@@ -49,6 +59,7 @@ import {
   savePersistedDailyLogs,
   savePersistedHealthState,
   savePersistedStageId,
+  savePersistedSyncQueue,
   savePersistedThemeMode,
   savePersistedThemeSchedule,
 } from '../lib/localAdapter';
@@ -106,6 +117,12 @@ export interface ThemeContextValue {
   readonly deleteGrowthLog: (id: string) => void;
   readonly toggleVaccineCompleted: (vaccineId: string) => void;
   readonly toggleMilestoneCompleted: (milestoneId: string) => void;
+  readonly pendingSyncCount: number;
+  readonly exportFamilyBackup: () => string;
+  readonly importFamilyBackup: (rawJson: string) => {
+    readonly ok: boolean;
+    readonly messageMx: string;
+  };
   readonly statusAnnouncement: string;
   readonly hydrated: boolean;
   readonly iconsLoaded: boolean;
@@ -140,6 +157,7 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
   const [healthState, setHealthState] = useState<HealthLogState>(
     EMPTY_HEALTH_LOG_STATE,
   );
+  const [syncQueue, setSyncQueue] = useState<readonly SyncQueueItem[]>([]);
   const [statusAnnouncement, setStatusAnnouncement] = useState('');
   const [hydrated, setHydrated] = useState(false);
   const [iconsLoaded, setIconsLoaded] = useState(false);
@@ -190,6 +208,7 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       loadPersistedDailyLogs(),
       loadPersistedActiveFeedTimer(),
       loadPersistedHealthState(),
+      loadPersistedSyncQueue(),
     ])
       .then(
         ([
@@ -203,6 +222,7 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
           savedLogs,
           savedTimer,
           savedHealth,
+          savedQueue,
         ]) => {
           if (!active) {
             return;
@@ -231,6 +251,7 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
           setDailyLogs(savedLogs);
           setActiveFeedTimer(savedTimer);
           setHealthState(savedHealth);
+          setSyncQueue(savedQueue);
           setHydrated(true);
         },
       )
@@ -273,6 +294,27 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       void savePersistedThemeSchedule(schedule);
     },
     [mode],
+  );
+
+  const enqueueSync = useCallback(
+    (
+      entityType: SyncEntityType,
+      entityId: string,
+      operation: SyncOperation,
+    ) => {
+      setSyncQueue((prev) => {
+        const next = enqueueSyncMutation(prev, {
+          id: `sync-${Date.now()}-${entityId}`,
+          entityType,
+          entityId,
+          operation,
+          updatedAtIso: new Date().toISOString(),
+        });
+        void savePersistedSyncQueue(next);
+        return next;
+      });
+    },
+    [],
   );
 
   const saveChildProfile = useCallback(
@@ -370,6 +412,9 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       setOnboardingAccepted(false);
       setChildProfile(null);
       setChildProfiles([]);
+      setDailyLogs([]);
+      setHealthState(EMPTY_HEALTH_LOG_STATE);
+      setSyncQueue([]);
       await refreshSnapshot();
       setLastDeletionResult(result);
       setStatusAnnouncement(
@@ -384,25 +429,33 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
     setLastDeletionResult(null);
   }, []);
 
-  const addDailyLogEntry = useCallback((entry: DailyLogEntry) => {
-    setDailyLogs((prev) => {
-      const next = [entry, ...prev];
-      void savePersistedDailyLogs(next);
-      return next;
-    });
-    setStatusAnnouncement(
-      entry.kind === 'feed' ? 'Toma registrada.' : 'Pañal registrado.',
-    );
-  }, []);
+  const addDailyLogEntry = useCallback(
+    (entry: DailyLogEntry) => {
+      setDailyLogs((prev) => {
+        const next = [entry, ...prev];
+        void savePersistedDailyLogs(next);
+        return next;
+      });
+      enqueueSync('daily_log', entry.id, 'upsert');
+      setStatusAnnouncement(
+        entry.kind === 'feed' ? 'Toma registrada.' : 'Pañal registrado.',
+      );
+    },
+    [enqueueSync],
+  );
 
-  const deleteDailyLogEntry = useCallback((id: string) => {
-    setDailyLogs((prev) => {
-      const next = prev.filter((e) => e.id !== id);
-      void savePersistedDailyLogs(next);
-      return next;
-    });
-    setStatusAnnouncement('Registro eliminado.');
-  }, []);
+  const deleteDailyLogEntry = useCallback(
+    (id: string) => {
+      setDailyLogs((prev) => {
+        const next = prev.filter((e) => e.id !== id);
+        void savePersistedDailyLogs(next);
+        return next;
+      });
+      enqueueSync('daily_log', id, 'delete');
+      setStatusAnnouncement('Registro eliminado.');
+    },
+    [enqueueSync],
+  );
 
   const startFeedTimer = useCallback((side: 'breast_left' | 'breast_right') => {
     const timer: ActiveFeedTimer = {
@@ -552,6 +605,60 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
     });
   }, []);
 
+  const exportFamilyBackup = useCallback(
+    () =>
+      exportFamilyBackupJson({
+        exportedAtIso: new Date().toISOString(),
+        childProfiles,
+        activeChildId: childProfile?.id ?? null,
+        dailyLogs,
+        healthState,
+      }),
+    [childProfile?.id, childProfiles, dailyLogs, healthState],
+  );
+
+  const importFamilyBackup = useCallback(
+    (rawJson: string) => {
+      const parsed = parseFamilyBackupJson(rawJson);
+      if (!parsed) {
+        return {
+          ok: false,
+          messageMx: 'Respaldo no válido (revisa el formato JSON).',
+        };
+      }
+      const mergedProfiles = mergeChildProfiles(
+        childProfiles,
+        parsed.childProfiles,
+      );
+      const mergedLogs = mergeDailyLogEntries(dailyLogs, parsed.dailyLogs);
+      const mergedHealth = mergeHealthLogState(healthState, parsed.healthState);
+      const activeProfile =
+        childProfile ??
+        (parsed.activeChildId
+          ? mergedProfiles.find((p) => p.id === parsed.activeChildId)
+          : undefined) ??
+        mergedProfiles[0] ??
+        null;
+
+      setChildProfiles(mergedProfiles);
+      setChildProfile(activeProfile);
+      if (activeProfile) {
+        setSelectedStageState(activeProfile.stageId);
+      }
+      setDailyLogs(mergedLogs);
+      setHealthState(mergedHealth);
+      void savePersistedChildProfiles(mergedProfiles, activeProfile);
+      void savePersistedDailyLogs(mergedLogs);
+      void savePersistedHealthState(mergedHealth);
+      void refreshSnapshot();
+      return {
+        ok: true,
+        messageMx: `✓ Respaldo fusionado: ${mergedProfiles.length} perfil(es) y ${mergedLogs.length} registros.`,
+      };
+    },
+    [childProfile, childProfiles, dailyLogs, healthState, refreshSnapshot],
+  );
+
   const palette = useMemo(() => getThemePalette(mode), [mode]);
 
   const value = useMemo<ThemeContextValue>(
@@ -593,6 +700,9 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       deleteGrowthLog,
       toggleVaccineCompleted,
       toggleMilestoneCompleted,
+      pendingSyncCount: syncQueue.length,
+      exportFamilyBackup,
+      importFamilyBackup,
       statusAnnouncement,
       hydrated,
       iconsLoaded,
@@ -635,6 +745,9 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       deleteGrowthLog,
       toggleVaccineCompleted,
       toggleMilestoneCompleted,
+      syncQueue.length,
+      exportFamilyBackup,
+      importFamilyBackup,
       statusAnnouncement,
       hydrated,
       iconsLoaded,

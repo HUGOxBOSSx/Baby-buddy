@@ -1,4 +1,11 @@
 import type { DisclaimerLevel } from '../compliance/disclaimers';
+import type { FamilyBackupPayloadV1, SyncQueueItem } from '../domain/syncQueue';
+
+export interface CloudSyncPort {
+  pushQueue(items: readonly SyncQueueItem[]): Promise<{ readonly synced: number }>;
+  pullBackup(): Promise<FamilyBackupPayloadV1 | null>;
+  deleteRemoteData(): Promise<{ readonly deleted: boolean }>;
+}
 
 export interface ServiceStubHealth {
   readonly service: 'supabase' | 'gemini' | 'vercel';
