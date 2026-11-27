@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   BOTTLE_PRESET_ML,
   POOP_COLOR_TAG_OPTIONS,
+  computeLocalRemindersMx,
   computeTimerElapsedSec,
   filterEntriesByDateRange,
   formatTimerClock,
@@ -47,6 +48,7 @@ export function DailyLogPanel() {
   const {
     childProfile,
     dailyLogs,
+    healthState,
     activeFeedTimer,
     addDailyLogEntry,
     deleteDailyLogEntry,
@@ -82,6 +84,7 @@ export function DailyLogPanel() {
     toLocalDateKey(new Date()),
   );
   const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
+  const [remindersDismissed, setRemindersDismissed] = useState(false);
   const feedbackTimerRef = useRef<number | null>(null);
 
   const flashFeedback = useCallback((msg: string) => {
@@ -260,6 +263,12 @@ export function DailyLogPanel() {
     summary.lastSleepIso,
     new Date(nowMs),
   );
+  const reminders = computeLocalRemindersMx({
+    profile: childProfile,
+    dailySummary: summary,
+    healthState,
+    now: new Date(nowMs),
+  });
   const sleepElapsedSec =
     sleepStartMs !== null ? Math.max(0, Math.floor((nowMs - sleepStartMs) / 1000)) : 0;
 
@@ -310,6 +319,36 @@ export function DailyLogPanel() {
           </p>
         </div>
       </div>
+
+      {/* Recordatorios locales compactos */}
+      {!remindersDismissed && reminders.length > 0 ? (
+        <div className="rounded-2xl border border-border-subtle bg-bg-elevated px-4 py-3 space-y-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-bold text-ink-primary">
+              Recordatorios locales
+            </p>
+            <button
+              type="button"
+              onClick={() => setRemindersDismissed(true)}
+              className="text-[11px] font-semibold text-ink-secondary hover:text-ink-primary"
+            >
+              Ocultar
+            </button>
+          </div>
+          {reminders.slice(0, 2).map((rem) => (
+            <p key={rem.id} className="text-xs text-ink-secondary">
+              <strong
+                className={
+                  rem.urgency === 'due' ? 'text-warm-text' : 'text-brand-text'
+                }
+              >
+                {rem.titleMx}:
+              </strong>{' '}
+              {rem.detailMx}
+            </p>
+          ))}
+        </div>
+      ) : null}
 
       {/* 1-Tap Quick Registration */}
       <div className="rounded-2xl border border-border-subtle bg-bg-card p-4 sm:p-5 space-y-4 shadow-sm">

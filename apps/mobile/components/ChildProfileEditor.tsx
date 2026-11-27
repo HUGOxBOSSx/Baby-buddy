@@ -7,8 +7,8 @@ import {
   getStageForAgeMonths,
   type ChildSex,
 } from '@baby-buddy/core';
-import { useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useThemeContext } from './ThemeProvider';
 
 const SEX_OPTIONS: readonly ChildSex[] = ['niño', 'niña', 'no_especificado'];
@@ -19,7 +19,15 @@ function getTodayYmd(): string {
 }
 
 export function ChildProfileEditor() {
-  const { palette, childProfile, saveChildProfile } = useThemeContext();
+  const {
+    palette,
+    childProfile,
+    childProfiles,
+    saveChildProfile,
+    addChildProfile,
+    selectChildProfile,
+  } = useThemeContext();
+  const [addingNew, setAddingNew] = useState(false);
   const [nickname, setNickname] = useState(childProfile?.nicknameMx ?? '');
   const [birthDate, setBirthDate] = useState(
     childProfile?.birthDateIso?.slice(0, 10) ?? getTodayYmd(),
@@ -28,6 +36,13 @@ export function ChildProfileEditor() {
     childProfile?.sex ?? 'no_especificado',
   );
   const [feedback, setFeedback] = useState('');
+
+  useEffect(() => {
+    if (addingNew || !childProfile) return;
+    setNickname(childProfile.nicknameMx);
+    setBirthDate(childProfile.birthDateIso?.slice(0, 10) ?? getTodayYmd());
+    setSex(childProfile.sex ?? 'no_especificado');
+  }, [addingNew, childProfile]);
 
   let previewText = 'Usa formato AAAA-MM-DD (0 a 6 años)';
   let computedMonths: number | null = null;
@@ -48,12 +63,16 @@ export function ChildProfileEditor() {
       setFeedback('Fecha inválida. Usa AAAA-MM-DD (0 a 6 años).');
       return;
     }
-    const saved = await saveChildProfile({
+    const payload = {
       nicknameMx: trimmed,
       birthDateIso: birthDate,
       ageMonths: computedMonths,
       sex,
-    });
+    };
+    const saved = addingNew
+      ? await addChildProfile(payload)
+      : await saveChildProfile(payload);
+    setAddingNew(false);
     setFeedback(
       `Guardado: ${saved.nicknameMx} (${formatChildAgeMx(saved.ageMonths)}).`,
     );
@@ -67,9 +86,69 @@ export function ChildProfileEditor() {
         borderColor: palette.borderInteractive,
       }}
     >
-      <Text className="text-base font-bold" style={{ color: palette.textPrimary }}>
-        Perfil del bebé
-      </Text>
+      <View className="flex-row items-center justify-between flex-wrap gap-2">
+        <Text className="text-base font-bold" style={{ color: palette.textPrimary }}>
+          Perfil del bebé
+        </Text>
+        {childProfiles.length > 0 ? (
+          <Pressable
+            onPress={() => {
+              setAddingNew((prev) => {
+                const next = !prev;
+                if (next) {
+                  setNickname('');
+                  setBirthDate(getTodayYmd());
+                  setSex('no_especificado');
+                  setFeedback('');
+                }
+                return next;
+              });
+            }}
+            className="rounded-full border px-3 py-1.5 justify-center"
+            style={{
+              minHeight: 36,
+              backgroundColor: palette.brandSurface,
+              borderColor: palette.brandPrimary,
+            }}
+          >
+            <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
+              {addingNew ? 'Cancelar nuevo' : '+ Agregar bebé'}
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
+
+      {childProfiles.length > 0 ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View className="flex-row gap-2">
+            {childProfiles.map((p) => {
+              const active = !addingNew && childProfile?.id === p.id;
+              return (
+                <Pressable
+                  key={p.id}
+                  onPress={() => {
+                    setAddingNew(false);
+                    void selectChildProfile(p.id);
+                  }}
+                  className="rounded-full border px-3 py-1.5 justify-center"
+                  style={{
+                    minHeight: 38,
+                    backgroundColor: active ? palette.brandPrimary : palette.bgElevated,
+                    borderColor: active ? palette.brandPrimary : palette.borderInteractive,
+                  }}
+                >
+                  <Text
+                    className="text-xs font-bold"
+                    style={{ color: active ? palette.onBrandPrimary : palette.textPrimary }}
+                  >
+                    {p.nicknameMx} · {formatChildAgeMx(p.ageMonths)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </ScrollView>
+      ) : null}
 
       <View className="gap-1">
         <Text className="text-xs font-bold" style={{ color: palette.textPrimary }}>

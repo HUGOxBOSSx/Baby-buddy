@@ -25,6 +25,7 @@ import type {
 } from '@baby-buddy/core';
 import {
   acceptStoredOnboarding,
+  addStoredChildProfile,
   addStoredDailyLogEntry,
   addStoredGrowthLog,
   addStoredMedicationLog,
@@ -42,6 +43,7 @@ import {
   saveStoredActiveFeedTimer,
   saveStoredChildProfile,
   seedStoredDemoData,
+  selectStoredChildProfile,
   setStoredActiveStageId,
   setStoredThemeMode,
   setStoredThemeSchedule,
@@ -58,6 +60,7 @@ export interface AppStateContextValue {
   readonly activeStageId: StageId;
   readonly onboardingAccepted: boolean;
   readonly childProfile: ChildProfileSummary | null;
+  readonly childProfiles: readonly ChildProfileSummary[];
   readonly dailyLogs: readonly DailyLogEntry[];
   readonly activeFeedTimer: ActiveFeedTimer | null;
   readonly healthState: HealthLogState;
@@ -71,6 +74,10 @@ export interface AppStateContextValue {
   readonly saveChildProfile: (
     input: Omit<CreateChildProfileInput, 'id'>,
   ) => ChildProfileSummary;
+  readonly addChildProfile: (
+    input: Omit<CreateChildProfileInput, 'id'>,
+  ) => ChildProfileSummary;
+  readonly selectChildProfile: (id: string) => void;
   readonly acceptOnboardingDisclaimer: () => Promise<void>;
   readonly seedDemoData: () => Promise<void>;
   readonly deleteAccountAndData: (
@@ -121,6 +128,7 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       activeStageId: snapshot.activeStageId,
       onboardingAccepted: snapshot.onboardingAccepted,
       childProfile: snapshot.childProfile,
+      childProfiles: snapshot.childProfiles,
       dailyLogs: snapshot.dailyLogs,
       activeFeedTimer: snapshot.activeFeedTimer,
       healthState: snapshot.healthState,
@@ -132,6 +140,8 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       setThemeSchedule: setStoredThemeSchedule,
       setActiveStageId: setStoredActiveStageId,
       saveChildProfile: saveStoredChildProfile,
+      addChildProfile: addStoredChildProfile,
+      selectChildProfile: selectStoredChildProfile,
       acceptOnboardingDisclaimer: acceptStoredOnboarding,
       seedDemoData: seedStoredDemoData,
       deleteAccountAndData: deleteStoredAccountAndData,

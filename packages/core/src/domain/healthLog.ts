@@ -27,6 +27,7 @@ export interface VaccineChecklistItem {
   readonly id: string;
   readonly nameMx: string;
   readonly ageLabelMx: string;
+  readonly ageMonths: number;
 }
 
 export interface HealthLogState {
@@ -44,20 +45,20 @@ export const EMPTY_HEALTH_LOG_STATE: HealthLogState = {
 };
 
 export const MX_VACCINE_CHECKLIST: readonly VaccineChecklistItem[] = [
-  { id: 'bcg-0m', nameMx: 'BCG (tuberculosis)', ageLabelMx: 'Al nacer' },
-  { id: 'hepb-0m', nameMx: 'Hepatitis B (1.ª dosis)', ageLabelMx: 'Al nacer' },
-  { id: 'hexa-2m', nameMx: 'Hexavalente (1.ª dosis)', ageLabelMx: '2 meses' },
-  { id: 'rota-2m', nameMx: 'Rotavirus (1.ª dosis)', ageLabelMx: '2 meses' },
-  { id: 'neumo-2m', nameMx: 'Neumocócica (1.ª dosis)', ageLabelMx: '2 meses' },
-  { id: 'hexa-4m', nameMx: 'Hexavalente (2.ª dosis)', ageLabelMx: '4 meses' },
-  { id: 'rota-4m', nameMx: 'Rotavirus (2.ª dosis)', ageLabelMx: '4 meses' },
-  { id: 'neumo-4m', nameMx: 'Neumocócica (2.ª dosis)', ageLabelMx: '4 meses' },
-  { id: 'hexa-6m', nameMx: 'Hexavalente (3.ª dosis)', ageLabelMx: '6 meses' },
-  { id: 'srp-12m', nameMx: 'SRP Triple viral (1.ª dosis)', ageLabelMx: '12 meses' },
-  { id: 'neumo-12m', nameMx: 'Neumocócica (refuerzo)', ageLabelMx: '12 meses' },
-  { id: 'hexa-18m', nameMx: 'Hexavalente (4.ª dosis)', ageLabelMx: '18 meses' },
-  { id: 'dpt-4a', nameMx: 'DPT (refuerzo)', ageLabelMx: '4 años' },
-  { id: 'srp-6a', nameMx: 'SRP Triple viral (2.ª dosis)', ageLabelMx: '6 años' },
+  { id: 'bcg-0m', nameMx: 'BCG (tuberculosis)', ageLabelMx: 'Al nacer', ageMonths: 0 },
+  { id: 'hepb-0m', nameMx: 'Hepatitis B (1.ª dosis)', ageLabelMx: 'Al nacer', ageMonths: 0 },
+  { id: 'hexa-2m', nameMx: 'Hexavalente (1.ª dosis)', ageLabelMx: '2 meses', ageMonths: 2 },
+  { id: 'rota-2m', nameMx: 'Rotavirus (1.ª dosis)', ageLabelMx: '2 meses', ageMonths: 2 },
+  { id: 'neumo-2m', nameMx: 'Neumocócica (1.ª dosis)', ageLabelMx: '2 meses', ageMonths: 2 },
+  { id: 'hexa-4m', nameMx: 'Hexavalente (2.ª dosis)', ageLabelMx: '4 meses', ageMonths: 4 },
+  { id: 'rota-4m', nameMx: 'Rotavirus (2.ª dosis)', ageLabelMx: '4 meses', ageMonths: 4 },
+  { id: 'neumo-4m', nameMx: 'Neumocócica (2.ª dosis)', ageLabelMx: '4 meses', ageMonths: 4 },
+  { id: 'hexa-6m', nameMx: 'Hexavalente (3.ª dosis)', ageLabelMx: '6 meses', ageMonths: 6 },
+  { id: 'srp-12m', nameMx: 'SRP Triple viral (1.ª dosis)', ageLabelMx: '12 meses', ageMonths: 12 },
+  { id: 'neumo-12m', nameMx: 'Neumocócica (refuerzo)', ageLabelMx: '12 meses', ageMonths: 12 },
+  { id: 'hexa-18m', nameMx: 'Hexavalente (4.ª dosis)', ageLabelMx: '18 meses', ageMonths: 18 },
+  { id: 'dpt-4a', nameMx: 'DPT (refuerzo)', ageLabelMx: '4 años', ageMonths: 48 },
+  { id: 'srp-6a', nameMx: 'SRP Triple viral (2.ª dosis)', ageLabelMx: '6 años', ageMonths: 72 },
 ] as const;
 
 export function evaluateTemperatureAlertMx(

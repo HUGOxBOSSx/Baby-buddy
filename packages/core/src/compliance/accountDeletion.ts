@@ -9,6 +9,8 @@ export const LOCAL_STORAGE_KEYS = {
   activeStageId: 'baby_buddy_mx:active_stage_id',
   onboardingAcceptedAt: 'baby_buddy_mx:onboarding_accepted_at',
   childProfile: 'baby_buddy_mx:child_profile',
+  childProfiles: 'baby_buddy_mx:child_profiles',
+  activeChildId: 'baby_buddy_mx:active_child_id',
   demoNotes: 'baby_buddy_mx:demo_notes',
   dailyLogs: 'baby_buddy_mx:daily_logs',
   activeFeedTimer: 'baby_buddy_mx:active_feed_timer',

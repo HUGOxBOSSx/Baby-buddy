@@ -23,8 +23,15 @@ function getTodayYmd(): string {
 }
 
 export function ChildProfileEditor() {
-  const { childProfile, saveChildProfile } = useAppState();
+  const {
+    childProfile,
+    childProfiles,
+    saveChildProfile,
+    addChildProfile,
+    selectChildProfile,
+  } = useAppState();
   const todayYmd = getTodayYmd();
+  const [addingNew, setAddingNew] = useState(false);
   const [nickname, setNickname] = useState(childProfile?.nicknameMx ?? '');
   const [birthDate, setBirthDate] = useState(
     childProfile?.birthDateIso?.slice(0, 10) ?? todayYmd,
@@ -54,12 +61,16 @@ export function ChildProfileEditor() {
       setFeedback('Elige una fecha de nacimiento válida (0 a 6 años).');
       return;
     }
-    const saved = saveChildProfile({
+    const payload = {
       nicknameMx: trimmed,
       birthDateIso: birthDate,
       ageMonths: computedMonths,
       sex,
-    });
+    };
+    const saved = addingNew
+      ? addChildProfile(payload)
+      : saveChildProfile(payload);
+    setAddingNew(false);
     setFeedback(
       `Guardado: ${saved.nicknameMx} (${formatChildAgeMx(saved.ageMonths)} · ${STAGE_SPECS[saved.stageId].label}).`,
     );
@@ -71,12 +82,68 @@ export function ChildProfileEditor() {
       aria-labelledby="perfil-bebe-titulo"
       className="rounded-2xl border border-border-subtle bg-bg-card p-5 space-y-4 shadow-sm"
     >
-      <h2
-        id="perfil-bebe-titulo"
-        className="text-base font-bold text-ink-primary"
-      >
-        Perfil del bebé
-      </h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2
+          id="perfil-bebe-titulo"
+          className="text-base font-bold text-ink-primary"
+        >
+          Perfil del bebé
+        </h2>
+        {childProfiles.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => {
+              setAddingNew((prev) => {
+                const next = !prev;
+                if (next) {
+                  setNickname('');
+                  setBirthDate(todayYmd);
+                  setSex('no_especificado');
+                  setFeedback('');
+                } else if (childProfile) {
+                  setNickname(childProfile.nicknameMx);
+                  setBirthDate(childProfile.birthDateIso?.slice(0, 10) ?? todayYmd);
+                  setSex(childProfile.sex ?? 'no_especificado');
+                }
+                return next;
+              });
+            }}
+            className="inline-flex min-h-10 items-center rounded-full border border-brand-primary bg-brand-surface px-3 py-1 text-xs font-bold text-brand-text"
+          >
+            {addingNew ? 'Cancelar nuevo' : '+ Agregar bebé'}
+          </button>
+        ) : null}
+      </div>
+
+      {childProfiles.length > 0 ? (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {childProfiles.map((p) => {
+            const active = !addingNew && childProfile?.id === p.id;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => {
+                  setAddingNew(false);
+                  setNickname(p.nicknameMx);
+                  setBirthDate(p.birthDateIso?.slice(0, 10) ?? todayYmd);
+                  setSex(p.sex ?? 'no_especificado');
+                  setFeedback('');
+                  selectChildProfile(p.id);
+                }}
+                aria-pressed={active}
+                className={`inline-flex min-h-10 shrink-0 items-center rounded-full border px-3.5 py-1 text-xs font-bold whitespace-nowrap ${
+                  active
+                    ? 'border-brand-primary bg-brand-primary text-brand-on'
+                    : 'border-border-interactive bg-bg-elevated text-ink-primary'
+                }`}
+              >
+                {p.nicknameMx} · {formatChildAgeMx(p.ageMonths)}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">

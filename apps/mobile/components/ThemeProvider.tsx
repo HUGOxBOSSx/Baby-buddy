@@ -6,6 +6,7 @@ import {
   ETHICAL_GUARDRAILS,
   STAGE_SPECS,
   assertEthicalComplianceConfig,
+  createChildProfileSummary,
   getThemePalette,
   resolveEffectiveThemeMode,
   type AccountDeletionResult,
@@ -36,6 +37,7 @@ import {
   accountLifecycleAdapter,
   loadPersistedActiveFeedTimer,
   loadPersistedChildProfile,
+  loadPersistedChildProfiles,
   loadPersistedDailyLogs,
   loadPersistedHealthState,
   loadPersistedStageId,
@@ -43,6 +45,7 @@ import {
   loadPersistedThemeSchedule,
   savePersistedActiveFeedTimer,
   savePersistedChildProfile,
+  savePersistedChildProfiles,
   savePersistedDailyLogs,
   savePersistedHealthState,
   savePersistedStageId,
@@ -71,6 +74,10 @@ export interface ThemeContextValue {
   readonly saveChildProfile: (
     input: Omit<CreateChildProfileInput, 'id'>,
   ) => Promise<ChildProfileSummary>;
+  readonly addChildProfile: (
+    input: Omit<CreateChildProfileInput, 'id'>,
+  ) => Promise<ChildProfileSummary>;
+  readonly selectChildProfile: (id: string) => Promise<void>;
   readonly onboardingAccepted: boolean;
   readonly acceptOnboardingDisclaimer: () => Promise<void>;
   readonly deleteAccountAndData: (
@@ -79,6 +86,7 @@ export interface ThemeContextValue {
   readonly seedDemoData: () => Promise<void>;
   readonly snapshotSummary: StoredSnapshotSummary;
   readonly childProfile: ChildProfileSummary | null;
+  readonly childProfiles: readonly ChildProfileSummary[];
   readonly lastDeletionResult: AccountDeletionResult | null;
   readonly clearLastDeletionResult: () => void;
   readonly dailyLogs: readonly DailyLogEntry[];
@@ -120,6 +128,9 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
   const [childProfile, setChildProfile] = useState<ChildProfileSummary | null>(
     null,
   );
+  const [childProfiles, setChildProfiles] = useState<
+    readonly ChildProfileSummary[]
+  >([]);
   const [lastDeletionResult, setLastDeletionResult] =
     useState<AccountDeletionResult | null>(null);
   const [dailyLogs, setDailyLogs] = useState<readonly DailyLogEntry[]>([]);
@@ -133,12 +144,22 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
   const [iconsLoaded, setIconsLoaded] = useState(false);
 
   const refreshSnapshot = useCallback(async () => {
-    const [summary, profile] = await Promise.all([
+    const [summary, single, multi] = await Promise.all([
       accountLifecycleAdapter.getStoredSnapshotSummary(),
       loadPersistedChildProfile(),
+      loadPersistedChildProfiles(),
     ]);
+    const list =
+      multi.profiles.length > 0 ? multi.profiles : single ? [single] : [];
+    const activeProfile =
+      (multi.activeId
+        ? list.find((p) => p.id === multi.activeId)
+        : undefined) ??
+      list[0] ??
+      single;
     setSnapshotSummary(summary);
-    setChildProfile(profile);
+    setChildProfiles(list);
+    setChildProfile(activeProfile);
     return summary;
   }, []);
 
@@ -164,6 +185,7 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       accountLifecycleAdapter.hasAcceptedOnboardingDisclaimer(),
       accountLifecycleAdapter.getStoredSnapshotSummary(),
       loadPersistedChildProfile(),
+      loadPersistedChildProfiles(),
       loadPersistedDailyLogs(),
       loadPersistedActiveFeedTimer(),
       loadPersistedHealthState(),
@@ -176,6 +198,7 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
           accepted,
           summary,
           profile,
+          multi,
           savedLogs,
           savedTimer,
           savedHealth,
@@ -183,6 +206,14 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
           if (!active) {
             return;
           }
+          const list =
+            multi.profiles.length > 0 ? multi.profiles : profile ? [profile] : [];
+          const activeProfile =
+            (multi.activeId
+              ? list.find((p) => p.id === multi.activeId)
+              : undefined) ??
+            list[0] ??
+            profile;
           setThemeScheduleState(savedSchedule);
           setModeState(
             resolveEffectiveThemeMode(
@@ -191,10 +222,11 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
               new Date().getHours(),
             ),
           );
-          setSelectedStageState(profile ? profile.stageId : savedStage);
+          setSelectedStageState(activeProfile ? activeProfile.stageId : savedStage);
           setOnboardingAccepted(accepted);
           setSnapshotSummary(summary);
-          setChildProfile(profile);
+          setChildProfiles(list);
+          setChildProfile(activeProfile);
           setDailyLogs(savedLogs);
           setActiveFeedTimer(savedTimer);
           setHealthState(savedHealth);
@@ -245,12 +277,46 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
   const saveChildProfile = useCallback(
     async (input: Omit<CreateChildProfileInput, 'id'>) => {
       const saved = await savePersistedChildProfile(input, childProfile?.id);
+      const nextList = childProfiles.some((p) => p.id === saved.id)
+        ? childProfiles.map((p) => (p.id === saved.id ? saved : p))
+        : [...childProfiles, saved];
+      await savePersistedChildProfiles(nextList, saved);
+      setChildProfiles(nextList);
       setChildProfile(saved);
       setSelectedStageState(saved.stageId);
       await refreshSnapshot();
       return saved;
     },
-    [childProfile?.id, refreshSnapshot],
+    [childProfile?.id, childProfiles, refreshSnapshot],
+  );
+
+  const addChildProfile = useCallback(
+    async (input: Omit<CreateChildProfileInput, 'id'>) => {
+      const created = createChildProfileSummary({
+        ...input,
+        id: `bebe-${Date.now()}`,
+      });
+      const nextList = [...childProfiles, created];
+      await savePersistedChildProfiles(nextList, created);
+      setChildProfiles(nextList);
+      setChildProfile(created);
+      setSelectedStageState(created.stageId);
+      await refreshSnapshot();
+      return created;
+    },
+    [childProfiles, refreshSnapshot],
+  );
+
+  const selectChildProfile = useCallback(
+    async (id: string) => {
+      const found = childProfiles.find((p) => p.id === id);
+      if (!found) return;
+      await savePersistedChildProfiles(childProfiles, found);
+      setChildProfile(found);
+      setSelectedStageState(found.stageId);
+      await refreshSnapshot();
+    },
+    [childProfiles, refreshSnapshot],
   );
 
   const toggleMode = useCallback(() => {
@@ -302,6 +368,7 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       setSelectedStageState(DEFAULT_APP_PREFERENCES.activeStageId);
       setOnboardingAccepted(false);
       setChildProfile(null);
+      setChildProfiles([]);
       await refreshSnapshot();
       setLastDeletionResult(result);
       setStatusAnnouncement(
@@ -482,12 +549,15 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       selectedStage,
       setSelectedStage,
       saveChildProfile,
+      addChildProfile,
+      selectChildProfile,
       onboardingAccepted,
       acceptOnboardingDisclaimer,
       deleteAccountAndData,
       seedDemoData,
       snapshotSummary,
       childProfile,
+      childProfiles,
       lastDeletionResult,
       clearLastDeletionResult,
       dailyLogs,
@@ -520,12 +590,15 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       selectedStage,
       setSelectedStage,
       saveChildProfile,
+      addChildProfile,
+      selectChildProfile,
       onboardingAccepted,
       acceptOnboardingDisclaimer,
       deleteAccountAndData,
       seedDemoData,
       snapshotSummary,
       childProfile,
+      childProfiles,
       lastDeletionResult,
       clearLastDeletionResult,
       dailyLogs,

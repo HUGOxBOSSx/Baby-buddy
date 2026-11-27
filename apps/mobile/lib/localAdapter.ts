@@ -108,6 +108,84 @@ export async function savePersistedThemeSchedule(
   );
 }
 
+function parseProfileObject(parsed: unknown): ChildProfileSummary | null {
+  if (
+    typeof parsed === 'object' &&
+    parsed !== null &&
+    'id' in parsed &&
+    'nicknameMx' in parsed &&
+    'ageMonths' in parsed &&
+    'stageId' in parsed &&
+    typeof parsed.id === 'string' &&
+    typeof parsed.nicknameMx === 'string' &&
+    typeof parsed.ageMonths === 'number' &&
+    typeof parsed.stageId === 'string' &&
+    isStageId(parsed.stageId)
+  ) {
+    return resolveLiveChildProfile(parsed as ChildProfileSummary);
+  }
+  return null;
+}
+
+export async function loadPersistedChildProfiles(): Promise<{
+  readonly profiles: readonly ChildProfileSummary[];
+  readonly activeId: string | null;
+}> {
+  const [rawList, rawSingle, activeId] = await Promise.all([
+    mobileStorage.getItem(LOCAL_STORAGE_KEYS.childProfiles),
+    mobileStorage.getItem(LOCAL_STORAGE_KEYS.childProfile),
+    mobileStorage.getItem(LOCAL_STORAGE_KEYS.activeChildId),
+  ]);
+  let profiles: ChildProfileSummary[] = [];
+  if (rawList && rawList.trim().length > 0) {
+    try {
+      const parsed: unknown = JSON.parse(rawList);
+      if (Array.isArray(parsed)) {
+        profiles = parsed
+          .map(parseProfileObject)
+          .filter((p): p is ChildProfileSummary => p !== null);
+      }
+    } catch {
+      profiles = [];
+    }
+  }
+  if (profiles.length === 0 && rawSingle && rawSingle.trim().length > 0) {
+    try {
+      const single = parseProfileObject(JSON.parse(rawSingle));
+      if (single) {
+        profiles = [single];
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return { profiles, activeId };
+}
+
+export async function savePersistedChildProfiles(
+  profiles: readonly ChildProfileSummary[],
+  activeProfile: ChildProfileSummary | null,
+): Promise<void> {
+  await mobileStorage.setItem(
+    LOCAL_STORAGE_KEYS.childProfiles,
+    JSON.stringify(profiles),
+  );
+  if (activeProfile) {
+    await mobileStorage.setItem(
+      LOCAL_STORAGE_KEYS.activeChildId,
+      activeProfile.id,
+    );
+    await mobileStorage.setItem(
+      LOCAL_STORAGE_KEYS.childProfile,
+      JSON.stringify(activeProfile),
+    );
+    await mobileStorage.setItem(
+      LOCAL_STORAGE_KEYS.activeStageId,
+      activeProfile.stageId,
+    );
+  }
+}
+
 export async function savePersistedChildProfile(
   input: Omit<CreateChildProfileInput, 'id'>,
   existingId?: string,

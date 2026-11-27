@@ -119,6 +119,7 @@ export interface LocalAppSnapshot {
   readonly activeStageId: StageId;
   readonly onboardingAccepted: boolean;
   readonly childProfile: ChildProfileSummary | null;
+  readonly childProfiles: readonly ChildProfileSummary[];
   readonly dailyLogs: readonly DailyLogEntry[];
   readonly activeFeedTimer: ActiveFeedTimer | null;
   readonly healthState: HealthLogState;
@@ -133,6 +134,7 @@ export const SERVER_APP_SNAPSHOT: LocalAppSnapshot = {
   activeStageId: DEFAULT_APP_PREFERENCES.activeStageId,
   onboardingAccepted: false,
   childProfile: null,
+  childProfiles: [],
   dailyLogs: [],
   activeFeedTimer: null,
   healthState: EMPTY_HEALTH_LOG_STATE,
@@ -301,6 +303,12 @@ export function getLocalAppSnapshot(): LocalAppSnapshot {
   const rawProfile = browserStorage.getItemSync(
     LOCAL_STORAGE_KEYS.childProfile,
   );
+  const rawProfiles = browserStorage.getItemSync(
+    LOCAL_STORAGE_KEYS.childProfiles,
+  );
+  const rawActiveChildId = browserStorage.getItemSync(
+    LOCAL_STORAGE_KEYS.activeChildId,
+  );
   const ownedKeys = browserStorage
     .keysSync()
     .filter((k) => k.startsWith(LOCAL_STORAGE_PREFIX))
@@ -318,6 +326,8 @@ export function getLocalAppSnapshot(): LocalAppSnapshot {
     rawStage ?? '',
     rawOnboarding ?? '',
     rawProfile ?? '',
+    rawProfiles ?? '',
+    rawActiveChildId ?? '',
     ownedKeys.join(','),
     transientStatusMessage,
     deletionSig,
@@ -335,7 +345,32 @@ export function getLocalAppSnapshot(): LocalAppSnapshot {
     manualThemeMode,
     currentHour,
   );
-  const childProfile = parseChildProfile(rawProfile);
+  const singleProfile = parseChildProfile(rawProfile);
+  let parsedProfiles: ChildProfileSummary[] = [];
+  if (rawProfiles && rawProfiles.trim().length > 0) {
+    try {
+      const arr: unknown = JSON.parse(rawProfiles);
+      if (Array.isArray(arr)) {
+        parsedProfiles = arr
+          .map((item) => parseChildProfile(JSON.stringify(item)))
+          .filter((p): p is ChildProfileSummary => p !== null);
+      }
+    } catch {
+      parsedProfiles = [];
+    }
+  }
+  const childProfiles =
+    parsedProfiles.length > 0
+      ? parsedProfiles
+      : singleProfile
+        ? [singleProfile]
+        : [];
+  const childProfile =
+    (rawActiveChildId
+      ? childProfiles.find((p) => p.id === rawActiveChildId)
+      : undefined) ??
+    childProfiles[0] ??
+    singleProfile;
   const activeStageId: StageId = childProfile
     ? childProfile.stageId
     : rawStage !== null && isStageId(rawStage)
@@ -350,6 +385,7 @@ export function getLocalAppSnapshot(): LocalAppSnapshot {
     activeStageId,
     onboardingAccepted,
     childProfile,
+    childProfiles,
     dailyLogs: parseDailyLogEntries(rawDailyLogs),
     activeFeedTimer: parseActiveFeedTimer(rawActiveTimer),
     healthState: parseHealthLogState(rawHealthState),
@@ -403,11 +439,20 @@ export function setStoredThemeSchedule(schedule: ThemeScheduleConfig): void {
 export function saveStoredChildProfile(
   input: Omit<CreateChildProfileInput, 'id'>,
 ): ChildProfileSummary {
-  const existing = getLocalAppSnapshot().childProfile;
+  const snap = getLocalAppSnapshot();
+  const existing = snap.childProfile;
   const profile = createChildProfileSummary({
     ...input,
     id: existing?.id ?? 'bebe-local-01',
   });
+  const nextList = snap.childProfiles.some((p) => p.id === profile.id)
+    ? snap.childProfiles.map((p) => (p.id === profile.id ? profile : p))
+    : [...snap.childProfiles, profile];
+  browserStorage.setItemSync(
+    LOCAL_STORAGE_KEYS.childProfiles,
+    JSON.stringify(nextList),
+  );
+  browserStorage.setItemSync(LOCAL_STORAGE_KEYS.activeChildId, profile.id);
   browserStorage.setItemSync(
     LOCAL_STORAGE_KEYS.childProfile,
     JSON.stringify(profile),
@@ -416,6 +461,44 @@ export function saveStoredChildProfile(
   transientStatusMessage = `Datos de ${profile.nicknameMx} guardados (${profile.stageId}).`;
   notifyLocalStoreChange();
   return profile;
+}
+
+export function addStoredChildProfile(
+  input: Omit<CreateChildProfileInput, 'id'>,
+): ChildProfileSummary {
+  const snap = getLocalAppSnapshot();
+  const profile = createChildProfileSummary({
+    ...input,
+    id: `bebe-${Date.now()}`,
+  });
+  const nextList = [...snap.childProfiles, profile];
+  browserStorage.setItemSync(
+    LOCAL_STORAGE_KEYS.childProfiles,
+    JSON.stringify(nextList),
+  );
+  browserStorage.setItemSync(LOCAL_STORAGE_KEYS.activeChildId, profile.id);
+  browserStorage.setItemSync(
+    LOCAL_STORAGE_KEYS.childProfile,
+    JSON.stringify(profile),
+  );
+  browserStorage.setItemSync(LOCAL_STORAGE_KEYS.activeStageId, profile.stageId);
+  transientStatusMessage = `Perfil agregado: ${profile.nicknameMx}.`;
+  notifyLocalStoreChange();
+  return profile;
+}
+
+export function selectStoredChildProfile(id: string): void {
+  const snap = getLocalAppSnapshot();
+  const found = snap.childProfiles.find((p) => p.id === id);
+  if (!found) return;
+  browserStorage.setItemSync(LOCAL_STORAGE_KEYS.activeChildId, found.id);
+  browserStorage.setItemSync(
+    LOCAL_STORAGE_KEYS.childProfile,
+    JSON.stringify(found),
+  );
+  browserStorage.setItemSync(LOCAL_STORAGE_KEYS.activeStageId, found.stageId);
+  transientStatusMessage = `Bebé activo: ${found.nicknameMx}.`;
+  notifyLocalStoreChange();
 }
 
 export function toggleStoredThemeMode(): void {

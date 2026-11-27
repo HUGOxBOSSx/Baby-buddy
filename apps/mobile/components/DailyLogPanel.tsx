@@ -2,6 +2,7 @@ import {
   BOTTLE_PRESET_ML,
   MIN_TOUCH_TARGET_PX,
   POOP_COLOR_TAG_OPTIONS,
+  computeLocalRemindersMx,
   computeTimerElapsedSec,
   filterEntriesByDateRange,
   formatTimerClock,
@@ -47,6 +48,7 @@ export function DailyLogPanel() {
     palette,
     childProfile,
     dailyLogs,
+    healthState,
     activeFeedTimer,
     addDailyLogEntry,
     deleteDailyLogEntry,
@@ -82,6 +84,7 @@ export function DailyLogPanel() {
     toLocalDateKey(new Date()),
   );
   const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
+  const [remindersDismissed, setRemindersDismissed] = useState(false);
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const flashFeedback = useCallback((msg: string) => {
@@ -242,6 +245,12 @@ export function DailyLogPanel() {
     summary.lastSleepIso,
     new Date(nowMs),
   );
+  const reminders = computeLocalRemindersMx({
+    profile: childProfile,
+    dailySummary: summary,
+    healthState,
+    now: new Date(nowMs),
+  });
   const sleepElapsedSec =
     sleepStartMs !== null ? Math.max(0, Math.floor((nowMs - sleepStartMs) / 1000)) : 0;
 
@@ -295,6 +304,44 @@ export function DailyLogPanel() {
       <Text className="text-xs font-semibold px-1" style={{ color: palette.brandText }}>
         {napSuggestion}
       </Text>
+
+      {/* Recordatorios locales compactos */}
+      {!remindersDismissed && reminders.length > 0 ? (
+        <View
+          className="rounded-2xl border p-3.5 gap-1.5"
+          style={{
+            backgroundColor: palette.bgElevated,
+            borderColor: palette.borderInteractive,
+          }}
+        >
+          <View className="flex-row items-center justify-between gap-2">
+            <Text className="text-xs font-bold" style={{ color: palette.textPrimary }}>
+              Recordatorios locales
+            </Text>
+            <Pressable onPress={() => setRemindersDismissed(true)}>
+              <Text className="text-[11px] font-semibold" style={{ color: palette.textSecondary }}>
+                Ocultar
+              </Text>
+            </Pressable>
+          </View>
+          {reminders.slice(0, 2).map((rem) => (
+            <Text key={rem.id} className="text-xs" style={{ color: palette.textSecondary }}>
+              <Text
+                className="font-bold"
+                style={{
+                  color:
+                    rem.urgency === 'due'
+                      ? palette.accentWarmText
+                      : palette.brandText,
+                }}
+              >
+                {rem.titleMx}:{' '}
+              </Text>
+              {rem.detailMx}
+            </Text>
+          ))}
+        </View>
+      ) : null}
 
       {/* 1-Tap Quick Registration */}
       <View
