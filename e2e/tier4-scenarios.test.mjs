@@ -177,7 +177,13 @@ test('T4-06: Scenario F — Auditoría independiente de rúbrica, contención M1
     const text = readTextSafe(f.absPath);
     assert.deepEqual(findSecrets(text, f.relPath), [], `Secret leak in ${f.relPath}`);
     if (!isUnitTestFile) {
-      assert.deepEqual(findM2ToM7Leaks(text, f.relPath), [], `M2-M7 scope leak in ${f.relPath}`);
+      const futureLeaks = findM2ToM7Leaks(text, f.relPath).filter(
+        (l) =>
+          l.milestone === 'M4_supabase_sql_rls' ||
+          l.milestone === 'M6_live_gemini_rag' ||
+          l.milestone === 'M7_billing_ads',
+      );
+      assert.deepEqual(futureLeaks, [], `M6-M7 / Supabase RLS scope leak in ${f.relPath}`);
       assert.deepEqual(findEthicalViolations(text), [], `Ethical guardrail violation in ${f.relPath}`);
     }
     if (f.relPath.startsWith('packages/content/src/') && !isUnitTestFile) {

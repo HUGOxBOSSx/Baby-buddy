@@ -113,13 +113,33 @@ export function parseHealthLogState(raw: string | null): HealthLogState {
   }
 }
 
+function formatSummaryBlock(title: string, summary: DailyLogSummary): readonly string[] {
+  return [
+    title,
+    `Tomas totales: ${summary.totalFeeds} (promedio ${summary.avgFeedsPerDay}/día)`,
+    `Pecho: ${summary.totalBreastMin} min (promedio ${summary.avgBreastMinPerDay} min/día) · Biberón: ${summary.totalBottleMl} ml (promedio ${summary.avgBottleMlPerDay} ml/día)`,
+    `Pañales mojados (pipí): ${summary.wetDiapers} (promedio ${summary.avgWetDiapersPerDay}/día)`,
+    `Evacuaciones (popó): ${summary.dirtyDiapers} (promedio ${summary.avgDirtyDiapersPerDay}/día)`,
+    `Sueño: ${summary.totalSleepMin} min (promedio ${summary.avgSleepMinPerDay} min/día)`,
+  ];
+}
+
 export function buildPediatricianReportText(input: {
   readonly profile: ChildProfileSummary | null;
   readonly dailySummary3d: DailyLogSummary;
+  readonly dailySummary7d?: DailyLogSummary;
+  readonly dailySummary30d?: DailyLogSummary;
   readonly health: HealthLogState;
   readonly generatedAtIso: string;
 }): string {
-  const { profile, dailySummary3d, health, generatedAtIso } = input;
+  const {
+    profile,
+    dailySummary3d,
+    dailySummary7d,
+    dailySummary30d,
+    health,
+    generatedAtIso,
+  } = input;
   const lines: string[] = [
     '=== REPORTE PARA PEDIATRA — BABY BUDDY MX ===',
     `Fecha de corte: ${generatedAtIso.slice(0, 10)}`,
@@ -127,11 +147,22 @@ export function buildPediatricianReportText(input: {
       ? `Bebé: ${profile.nicknameMx} · Edad: ${profile.ageMonths} meses (${profile.stageId})`
       : 'Bebé: Sin perfil guardado',
     '',
-    '--- Últimos 3 días (Registro diario) ---',
-    `Tomas totales: ${dailySummary3d.totalFeeds} (promedio ${dailySummary3d.avgFeedsPerDay}/día)`,
-    `Pecho: ${dailySummary3d.totalBreastMin} min · Biberón: ${dailySummary3d.totalBottleMl} ml`,
-    `Pañales mojados (pipí): ${dailySummary3d.wetDiapers} (promedio ${dailySummary3d.avgWetDiapersPerDay}/día)`,
-    `Evacuaciones (popó): ${dailySummary3d.dirtyDiapers} (promedio ${dailySummary3d.avgDirtyDiapersPerDay}/día)`,
+    ...formatSummaryBlock(
+      '--- Últimos 3 días (Registro diario) ---',
+      dailySummary3d,
+    ),
+    ...(dailySummary7d
+      ? ['', ...formatSummaryBlock('--- Promedio últimos 7 días ---', dailySummary7d)]
+      : []),
+    ...(dailySummary30d
+      ? [
+          '',
+          ...formatSummaryBlock(
+            '--- Promedio mensual (últimos 30 días) ---',
+            dailySummary30d,
+          ),
+        ]
+      : []),
     '',
     '--- Temperaturas recientes (°C) ---',
     ...(health.temperatures.length > 0

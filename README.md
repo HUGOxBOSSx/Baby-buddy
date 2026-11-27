@@ -2,24 +2,22 @@
 
 Orientación educativa de crianza y bienestar infantil para México, en español de México y con unidades métricas (°C, kg, cm, ml).
 
-> **Estado actual: Hito 1 en validación.** La aplicación funciona de forma local y sin servicios externos. El contenido clínico es un borrador editorial y **no ha sido validado por un profesional de pediatría**. No sustituye la atención de tu pediatra ni los servicios de emergencia.
+> **Estado actual: Hito 5 en validación.** La aplicación funciona de forma local y sin cuentas en la nube. El contenido clínico es un borrador editorial y **no ha sido validado por un profesional de pediatría**. No sustituye la atención de tu pediatra ni los servicios de emergencia.
 
 ## Funciones disponibles en esta base
 
-- Navegación de cuatro secciones: **Hoy**, **Guías**, **Ropa y Clima** y **Salud**.
-- Modo Día Calma y Modo 3:00 AM con contraste WCAG 2.2 AA.
-- Aviso educativo de tres niveles y acceso permanente al 911 sin pago.
-- Preferencias, etapa activa y perfil demostrativo persistidos en el dispositivo.
-- Eliminación completa de los datos locales de Baby Buddy MX.
-- Catálogo editorial mínimo de guías y orientación de vestimenta por temperatura en °C.
+- **Registro diario (Hito 4):** tomas (pecho izq/der con cronómetro, biberón en ml), pañales con guía visual de popó y alertas, sueño/siestas con ventana de vigilia, hora retroactiva, notas y resúmenes con promedios diarios, de 7 días, mensuales (30 días y mes en curso) y personalizados.
+- **Ropa y Clima (Hito 2):** motor dinámico de −5 °C a 50 °C con curva TOG continua, detección automática de clima exterior vía Open-Meteo (día/noche + fallback IP) y guías visuales de prendas.
+- **Biblioteca ¿Es normal? y Primeros Auxilios (Hito 3):** buscador, 20 guías *"¿Es normal?"*, 37 guías de problemas/primeros auxilios, guía visual de popó y semáforo de cuatro niveles.
+- **Salud MX (Hito 5):** registro de fiebre (°C) con alerta inmediata a 911 en menores de 3 meses (`>= 38.0 °C`), bitácora de medicamentos, Cartilla Nacional de Vacunación MX (14 dosis), gráficas de crecimiento OMS 2006 (kg/cm) y reporte pediátrico (copiar/compartir e imprimir/PDF en web).
+- **Accesibilidad y privacidad (Hito 1):** Modo Día Calma y Modo nocturno con contraste WCAG 2.2 AA, acceso permanente al 911 sin pago, onboarding con registro o código familiar local, y borrado completo e idempotente de datos locales.
 - Aplicación web con Next.js y aplicación Expo para Android, iOS y web.
 
 ## Funciones simuladas o pendientes
 
-- El motor dinámico de ropa y clima pertenece al Hito 2.
-- Supabase, Gemini y el despliegue son adaptadores locales simulados.
-- No existen todavía cuentas remotas, registros diarios, recordatorios, inmunizaciones, crecimiento ni asistente conversacional.
-- La calculadora de capas y la biblioteca clínica completa no forman parte de este hito.
+- **Hito 6 (pendiente):** Asistente conversacional restringido al corpus editorial aprobado, con filtros previos de urgencia y citas.
+- **Hito 7 (pendiente):** Plan Pro (Guías avanzadas y Familia con sincronización multi-cuidador y respaldo en la nube), banner discreto en plan gratuito (fuera de urgencias 911/triaje y horario nocturno fijo 22:00–06:00 h), despliegue y lanzamiento.
+- Supabase, Gemini y el despliegue siguen como adaptadores locales simulados en esta fase.
 
 Consulta [docs/01-alcance-y-roadmap.md](docs/01-alcance-y-roadmap.md) para ver las fronteras entre hitos.
 

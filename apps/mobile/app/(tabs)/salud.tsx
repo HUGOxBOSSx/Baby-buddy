@@ -32,6 +32,7 @@ export default function SaludScreen() {
   } = useThemeContext();
   const [deletionSheetVisible, setDeletionSheetVisible] = useState(false);
   const [seeding, setSeeding] = useState(false);
+  const [showTechInfo, setShowTechInfo] = useState(false);
 
   const supabaseHealth = offlineSupabaseStub.getStatus();
   const geminiHealth = offlineGeminiStub.getStatus();
@@ -309,25 +310,50 @@ export default function SaludScreen() {
           borderColor: palette.borderInteractive,
         }}
       >
-        <Text
-          className="text-base font-bold"
-          style={{ color: palette.textPrimary }}
+        <Pressable
+          onPress={() => setShowTechInfo((prev) => !prev)}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: showTechInfo }}
+          accessibilityLabel="Información técnica (modo offline)"
+          className="flex-row items-center justify-between"
+          style={{ minHeight: MIN_TOUCH_TARGET_PX }}
         >
-          Estado de servicios locales / offline (Hito 1)
-        </Text>
-        <Text className="text-xs" style={{ color: palette.textSecondary }}>
-          Modo de entorno: {offlineEnvConfig.mode} · Credenciales en vivo:{' '}
-          {offlineEnvConfig.hasLiveCredentials ? 'Sí' : 'No (100% local)'}
-        </Text>
-        <Text className="text-xs" style={{ color: palette.textSecondary }}>
-          • Supabase ({supabaseHealth.mode}): {supabaseHealth.messageMx}
-        </Text>
-        <Text className="text-xs" style={{ color: palette.textSecondary }}>
-          • Asistente IA ({geminiHealth.mode}): {geminiHealth.messageMx}
-        </Text>
-        <Text className="text-xs" style={{ color: palette.textSecondary }}>
-          • Despliegue ({deploymentHealth.mode}): {deploymentHealth.messageMx}
-        </Text>
+          <Text
+            className="text-sm font-bold"
+            style={{ color: palette.textPrimary }}
+          >
+            Información técnica (modo offline)
+          </Text>
+          <Text
+            className="text-xs font-semibold"
+            style={{ color: palette.brandText }}
+          >
+            {showTechInfo ? 'Ocultar' : 'Ver'}
+          </Text>
+        </Pressable>
+        {showTechInfo ? (
+          <View className="gap-2 pt-1">
+            <Text
+              className="text-base font-bold"
+              style={{ color: palette.textPrimary }}
+            >
+              Estado de servicios locales / offline
+            </Text>
+            <Text className="text-xs" style={{ color: palette.textSecondary }}>
+              Modo de entorno: {offlineEnvConfig.mode} · Credenciales en vivo:{' '}
+              {offlineEnvConfig.hasLiveCredentials ? 'Sí' : 'No (100% local)'}
+            </Text>
+            <Text className="text-xs" style={{ color: palette.textSecondary }}>
+              • Supabase ({supabaseHealth.mode}): {supabaseHealth.messageMx}
+            </Text>
+            <Text className="text-xs" style={{ color: palette.textSecondary }}>
+              • Asistente IA ({geminiHealth.mode}): {geminiHealth.messageMx}
+            </Text>
+            <Text className="text-xs" style={{ color: palette.textSecondary }}>
+              • Despliegue ({deploymentHealth.mode}): {deploymentHealth.messageMx}
+            </Text>
+          </View>
+        ) : null}
       </View>
 
       <View

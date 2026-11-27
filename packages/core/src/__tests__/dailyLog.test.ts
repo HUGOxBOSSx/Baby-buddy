@@ -32,6 +32,46 @@ describe('dailyLog domain', () => {
       endDateKey: '2026-11-22',
     });
     expect(countInclusiveDays(lastWeek)).toBe(7);
+
+    const last30 = resolveDateRangePreset('last_30_days', wed);
+    expect(last30).toEqual({
+      startDateKey: '2026-10-27',
+      endDateKey: '2026-11-25',
+    });
+    expect(countInclusiveDays(last30)).toBe(30);
+
+    const thisMonth = resolveDateRangePreset('this_month', wed);
+    expect(thisMonth).toEqual({
+      startDateKey: '2026-11-01',
+      endDateKey: '2026-11-25',
+    });
+    expect(countInclusiveDays(thisMonth)).toBe(25);
+  });
+
+  it('computes monthly averages over a 30-day window', () => {
+    const now = new Date(2026, 10, 25, 18, 0, 0);
+    const entries: DailyLogEntry[] = [
+      {
+        id: 'm1',
+        kind: 'feed',
+        timestampIso: new Date(2026, 10, 1, 9, 0, 0).toISOString(),
+        feedType: 'bottle',
+        volumeMl: 300,
+      },
+      {
+        id: 'm2',
+        kind: 'sleep',
+        timestampIso: new Date(2026, 10, 25, 9, 0, 0).toISOString(),
+        durationSec: 1800,
+      },
+    ];
+    const range30 = resolveDateRangePreset('last_30_days', now);
+    const summary30 = summarizeDailyLog(entries, range30, now);
+    expect(summary30.daysInRange).toBe(30);
+    expect(summary30.totalBottleMl).toBe(300);
+    expect(summary30.avgBottleMlPerDay).toBe(10);
+    expect(summary30.totalSleepMin).toBe(30);
+    expect(summary30.avgSleepMinPerDay).toBe(1);
   });
 
   it('computes daily averages, >8h wet diaper alert, and stool alert', () => {

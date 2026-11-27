@@ -47,9 +47,19 @@ export function HealthJournalPanel() {
     dailyLogs,
     resolveDateRangePreset('last_3_days'),
   );
+  const summary7d = summarizeDailyLog(
+    dailyLogs,
+    resolveDateRangePreset('last_7_days'),
+  );
+  const summary30d = summarizeDailyLog(
+    dailyLogs,
+    resolveDateRangePreset('last_30_days'),
+  );
   const reportText = buildPediatricianReportText({
     profile: childProfile,
     dailySummary3d: summary3d,
+    dailySummary7d: summary7d,
+    dailySummary30d: summary30d,
     health: healthState,
     generatedAtIso: new Date().toISOString(),
   });

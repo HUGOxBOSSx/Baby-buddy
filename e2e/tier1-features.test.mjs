@@ -704,13 +704,13 @@ test('T1-F09-02: apps/mobile runs local expo export --platform web --clear clean
   assert.ok(fs.existsSync(path.join(mobileDir, 'dist', 'index.html')), 'apps/mobile/dist/index.html missing');
 });
 
-test('T1-F09-03: apps/mobile defines 4-tab shell (Hoy, Guías, Ropa y Clima, Salud) with >=48px targets', { skip: SKIP_APP_REASON }, () => {
+test('T1-F09-03: apps/mobile defines 4-tab shell (Registro, ¿Es normal?, Ropa y Clima, Salud) with >=48px targets', { skip: SKIP_APP_REASON }, () => {
   const tabsDir = path.join(ROOT_DIR, 'apps', 'mobile', 'app', '(tabs)');
   for (const tabFile of ['_layout.tsx', 'index.tsx', 'guias.tsx', 'ropa-y-clima.tsx', 'salud.tsx']) {
     assert.ok(fs.existsSync(path.join(tabsDir, tabFile)), `Missing mobile tab file: ${tabFile}`);
   }
   const tabsLayout = readTextSafe(path.join(tabsDir, '_layout.tsx'));
-  for (const title of ['Hoy', 'Guías', 'Ropa y Clima', 'Salud']) {
+  for (const title of ['Registro', '¿Es normal?', 'Ropa y Clima', 'Salud']) {
     assert.ok(tabsLayout.includes(title), `Mobile tabs layout missing "${title}"`);
   }
   assert.match(tabsLayout, /minHeight:\s*48|min-h-12|height:\s*(?:4[89]|[5-9]\d)/);
@@ -751,10 +751,11 @@ test('T1-F10-02: apps/mobile Guías tab renders Level 2 GuideDisclaimerHeader an
   const guiasSrc = readTextSafe(path.join(ROOT_DIR, 'apps', 'mobile', 'app', '(tabs)', 'guias.tsx'));
   const headerSrc = readTextSafe(path.join(ROOT_DIR, 'apps', 'mobile', 'components', 'GuideDisclaimerHeader.tsx'));
   assert.match(guiasSrc, /GuideDisclaimerHeader/);
+  assert.match(guiasSrc, /metadata/);
   assert.match(headerSrc, /guide_header/);
-  assert.match(guiasSrc, /reviewed_at/);
-  assert.match(guiasSrc, /reviewed_by/);
-  assert.match(guiasSrc, /sources/);
+  assert.match(headerSrc, /reviewed_at/);
+  assert.match(headerSrc, /reviewed_by/);
+  assert.match(headerSrc, /sources/);
 });
 
 test('T1-F10-03: apps/mobile Salud tab renders Level 3 TriageDisclaimerBanner and non-paywalled 911 card', { skip: SKIP_APP_REASON }, () => {

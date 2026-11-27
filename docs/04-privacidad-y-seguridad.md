@@ -2,15 +2,15 @@
 
 ## Datos que existen hoy
 
-El Hito 1 guarda únicamente:
+La versión local actual (Hitos 1–5) guarda únicamente en el dispositivo:
 
-- Tema seleccionado.
-- Etapa activa.
-- Fecha de aceptación del aviso inicial.
-- Perfil demostrativo local, si la persona lo carga.
-- Nota demostrativa asociada al perfil de ejemplo.
+- Tema seleccionado y horario automático de Modo nocturno.
+- Etapa activa y fecha de aceptación del aviso inicial.
+- Perfil infantil local (apodo, fecha de nacimiento, sexo opcional) o perfil demostrativo.
+- Registro diario (tomas, pañales, sueño/siestas y notas).
+- Bitácora de salud (temperaturas en °C, medicamentos indicados por pediatra, mediciones de crecimiento en kg/cm y vacunas marcadas de la Cartilla MX).
 
-No existen cuentas remotas, credenciales de usuario ni transmisión de datos a servidores.
+No existen cuentas remotas, credenciales de usuario ni transmisión de datos personales a servidores. La detección opcional de clima exterior consulta Open-Meteo únicamente con coordenadas o ubicación aproximada de red, sin enviar datos del bebé ni crear perfiles.
 
 ## Dónde se guardan
 

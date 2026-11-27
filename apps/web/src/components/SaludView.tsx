@@ -210,37 +210,39 @@ export function SaludView() {
         </div>
       </section>
 
-      <section
-        aria-labelledby="estado-offline-titulo"
-        className="rounded-2xl border border-border-interactive bg-bg-card p-5 space-y-3"
-      >
-        <h2
-          id="estado-offline-titulo"
-          className="text-base font-bold text-ink-primary"
-        >
-          Estado de servicios en modo offline
-        </h2>
-        <p className="text-xs text-ink-secondary">
-          Modo de ejecución: <strong className="text-ink-primary">{envConfig.mode}</strong> ·
-          Credenciales externas activas:{' '}
-          <strong className="text-ink-primary">
-            {String(envConfig.hasLiveCredentials)}
-          </strong>
-        </p>
-        <ul className="space-y-2 text-xs text-ink-secondary">
-          {[supabaseStub, geminiStub, deploymentStub].map((stub) => (
-            <li
-              key={stub.service}
-              className="rounded-xl border border-border-interactive bg-bg-elevated p-3"
-            >
-              <p className="font-semibold uppercase text-ink-primary">
-                {stub.service} · {stub.mode}
-              </p>
-              <p className="mt-0.5">{stub.messageMx}</p>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <details className="rounded-2xl border border-border-interactive bg-bg-card p-5">
+        <summary className="cursor-pointer text-sm font-bold text-ink-primary">
+          Información técnica (modo offline)
+        </summary>
+        <div className="mt-3 space-y-3">
+          <h2
+            id="estado-offline-titulo"
+            className="text-base font-bold text-ink-primary"
+          >
+            Estado de servicios en modo offline
+          </h2>
+          <p className="text-xs text-ink-secondary">
+            Modo de ejecución: <strong className="text-ink-primary">{envConfig.mode}</strong> ·
+            Credenciales externas activas:{' '}
+            <strong className="text-ink-primary">
+              {String(envConfig.hasLiveCredentials)}
+            </strong>
+          </p>
+          <ul className="space-y-2 text-xs text-ink-secondary">
+            {[supabaseStub, geminiStub, deploymentStub].map((stub) => (
+              <li
+                key={stub.service}
+                className="rounded-xl border border-border-interactive bg-bg-elevated p-3"
+              >
+                <p className="font-semibold uppercase text-ink-primary">
+                  {stub.service} · {stub.mode}
+                </p>
+                <p className="mt-0.5">{stub.messageMx}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </details>
     </div>
   );
 }

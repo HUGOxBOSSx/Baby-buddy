@@ -50,6 +50,8 @@ export type DateRangePreset =
   | 'last_3_days'
   | 'last_7_days'
   | 'last_week'
+  | 'last_30_days'
+  | 'this_month'
   | 'custom';
 
 export interface DateRangeWindow {
@@ -153,6 +155,15 @@ export function resolveDateRangePreset(
   if (preset === 'last_7_days') {
     const start = new Date(today);
     start.setDate(start.getDate() - 6);
+    return { startDateKey: toLocalDateKey(start), endDateKey: todayKey };
+  }
+  if (preset === 'last_30_days') {
+    const start = new Date(today);
+    start.setDate(start.getDate() - 29);
+    return { startDateKey: toLocalDateKey(start), endDateKey: todayKey };
+  }
+  if (preset === 'this_month') {
+    const start = new Date(today.getFullYear(), today.getMonth(), 1);
     return { startDateKey: toLocalDateKey(start), endDateKey: todayKey };
   }
   // last_week: previous Monday through Sunday

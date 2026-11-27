@@ -93,7 +93,29 @@ export function spawnNodeBin(binPath, args = [], opts = {}) {
 }
 
 export function killProcessTree(child) {
-  if (!child || child.pid == null || child.exitCode !== null) {
+  if (!child) {
+    return;
+  }
+  const cleanupStreams = () => {
+    try {
+      child.stdout?.destroy();
+    } catch {
+      // ignore
+    }
+    try {
+      child.stderr?.destroy();
+    } catch {
+      // ignore
+    }
+    try {
+      child.unref?.();
+    } catch {
+      // ignore
+    }
+  };
+
+  if (child.pid == null || child.exitCode !== null) {
+    cleanupStreams();
     return;
   }
   if (process.platform === 'win32') {
@@ -101,6 +123,14 @@ export function killProcessTree(child) {
       shell: false,
       stdio: 'ignore',
     });
+    if (child.exitCode === null) {
+      try {
+        child.kill('SIGKILL');
+      } catch {
+        // ignore
+      }
+    }
+    cleanupStreams();
     return;
   }
   try {
@@ -115,6 +145,7 @@ export function killProcessTree(child) {
       // ignore
     }
   }
+  cleanupStreams();
 }
 
 export function sha256File(filePath) {

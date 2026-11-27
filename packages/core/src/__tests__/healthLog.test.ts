@@ -48,4 +48,42 @@ describe('healthLog domain', () => {
     expect(report).toContain('6.2 kg');
     expect(report).toContain('62 cm');
   });
+
+  it('includes 7-day and 30-day monthly averages in pediatrician report when provided', () => {
+    const summary3d = summarizeDailyLog([], {
+      startDateKey: '2026-11-23',
+      endDateKey: '2026-11-25',
+    });
+    const summary7d = summarizeDailyLog([], {
+      startDateKey: '2026-11-19',
+      endDateKey: '2026-11-25',
+    });
+    const summary30d = summarizeDailyLog(
+      [
+        {
+          id: 'f1',
+          kind: 'feed',
+          timestampIso: '2026-11-10T10:00:00Z',
+          feedType: 'bottle',
+          volumeMl: 300,
+        },
+      ],
+      {
+        startDateKey: '2026-10-27',
+        endDateKey: '2026-11-25',
+      },
+    );
+    const report = buildPediatricianReportText({
+      profile: null,
+      dailySummary3d: summary3d,
+      dailySummary7d: summary7d,
+      dailySummary30d: summary30d,
+      health: EMPTY_HEALTH_LOG_STATE,
+      generatedAtIso: '2026-11-25T12:00:00Z',
+    });
+    expect(report).toContain('Promedio últimos 7 días');
+    expect(report).toContain('Promedio mensual (últimos 30 días)');
+    expect(report).toContain('10 ml/día');
+    expect(report).toContain('Sueño:');
+  });
 });

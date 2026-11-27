@@ -88,9 +88,19 @@ export function HealthJournalPanel() {
     dailyLogs,
     resolveDateRangePreset('last_3_days'),
   );
+  const summary7d = summarizeDailyLog(
+    dailyLogs,
+    resolveDateRangePreset('last_7_days'),
+  );
+  const summary30d = summarizeDailyLog(
+    dailyLogs,
+    resolveDateRangePreset('last_30_days'),
+  );
   const reportText = buildPediatricianReportText({
     profile: childProfile,
     dailySummary3d: summary3d,
+    dailySummary7d: summary7d,
+    dailySummary30d: summary30d,
     health: healthState,
     generatedAtIso: new Date().toISOString(),
   });
@@ -379,16 +389,28 @@ export function HealthJournalPanel() {
 
       {subTab === 'reporte' ? (
         <div className="space-y-3">
-          <pre className="overflow-x-auto whitespace-pre-wrap rounded-2xl border border-border-interactive bg-bg-elevated p-4 text-xs text-ink-primary">
+          <pre
+            data-print-report="true"
+            className="overflow-x-auto whitespace-pre-wrap rounded-2xl border border-border-interactive bg-bg-elevated p-4 text-xs text-ink-primary"
+          >
             {reportText}
           </pre>
-          <button
-            type="button"
-            onClick={() => void handleCopyReport()}
-            className="inline-flex min-h-12 items-center rounded-xl bg-brand-primary px-4 py-2 text-xs font-bold text-brand-on"
-          >
-            {copied ? '✓ Reporte copiado' : 'Copiar reporte para pediatra'}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void handleCopyReport()}
+              className="inline-flex min-h-12 items-center rounded-xl bg-brand-primary px-4 py-2 text-xs font-bold text-brand-on"
+            >
+              {copied ? '✓ Reporte copiado' : 'Copiar reporte para pediatra'}
+            </button>
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="inline-flex min-h-12 items-center rounded-xl border border-border-interactive bg-bg-elevated px-4 py-2 text-xs font-bold text-ink-primary hover:bg-brand-surface"
+            >
+              Imprimir / Guardar PDF
+            </button>
+          </div>
         </div>
       ) : null}
     </section>

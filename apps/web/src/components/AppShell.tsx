@@ -288,7 +288,7 @@ export function AppShell({ children }: { readonly children: ReactNode }) {
             ) : (
               <MoonIcon className="h-5 w-5 shrink-0" />
             )}
-            <span>{isNight ? 'Día' : '3:00 AM'}</span>
+            <span>{isNight ? 'Día' : 'Nocturno'}</span>
           </button>
         </nav>
       </div>

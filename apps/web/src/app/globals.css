@@ -72,3 +72,36 @@ html[data-onboarding="accepted"] [data-onboarding-gate="true"] {
 dialog::backdrop {
   background-color: rgba(18, 17, 16, 0.72);
 }
+
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  aside,
+  header,
+  footer,
+  nav,
+  button,
+  [data-no-print="true"] {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+  }
+
+  [data-print-report="true"] {
+    border: none !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    white-space: pre-wrap !important;
+    font-size: 11pt !important;
+    line-height: 1.45 !important;
+  }
+}

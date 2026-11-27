@@ -14,7 +14,7 @@ description: "Stack canónico de Baby Buddy MX: monorepo npm workspaces, Next.js
 - Gratis siempre: Registro diario, ¿Es normal?, Ropa y clima, Salud y Urgencias 911 (el 911 NUNCA se bloquea).
 - Monetización aprobada (Hito 7 / lanzamiento):
   - Plan Pro (de pago): Guías avanzadas y Familia (sincronización multi-cuidador en tiempo real y respaldo en la nube).
-  - Anuncios en plan gratuito (Hito 7): banner discreto encima de la barra de navegación inferior; NUNCA en urgencias 911/triaje, NUNCA en modo nocturno, NUNCA dirigidos a menores y cero venta de datos.
+  - Anuncios en plan gratuito (Hito 7): banner discreto encima de la barra de navegación inferior; el Modo Nocturno manual permanece libre a cualquier hora, pero la pausa de anuncios se rige por **horario nocturno fijo (22:00–06:00 h hora local)** y **NUNCA en urgencias 911/triaje ni pantallas infantiles**, con cero venta de datos.
 - Solo unidades métricas en todo el producto: °C, kg, cm, ml.
 - Nada de lenguaje diagnóstico ni prescriptivo, y nada que reemplace al pediatra.
 
@@ -132,7 +132,7 @@ E2E: node e2e/run.mjs --tier=1|2|3|4|all (con E2E_CORE_ONLY=1 cubre solo package
 
 ## 11. Prohibido (el E2E lo verifica)
 - Tailwind v4, React 18, newArchEnabled en app.json, eas build, eas-cli y builds en la nube.
-- En hitos actuales (antes de Hito 7): SDKs de anuncios, analítica, atribución o crash reporting de pago. En Hito 7 solo se permite banner discreto en plan gratuito fuera de urgencias 911, modo nocturno y pantallas infantiles.
+- En hitos actuales (antes de Hito 7): SDKs de anuncios, analítica, atribución o crash reporting de pago. En Hito 7 solo se permite banner discreto en plan gratuito fuera de urgencias 911/triaje, horario nocturno fijo (22:00–06:00 h) y pantallas infantiles (el Modo Nocturno manual sigue libre a cualquier hora).
 - Unidades imperiales en copy, código o HTML renderizado.
 - Frases diagnósticas o de prescripción; bloquear el 911 por login o paywall.
 - Modificar e2e/, .github/workflows/ci.yml o los manifiestos raíz para "hacer pasar" tests.

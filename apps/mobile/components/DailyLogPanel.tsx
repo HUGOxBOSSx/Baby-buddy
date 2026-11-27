@@ -25,6 +25,8 @@ const RANGE_PRESETS: readonly {
   { id: 'last_3_days', label: '3 días' },
   { id: 'last_7_days', label: '7 días' },
   { id: 'last_week', label: 'Sem. pasada' },
+  { id: 'last_30_days', label: '30 días' },
+  { id: 'this_month', label: 'Este mes' },
   { id: 'custom', label: 'Fechas' },
 ] as const;
 

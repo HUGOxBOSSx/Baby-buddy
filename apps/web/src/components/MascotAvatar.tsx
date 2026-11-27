@@ -1,3 +1,5 @@
+import Image from 'next/image';
+
 export type MascotVariant = 'home' | 'clima' | 'salud' | 'es_normal';
 
 const MASCOT_SRC: Record<MascotVariant, string> = {
@@ -30,9 +32,12 @@ export function MascotAvatar({ variant, size = 'md' }: MascotAvatarProps) {
     <div
       className={`shrink-0 overflow-hidden rounded-2xl border border-border-subtle bg-bg-elevated p-1 ${SIZE_CLASSES[size]}`}
     >
-      <img
+      <Image
         src={MASCOT_SRC[variant]}
         alt={MASCOT_ALT[variant]}
+        width={80}
+        height={80}
+        unoptimized
         className="h-full w-full object-contain"
       />
     </div>

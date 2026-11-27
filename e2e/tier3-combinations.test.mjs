@@ -123,8 +123,8 @@ test('T3-04 (F03+F04+F06+F09): Core stages/tokens/content integrate into apps/mo
   });
   const combined = mobileFiles.map((f) => readTextSafe(f.absPath)).join('\n');
   assert.match(combined, /STAGE_OVERVIEWS/);
-  assert.match(combined, /M1_GUIDE_SCAFFOLDS/);
-  assert.match(combined, /M1_CLOTHING_SCAFFOLDS/);
+  assert.match(combined, /ALL_CLINICAL_GUIDES|M1_GUIDE_SCAFFOLDS/);
+  assert.match(combined, /recommendClothing|M1_CLOTHING_SCAFFOLDS/);
   assert.match(combined, /StatusBadge/);
   assert.match(combined, /getThemePalette|THEME_PALETTES/);
 });

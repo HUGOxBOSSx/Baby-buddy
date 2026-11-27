@@ -465,14 +465,12 @@ test('T2-F06-03: Hito 2 clothing engine is 100% offline with zero live weather A
   }
 });
 
-test('T2-F06-04: Zero M5 Cartilla de Vacunación / WHO LMS z-score engines in packages/*', async () => {
-  const files = walkFiles(path.join(ROOT_DIR, 'packages'));
-  for (const f of files) {
-    const leaks = findM2ToM7Leaks(readTextSafe(f.absPath), f.relPath).filter(
-      (l) => l.milestone === 'M5_cartilla_who_lms',
-    );
-    assert.deepEqual(leaks, [], `M5 leak in ${f.relPath}`);
-  }
+test('T2-F06-04: Hito 5 Cartilla de Vacunación MX & WHO growth curves operate offline in packages/core', async () => {
+  const core = await importCore();
+  assert.ok(Array.isArray(core.MX_VACCINE_CHECKLIST) && core.MX_VACCINE_CHECKLIST.length >= 10);
+  assert.equal(typeof core.evaluateTemperatureAlertMx, 'function');
+  assert.equal(typeof core.buildPediatricianReportText, 'function');
+  assert.equal(core.evaluateTemperatureAlertMx(38.0, 2).level, 'urgent_911');
 });
 
 test('T2-F06-05: Zero M4 Supabase SQL/RLS migrations or M6 live Gemini RAG clients in repo', () => {
@@ -567,10 +565,16 @@ test('T2-F08-03: Web 911 card on /salud is never gated behind login or paywall',
   assert.doesNotMatch(saludSrc, /iniciar\s+sesi[oó]n\s+para\s+ver\s+911/i);
 });
 
-test('T2-F08-04: Zero M4/M6/M7 features or tracking logs leak into apps/web', { skip: SKIP_APP_REASON }, () => {
+test('T2-F08-04: Zero M4 Supabase RLS, M6 live Gemini RAG, or M7 billing/ad SDKs leak into apps/web', { skip: SKIP_APP_REASON }, () => {
   const webFiles = walkFiles(path.join(ROOT_DIR, 'apps', 'web', 'src'));
   for (const f of webFiles) {
-    assert.deepEqual(findM2ToM7Leaks(readTextSafe(f.absPath), f.relPath), [], `Scope leak in ${f.relPath}`);
+    const leaks = findM2ToM7Leaks(readTextSafe(f.absPath), f.relPath).filter(
+      (l) =>
+        l.milestone === 'M4_supabase_sql_rls' ||
+        l.milestone === 'M6_live_gemini_rag' ||
+        l.milestone === 'M7_billing_ads',
+    );
+    assert.deepEqual(leaks, [], `Scope leak in ${f.relPath}`);
   }
 });
 
