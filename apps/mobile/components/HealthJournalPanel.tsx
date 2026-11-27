@@ -1,17 +1,23 @@
 import {
   MIN_TOUCH_TARGET_PX,
   MX_VACCINE_CHECKLIST,
+  STAGE_SPECS,
   buildPediatricianReportText,
   evaluateTemperatureAlertMx,
+  getStageForAgeMonths,
   resolveDateRangePreset,
   summarizeDailyLog,
 } from '@baby-buddy/core';
+import {
+  MILESTONE_DOMAIN_LABELS_MX,
+  getMilestonesForStage,
+} from '@baby-buddy/content';
 import { useState } from 'react';
 import { Pressable, Share, Text, TextInput, View } from 'react-native';
 import { GrowthChartCard } from './GrowthChartCard';
 import { useThemeContext } from './ThemeProvider';
 
-type HealthSubTab = 'fiebre' | 'vacunas' | 'crecimiento' | 'reporte';
+type HealthSubTab = 'fiebre' | 'vacunas' | 'crecimiento' | 'hitos' | 'reporte';
 
 export function HealthJournalPanel() {
   const {
@@ -26,6 +32,7 @@ export function HealthJournalPanel() {
     addGrowthLog,
     deleteGrowthLog,
     toggleVaccineCompleted,
+    toggleMilestoneCompleted,
   } = useThemeContext();
 
   const [subTab, setSubTab] = useState<HealthSubTab>('fiebre');
@@ -131,6 +138,7 @@ export function HealthJournalPanel() {
             { id: 'fiebre', label: 'Fiebre y meds' },
             { id: 'vacunas', label: 'Vacunas' },
             { id: 'crecimiento', label: 'Crecimiento' },
+            { id: 'hitos', label: 'Hitos' },
             { id: 'reporte', label: 'Reporte' },
           ] as const
         ).map((t) => {
@@ -420,6 +428,69 @@ export function HealthJournalPanel() {
           ))}
         </View>
       ) : null}
+
+      {subTab === 'hitos' ? (() => {
+        const stageId = childProfile
+          ? childProfile.stageId
+          : getStageForAgeMonths(ageMonths);
+        const stageMilestones = getMilestonesForStage(stageId);
+        const completedIds = healthState.completedMilestoneIds ?? [];
+        const doneCount = stageMilestones.filter((m) =>
+          completedIds.includes(m.id),
+        ).length;
+        return (
+          <View className="gap-2">
+            <Text className="text-xs font-semibold" style={{ color: palette.brandText }}>
+              {doneCount} de {stageMilestones.length} hitos ({STAGE_SPECS[stageId].shortLabel})
+            </Text>
+            <View
+              className="h-2.5 w-full overflow-hidden rounded-full"
+              style={{ backgroundColor: palette.bgElevated }}
+            >
+              <View
+                className="h-full rounded-full"
+                style={{
+                  width: `${Math.round((doneCount / Math.max(1, stageMilestones.length)) * 100)}%`,
+                  backgroundColor: palette.brandPrimary,
+                }}
+              />
+            </View>
+            {stageMilestones.map((m) => {
+              const done = completedIds.includes(m.id);
+              return (
+                <Pressable
+                  key={m.id}
+                  onPress={() => toggleMilestoneCompleted(m.id)}
+                  className="rounded-xl border p-3 gap-1"
+                  style={{
+                    minHeight: MIN_TOUCH_TARGET_PX,
+                    backgroundColor: done ? palette.brandSurface : palette.bgElevated,
+                    borderColor: done ? palette.brandPrimary : palette.borderInteractive,
+                  }}
+                >
+                  <View className="flex-row items-center justify-between gap-2">
+                    <Text className="text-xs font-bold flex-1" style={{ color: palette.textPrimary }}>
+                      {m.titleMx}
+                    </Text>
+                    <Text className="text-xs font-bold" style={{ color: done ? palette.brandText : palette.textSecondary }}>
+                      {done ? '✓ Logrado' : 'Marcar'}
+                    </Text>
+                  </View>
+                  <Text className="text-[11px] font-semibold" style={{ color: palette.textSecondary }}>
+                    {MILESTONE_DOMAIN_LABELS_MX[m.domain]} · {m.ageLabelMx}
+                  </Text>
+                  <Text className="text-xs" style={{ color: palette.textSecondary }}>
+                    {m.activityMx}
+                  </Text>
+                  <Text className="text-[11px]" style={{ color: palette.textMuted }}>
+                    {m.watchForMx}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        );
+      })() : null}
 
       {subTab === 'reporte' ? (
         <View className="gap-2">

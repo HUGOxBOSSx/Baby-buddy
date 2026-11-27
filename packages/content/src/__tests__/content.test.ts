@@ -6,12 +6,15 @@ import {
 } from '@baby-buddy/core';
 import {
   ALL_CLINICAL_GUIDES,
+  DEVELOPMENT_MILESTONES,
   IS_NORMAL_GUIDES,
   POOP_COLOR_CHART,
   PROBLEM_SOLUTIONS_GUIDES,
+  askEditorialAssistantMx,
   assertValidClinicalMetadata,
   CLOTHING_ENGINE_METADATA,
   createClinicalMetadata,
+  getMilestonesForStage,
   M1_CLOTHING_SCAFFOLDS,
   M1_GUIDE_SCAFFOLDS,
   STAGE_OVERVIEWS,
@@ -188,5 +191,51 @@ describe('@baby-buddy/content M1 scaffolds & clinical metadata', () => {
     const redOnly = searchClinicalGuides({ triageLevel: 'red_911' });
     expect(redOnly.length).toBeGreaterThan(0);
     expect(redOnly.every((g) => g.triageLevel === 'red_911')).toBe(true);
+  });
+
+  it('validates development milestones across all 4 stages and bounded editorial assistant', () => {
+    expect(DEVELOPMENT_MILESTONES.length).toBeGreaterThanOrEqual(16);
+    for (const stageId of STAGE_ORDER) {
+      expect(getMilestonesForStage(stageId).length).toBeGreaterThanOrEqual(4);
+    }
+    for (const m of DEVELOPMENT_MILESTONES) {
+      expect(() => assertValidClinicalMetadata(m.metadata)).not.toThrow();
+      const check = validateSpanishClinicalCopy(
+        `${m.titleMx}. ${m.activityMx} ${m.watchForMx}`,
+      );
+      expect(check.valid, `Invalid milestone ${m.id}`).toBe(true);
+    }
+
+    const infantFever = askEditorialAssistantMx({
+      queryMx: 'Mi bebé tiene fiebre de 38.2',
+      ageMonths: 2,
+      stageId: '0-3m',
+    });
+    expect(infantFever.triageLevel).toBe('red_911');
+    expect(infantFever.isEmergency911).toBe(true);
+    expect(infantFever.citations.length).toBeGreaterThan(0);
+
+    const normalHiccups = askEditorialAssistantMx({
+      queryMx: 'hipo',
+      ageMonths: 1,
+      stageId: '0-3m',
+    });
+    expect(normalHiccups.isEmergency911).toBe(false);
+    expect(normalHiccups.citations.length).toBeGreaterThan(0);
+    expect(
+      validateSpanishClinicalCopy(
+        `${normalHiccups.headlineMx}. ${normalHiccups.answerMx} ${normalHiccups.disclaimerMx}`,
+      ).valid,
+    ).toBe(true);
+
+    const outOfCorpus = askEditorialAssistantMx({
+      queryMx: 'pregunta completamente inexistente xyz123',
+      ageMonths: 12,
+      stageId: '1-3a',
+    });
+    expect(outOfCorpus.citations).toEqual([]);
+    expect(
+      validateSpanishClinicalCopy(`${outOfCorpus.headlineMx}. ${outOfCorpus.answerMx}`).valid,
+    ).toBe(true);
   });
 });

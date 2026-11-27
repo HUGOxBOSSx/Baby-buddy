@@ -96,3 +96,20 @@ export interface PoopColorEntry {
   readonly actionMx: string;
   readonly metadata: ClinicalMetadata;
 }
+
+export type MilestoneDomain =
+  | 'motor'
+  | 'lenguaje'
+  | 'socioemocional'
+  | 'cognitivo';
+
+export interface DevelopmentMilestoneEntry {
+  readonly id: string;
+  readonly stage: StageId;
+  readonly ageLabelMx: string;
+  readonly domain: MilestoneDomain;
+  readonly titleMx: string;
+  readonly activityMx: string;
+  readonly watchForMx: string;
+  readonly metadata: ClinicalMetadata;
+}

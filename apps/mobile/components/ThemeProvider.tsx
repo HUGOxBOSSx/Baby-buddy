@@ -105,6 +105,7 @@ export interface ThemeContextValue {
   readonly addGrowthLog: (entry: GrowthLogEntry) => void;
   readonly deleteGrowthLog: (id: string) => void;
   readonly toggleVaccineCompleted: (vaccineId: string) => void;
+  readonly toggleMilestoneCompleted: (milestoneId: string) => void;
   readonly statusAnnouncement: string;
   readonly hydrated: boolean;
   readonly iconsLoaded: boolean;
@@ -536,6 +537,21 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
     });
   }, []);
 
+  const toggleMilestoneCompleted = useCallback((milestoneId: string) => {
+    setHealthState((prev) => {
+      const currentIds = prev.completedMilestoneIds ?? [];
+      const exists = currentIds.includes(milestoneId);
+      const next: HealthLogState = {
+        ...prev,
+        completedMilestoneIds: exists
+          ? currentIds.filter((id) => id !== milestoneId)
+          : [...currentIds, milestoneId],
+      };
+      void savePersistedHealthState(next);
+      return next;
+    });
+  }, []);
+
   const palette = useMemo(() => getThemePalette(mode), [mode]);
 
   const value = useMemo<ThemeContextValue>(
@@ -576,6 +592,7 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       addGrowthLog,
       deleteGrowthLog,
       toggleVaccineCompleted,
+      toggleMilestoneCompleted,
       statusAnnouncement,
       hydrated,
       iconsLoaded,
@@ -617,6 +634,7 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       addGrowthLog,
       deleteGrowthLog,
       toggleVaccineCompleted,
+      toggleMilestoneCompleted,
       statusAnnouncement,
       hydrated,
       iconsLoaded,

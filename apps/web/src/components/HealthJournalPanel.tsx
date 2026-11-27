@@ -3,15 +3,21 @@
 import { useCallback, useState } from 'react';
 import {
   MX_VACCINE_CHECKLIST,
+  STAGE_SPECS,
   buildPediatricianReportText,
   evaluateTemperatureAlertMx,
+  getStageForAgeMonths,
   resolveDateRangePreset,
   summarizeDailyLog,
 } from '@baby-buddy/core';
+import {
+  MILESTONE_DOMAIN_LABELS_MX,
+  getMilestonesForStage,
+} from '@baby-buddy/content';
 import { GrowthChartCard } from '@/components/GrowthChartCard';
 import { useAppState } from '@/components/ThemeProvider';
 
-type HealthSubTab = 'fiebre' | 'vacunas' | 'crecimiento' | 'reporte';
+type HealthSubTab = 'fiebre' | 'vacunas' | 'crecimiento' | 'hitos' | 'reporte';
 
 export function HealthJournalPanel() {
   const {
@@ -25,6 +31,7 @@ export function HealthJournalPanel() {
     addGrowthLog,
     deleteGrowthLog,
     toggleVaccineCompleted,
+    toggleMilestoneCompleted,
   } = useAppState();
 
   const [subTab, setSubTab] = useState<HealthSubTab>('fiebre');
@@ -138,6 +145,7 @@ export function HealthJournalPanel() {
             { id: 'fiebre', label: 'Fiebre y meds' },
             { id: 'vacunas', label: 'Vacunas' },
             { id: 'crecimiento', label: 'Crecimiento' },
+            { id: 'hitos', label: 'Hitos' },
             { id: 'reporte', label: 'Reporte' },
           ] as const
         ).map((t) => {
@@ -402,6 +410,67 @@ export function HealthJournalPanel() {
           ))}
         </div>
       ) : null}
+
+      {subTab === 'hitos' ? (() => {
+        const stageId = childProfile
+          ? childProfile.stageId
+          : getStageForAgeMonths(ageMonths);
+        const stageMilestones = getMilestonesForStage(stageId);
+        const completedIds = healthState.completedMilestoneIds ?? [];
+        const doneCount = stageMilestones.filter((m) =>
+          completedIds.includes(m.id),
+        ).length;
+        return (
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold text-brand-text">
+                {doneCount} de {stageMilestones.length} hitos en etapa{' '}
+                {STAGE_SPECS[stageId].shortLabel}
+              </p>
+              <div className="h-2.5 w-full overflow-hidden rounded-full bg-bg-elevated">
+                <div
+                  className="h-full rounded-full bg-brand-primary transition-all"
+                  style={{
+                    width: `${Math.round((doneCount / Math.max(1, stageMilestones.length)) * 100)}%`,
+                  }}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              {stageMilestones.map((m) => {
+                const done = completedIds.includes(m.id);
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => toggleMilestoneCompleted(m.id)}
+                    aria-pressed={done}
+                    className={`w-full rounded-xl border p-3.5 text-left space-y-1 ${
+                      done
+                        ? 'border-brand-primary bg-brand-surface'
+                        : 'border-border-interactive bg-bg-elevated'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-bold text-ink-primary">
+                        {m.titleMx}
+                      </span>
+                      <span className="shrink-0 text-xs font-bold text-brand-text">
+                        {done ? '✓ Logrado' : 'Marcar'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] font-semibold text-ink-secondary">
+                      {MILESTONE_DOMAIN_LABELS_MX[m.domain]} · {m.ageLabelMx}
+                    </p>
+                    <p className="text-xs text-ink-secondary">{m.activityMx}</p>
+                    <p className="text-[11px] text-ink-muted">{m.watchForMx}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })() : null}
 
       {subTab === 'reporte' ? (
         <div className="space-y-3">

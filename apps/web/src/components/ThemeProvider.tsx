@@ -50,6 +50,7 @@ import {
   startStoredFeedTimer,
   subscribeLocalStore,
   togglePauseStoredFeedTimer,
+  toggleStoredMilestoneCompleted,
   toggleStoredThemeMode,
   toggleStoredVaccineCompleted,
 } from '@/lib/localAdapter';
@@ -96,6 +97,7 @@ export interface AppStateContextValue {
   readonly addGrowthLog: (entry: GrowthLogEntry) => void;
   readonly deleteGrowthLog: (id: string) => void;
   readonly toggleVaccineCompleted: (vaccineId: string) => void;
+  readonly toggleMilestoneCompleted: (milestoneId: string) => void;
 }
 
 const AppStateContext = createContext<AppStateContextValue | null>(null);
@@ -158,6 +160,7 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       addGrowthLog: addStoredGrowthLog,
       deleteGrowthLog: deleteStoredGrowthLog,
       toggleVaccineCompleted: toggleStoredVaccineCompleted,
+      toggleMilestoneCompleted: toggleStoredMilestoneCompleted,
     }),
     [snapshot],
   );

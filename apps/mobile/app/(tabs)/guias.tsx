@@ -6,9 +6,11 @@ import {
 import {
   ALL_CLINICAL_GUIDES,
   GUIDE_CATEGORIES_MX,
+  askEditorialAssistantMx,
   getClinicalGuideBySlug,
   getRelatedGuideLinks,
   searchClinicalGuides,
+  type EditorialAssistantReply,
 } from '@baby-buddy/content';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
@@ -63,6 +65,10 @@ export default function GuiasScreen() {
   const [categoryFilter, setCategoryFilter] = useState<string>('Recién nacido');
   const [includeOtherAges, setIncludeOtherAges] = useState(false);
   const [focusedSlug, setFocusedSlug] = useState<string | null>(null);
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [assistantInput, setAssistantInput] = useState('');
+  const [assistantReply, setAssistantReply] =
+    useState<EditorialAssistantReply | null>(null);
   const scrollRef = useRef<ScrollView>(null);
 
   const openGuide = (slug: string) => {
@@ -322,6 +328,127 @@ export default function GuiasScreen() {
           color: palette.textPrimary,
         }}
       />
+
+      {/* Asistente editorial acotado al corpus (Hito 6 offline) */}
+      <View
+        className="rounded-2xl border p-3.5 gap-2.5"
+        style={{
+          backgroundColor: palette.bgCard,
+          borderColor: palette.borderInteractive,
+        }}
+      >
+        <Pressable
+          onPress={() => setAssistantOpen((v) => !v)}
+          className="flex-row items-center justify-between"
+          style={{ minHeight: 36 }}
+        >
+          <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
+            Asistente editorial (solo guías verificadas)
+          </Text>
+          <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
+            {assistantOpen ? 'Ocultar' : 'Preguntar'}
+          </Text>
+        </Pressable>
+        {assistantOpen ? (
+          <View className="gap-2.5 pt-1">
+            <View className="flex-row gap-2">
+              <TextInput
+                value={assistantInput}
+                onChangeText={setAssistantInput}
+                placeholder="Ej. Mi bebé tiene hipo o fiebre..."
+                placeholderTextColor={palette.textMuted}
+                className="flex-1 rounded-xl border px-3 py-2 text-xs"
+                style={{
+                  minHeight: MIN_TOUCH_TARGET_PX,
+                  backgroundColor: palette.bgElevated,
+                  borderColor: palette.borderInteractive,
+                  color: palette.textPrimary,
+                }}
+              />
+              <Pressable
+                onPress={() =>
+                  setAssistantReply(
+                    askEditorialAssistantMx({
+                      queryMx: assistantInput,
+                      ageMonths: childProfile?.ageMonths ?? 2,
+                      stageId: effectiveStage,
+                    }),
+                  )
+                }
+                className="rounded-xl px-4 py-2 justify-center"
+                style={{
+                  minHeight: MIN_TOUCH_TARGET_PX,
+                  backgroundColor: palette.brandPrimary,
+                }}
+              >
+                <Text className="text-xs font-bold" style={{ color: palette.onBrandPrimary }}>
+                  Consultar
+                </Text>
+              </Pressable>
+            </View>
+            {assistantReply ? (
+              <View
+                className="rounded-xl border p-3 gap-2"
+                style={{
+                  backgroundColor: palette.bgElevated,
+                  borderColor: palette.borderInteractive,
+                }}
+              >
+                <TriageBadge level={assistantReply.triageLevel} />
+                <Text className="text-sm font-bold" style={{ color: palette.textPrimary }}>
+                  {assistantReply.headlineMx}
+                </Text>
+                <Text className="text-xs" style={{ color: palette.textSecondary }}>
+                  {assistantReply.answerMx}
+                </Text>
+                {assistantReply.actionStepsMx.map((step) => (
+                  <Text key={step} className="text-xs" style={{ color: palette.textPrimary }}>
+                    • {step}
+                  </Text>
+                ))}
+                {assistantReply.isEmergency911 ? (
+                  <Pressable
+                    onPress={() => {
+                      Linking.openURL('tel:911').catch(() => {});
+                    }}
+                    className="rounded-xl px-4 py-2.5 items-center justify-center"
+                    style={{
+                      minHeight: MIN_TOUCH_TARGET_PX,
+                      backgroundColor: palette.alertRedText,
+                    }}
+                  >
+                    <Text className="text-xs font-bold" style={{ color: palette.onAlertRedButton }}>
+                      Llamar al 911 (Gratis)
+                    </Text>
+                  </Pressable>
+                ) : null}
+                {assistantReply.citations.length > 0 ? (
+                  <View className="flex-row flex-wrap gap-1.5 pt-1">
+                    {assistantReply.citations.map((c) => (
+                      <Pressable
+                        key={c.slug}
+                        onPress={() => openGuide(c.slug)}
+                        className="rounded-full border px-3 py-1.5"
+                        style={{
+                          backgroundColor: palette.brandSurface,
+                          borderColor: palette.brandPrimary,
+                        }}
+                      >
+                        <Text className="text-[11px] font-bold" style={{ color: palette.brandText }}>
+                          {c.titleMx} →
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : null}
+                <Text className="text-[11px]" style={{ color: palette.textMuted }}>
+                  {assistantReply.disclaimerMx}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+      </View>
 
       <View className="gap-2">
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>

@@ -35,6 +35,7 @@ export interface HealthLogState {
   readonly medications: readonly MedicationLogEntry[];
   readonly growth: readonly GrowthLogEntry[];
   readonly completedVaccineIds: readonly string[];
+  readonly completedMilestoneIds?: readonly string[];
 }
 
 export const EMPTY_HEALTH_LOG_STATE: HealthLogState = {
@@ -42,6 +43,7 @@ export const EMPTY_HEALTH_LOG_STATE: HealthLogState = {
   medications: [],
   growth: [],
   completedVaccineIds: [],
+  completedMilestoneIds: [],
 };
 
 export const MX_VACCINE_CHECKLIST: readonly VaccineChecklistItem[] = [
@@ -106,6 +108,11 @@ export function parseHealthLogState(raw: string | null): HealthLogState {
       growth: Array.isArray(obj.growth) ? (obj.growth as GrowthLogEntry[]) : [],
       completedVaccineIds: Array.isArray(obj.completedVaccineIds)
         ? obj.completedVaccineIds.filter(
+            (id): id is string => typeof id === 'string',
+          )
+        : [],
+      completedMilestoneIds: Array.isArray(obj.completedMilestoneIds)
+        ? obj.completedMilestoneIds.filter(
             (id): id is string => typeof id === 'string',
           )
         : [],

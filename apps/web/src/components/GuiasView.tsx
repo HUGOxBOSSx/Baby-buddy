@@ -9,9 +9,11 @@ import {
 } from '@baby-buddy/core';
 import {
   GUIDE_CATEGORIES_MX,
+  askEditorialAssistantMx,
   getRelatedGuideLinks,
   searchClinicalGuides,
   type ClinicalGuideEntry,
+  type EditorialAssistantReply,
 } from '@baby-buddy/content';
 import { MascotAvatar } from '@/components/MascotAvatar';
 import { PoopColorChart } from '@/components/PoopColorChart';
@@ -47,8 +49,12 @@ const TRIAGE_GROUP_ORDER: readonly TriageLevel[] = [
 ];
 
 export function GuiasView() {
-  const { childProfile } = useAppState();
+  const { childProfile, activeStageId } = useAppState();
   const [query, setQuery] = useState('');
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [assistantInput, setAssistantInput] = useState('');
+  const [assistantReply, setAssistantReply] =
+    useState<EditorialAssistantReply | null>(null);
   const [tab, setTab] = useState<ViewTab>('es_normal');
   const [subFilter, setSubFilter] = useState<SubFilter>('green_home');
   const [categoryFilter, setCategoryFilter] = useState<string>('Recién nacido');
@@ -127,6 +133,89 @@ export function GuiasView() {
             className="block min-h-12 w-full rounded-2xl border border-border-interactive bg-bg-card px-4 py-3 text-sm text-ink-primary shadow-sm"
           />
         </label>
+
+        {/* Asistente editorial acotado al corpus (Hito 6 offline) */}
+        <div className="rounded-2xl border border-border-subtle bg-bg-card p-3.5 space-y-2.5">
+          <button
+            type="button"
+            onClick={() => setAssistantOpen((v) => !v)}
+            aria-expanded={assistantOpen}
+            className="flex w-full items-center justify-between text-left text-xs font-bold text-brand-text"
+          >
+            <span>Asistente editorial (solo guías verificadas)</span>
+            <span>{assistantOpen ? 'Ocultar' : 'Preguntar'}</span>
+          </button>
+          {assistantOpen ? (
+            <div className="space-y-3 pt-1">
+              <div className="flex flex-wrap gap-2">
+                <input
+                  type="text"
+                  value={assistantInput}
+                  onChange={(e) => setAssistantInput(e.target.value)}
+                  placeholder="Ej. Mi bebé tiene hipo o fiebre..."
+                  className="min-h-12 flex-1 min-w-[180px] rounded-xl border border-border-interactive bg-bg-elevated px-3 py-2 text-xs text-ink-primary"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setAssistantReply(
+                      askEditorialAssistantMx({
+                        queryMx: assistantInput,
+                        ageMonths: childProfile?.ageMonths ?? 2,
+                        stageId: childProfile?.stageId ?? activeStageId,
+                      }),
+                    )
+                  }
+                  className="inline-flex min-h-12 items-center rounded-xl bg-brand-primary px-4 py-2 text-xs font-bold text-brand-on"
+                >
+                  Consultar
+                </button>
+              </div>
+              {assistantReply ? (
+                <div className="rounded-xl border border-border-subtle bg-bg-elevated p-3 space-y-2">
+                  <TriageBadge level={assistantReply.triageLevel} />
+                  <p className="text-sm font-bold text-ink-primary">
+                    {assistantReply.headlineMx}
+                  </p>
+                  <p className="text-xs text-ink-secondary">
+                    {assistantReply.answerMx}
+                  </p>
+                  {assistantReply.actionStepsMx.length > 0 ? (
+                    <ul className="list-disc pl-4 text-xs text-ink-primary space-y-0.5">
+                      {assistantReply.actionStepsMx.map((step) => (
+                        <li key={step}>{step}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  {assistantReply.isEmergency911 ? (
+                    <a
+                      href="tel:911"
+                      className="inline-flex min-h-12 items-center rounded-xl bg-alert-text px-4 py-2 text-xs font-bold text-alert-on"
+                    >
+                      Llamar al 911 (Gratis)
+                    </a>
+                  ) : null}
+                  {assistantReply.citations.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {assistantReply.citations.map((c) => (
+                        <Link
+                          key={c.slug}
+                          href={`/guias/${c.slug}`}
+                          className="inline-flex min-h-9 items-center rounded-full border border-brand-primary bg-brand-surface px-3 py-1 text-[11px] font-bold text-brand-text"
+                        >
+                          {c.titleMx} →
+                        </Link>
+                      ))}
+                    </div>
+                  ) : null}
+                  <p className="text-[11px] text-ink-muted">
+                    {assistantReply.disclaimerMx}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
 
         <div className="space-y-2.5">
           <div className="flex gap-2 overflow-x-auto pb-1">

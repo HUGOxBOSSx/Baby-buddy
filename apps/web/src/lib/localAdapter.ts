@@ -693,3 +693,16 @@ export function toggleStoredVaccineCompleted(vaccineId: string): void {
     exists ? 'Vacuna desmarcada.' : 'Vacuna marcada como aplicada.',
   );
 }
+
+export function toggleStoredMilestoneCompleted(milestoneId: string): void {
+  const cur = getLocalAppSnapshot().healthState;
+  const currentIds = cur.completedMilestoneIds ?? [];
+  const exists = currentIds.includes(milestoneId);
+  const nextIds = exists
+    ? currentIds.filter((id) => id !== milestoneId)
+    : [...currentIds, milestoneId];
+  saveStoredHealthState(
+    { ...cur, completedMilestoneIds: nextIds },
+    exists ? 'Hito desmarcado.' : 'Hito marcado como logrado.',
+  );
+}

@@ -7,3 +7,5 @@ export * from './library/isNormal';
 export * from './library/problems';
 export * from './library/poopChart';
 export * from './library/search';
+export * from './library/milestones';
+export * from './library/assistant';
