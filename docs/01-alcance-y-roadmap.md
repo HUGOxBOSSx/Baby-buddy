@@ -23,7 +23,7 @@ Baby Buddy MX acompaña a familias con niñas y niños de 0 a 6 años en México
 | 4 | Perfil local, registro diario (tomas, extracción, sólidos, pañales, sueño/siestas con ventana sugerida, notas), modo nocturno y funcionamiento sin conexión | Completado (local); sincronización remota pendiente |
 | 5 | Salud México: fiebre, medicamentos, inmunizaciones, gráficas de crecimiento OMS 2006 (kg/cm) + perímetro cefálico (cm) y reporte para consulta | En validación |
 | 6 | Asistente editorial restringido al corpus aprobado, con filtros previos de urgencia 911 y citas + Hitos del desarrollo 0–6 años | Completado (local offline) |
-| 7 | Despliegue gratuito, validación en dispositivos, Plan Pro (Guías/Familia), banner discreto en plan gratuito (fuera de 911 y horario nocturno fijo 22:00–06:00 h) y preparación de lanzamiento | Pendiente |
+| 7 | Despliegue gratuito, validación en dispositivos, Plan Pro (Guías/Familia), banner discreto en plan gratuito (fuera de 911 y horario nocturno fijo 22:00–06:00 h) y preparación de lanzamiento | Preparación completada; validación física y tienda pendientes |
 
 ## Modelo de monetización y acceso
 

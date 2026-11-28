@@ -102,4 +102,5 @@ node e2e/run.mjs --tier=all
 - [Privacidad y seguridad](docs/04-privacidad-y-seguridad.md)
 - [Pruebas y validación](docs/05-pruebas-y-validacion.md)
 - [Validación en dispositivos](docs/06-validacion-dispositivos.md)
+- [Guía de lanzamiento (Play Store / App Store / Web)](docs/07-lanzamiento-playstore.md)
 

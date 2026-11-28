@@ -16,6 +16,7 @@ export * from './theme/contrast';
 export * from './compliance/disclaimers';
 export * from './compliance/guardrails';
 export * from './compliance/accountDeletion';
+export * from './compliance/monetization';
 
 export * from './adapters/env';
 export * from './adapters/storage';
