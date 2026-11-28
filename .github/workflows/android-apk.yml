@@ -62,16 +62,12 @@ jobs:
           chmod +x gradlew
           if [ -f app/release.keystore ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ]; then
             ./gradlew assembleRelease \
-              -Pandroid.injected.signing.store.file=release.keystore \
+              -Pandroid.injected.signing.store.file="$PWD/app/release.keystore" \
               -Pandroid.injected.signing.store.password="$ANDROID_KEYSTORE_PASSWORD" \
               -Pandroid.injected.signing.key.alias="$ANDROID_KEY_ALIAS" \
               -Pandroid.injected.signing.key.password="$ANDROID_KEY_PASSWORD"
           else
-            ./gradlew assembleRelease \
-              -Pandroid.injected.signing.store.file=debug.keystore \
-              -Pandroid.injected.signing.store.password=android \
-              -Pandroid.injected.signing.key.alias=androiddebugkey \
-              -Pandroid.injected.signing.key.password=android
+            ./gradlew assembleRelease
           fi
 
       - name: Prepare APK artifact
