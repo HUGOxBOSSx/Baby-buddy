@@ -162,8 +162,8 @@ export const OUTER_LAYER_OPTIONS: readonly LayerOption<OuterLayerId>[] = [
   },
   {
     id: 'cobija_poliester_afelpada_envuelta',
-    labelMx: 'Cobija de poliéster envuelta',
-    tog: 1.8,
+    labelMx: 'Cobija de poliéster',
+    tog: 1.3,
     visualKind: 'fleece_blanket',
   },
   {
@@ -1196,22 +1196,22 @@ export const GARMENT_TOG_GUIDES: Readonly<
   },
   cobija_poliester_afelpada_envuelta: {
     id: 'cobija_poliester_afelpada_envuelta',
-    titleMx: 'Cobija de poliéster envuelta',
-    togValue: 1.8,
-    warmthLevel: 4,
+    titleMx: 'Cobija de poliéster',
+    togValue: 1.3,
+    warmthLevel: 3,
     diagramKind: 'plush_minky_polar',
     visualCaptionMx:
-      'Cobija 100% poliéster afelpada tipo peluche, minky o microfibra suave.',
+      'Cobija de poliéster ligera o media (minky, microfibra o coral fleece delgado), sin doble envoltura apretada.',
     labelCluesMx: [
-      'Dice "100% poliéster" (minky, microfibra o coral fleece suave).',
+      'Dice "100% poliéster" (minky, microfibra o coral fleece ligero/medio).',
     ],
     touchAndLookMx: [
-      'Se siente como peluche suave o terciopelo; retiene mucho calor aunque sea liviana.',
+      'Suave tipo peluche delgado; abriga más que el algodón, pero menos que una cobija polar gruesa o doble taquito.',
     ],
     compareMx:
-      'Abriga casi el doble que una cobija de algodón envuelta (+1.0 TOG).',
+      'Un punto intermedio entre cobija de algodón (+1.0 TOG) y cobija polar gruesa (+2.0 TOG), pensada para cobertura sin doble taquito apretado.',
     safetyTipMx:
-      'Envoltura segura: deja caderas holgadas, sin cubrir cara ni cuello, suspende al voltear y vigila nuca o pecho.',
+      'En menores de 12 meses asegúrala bien por debajo de los brazos sin cubrir cara ni cuello y suspende si ya se voltea.',
   },
   cobija_polar: {
     id: 'cobija_polar',

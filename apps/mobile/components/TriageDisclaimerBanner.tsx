@@ -1,17 +1,14 @@
 import Feather from '@expo/vector-icons/Feather';
 import {
   DISCLAIMERS_MX,
-  ETHICAL_GUARDRAILS,
   MIN_TOUCH_TARGET_PX,
 } from '@baby-buddy/core';
 import { Linking, Pressable, Text, View } from 'react-native';
-import { StatusBadge } from './StatusBadge';
 import { useThemeContext } from './ThemeProvider';
 
 export function TriageDisclaimerBanner() {
   const { palette, iconsLoaded } = useThemeContext();
   const disclaimer = DISCLAIMERS_MX.triage_banner;
-  const noPaywallConfirmed = ETHICAL_GUARDRAILS.paywallOnEmergencyTriage === false;
 
   const handleEmergencyCall = () => {
     Linking.openURL('tel:911').catch(() => {
@@ -30,18 +27,6 @@ export function TriageDisclaimerBanner() {
       accessibilityLiveRegion="assertive"
       aria-live="assertive"
     >
-      <View className="flex-row items-center justify-between flex-wrap gap-2">
-        <StatusBadge severity="urgent_red" />
-        {noPaywallConfirmed ? (
-          <Text
-            className="text-xs font-bold"
-            style={{ color: palette.alertRedText }}
-          >
-            Gratis siempre
-          </Text>
-        ) : null}
-      </View>
-
       <Text className="text-xs" style={{ color: palette.textPrimary }}>
         {disclaimer.bodyMx}
       </Text>
@@ -55,7 +40,7 @@ export function TriageDisclaimerBanner() {
           backgroundColor: palette.alertRedText,
         }}
         accessibilityRole="button"
-        accessibilityLabel="Llamar al 911 en caso de emergencia médica, acceso gratuito sin suscripción"
+        accessibilityLabel="Llamar al 911 en caso de emergencia médica"
       >
         {iconsLoaded ? (
           <Feather name="phone" size={18} color={palette.onAlertRedButton} />
@@ -64,7 +49,7 @@ export function TriageDisclaimerBanner() {
           className="text-sm font-bold"
           style={{ color: palette.onAlertRedButton }}
         >
-          Llamar al 911 (Gratis)
+          Llamar al 911
         </Text>
       </Pressable>
     </View>

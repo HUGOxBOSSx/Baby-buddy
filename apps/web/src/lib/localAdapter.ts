@@ -129,6 +129,7 @@ export interface LocalAppSnapshot {
   readonly childProfiles: readonly ChildProfileSummary[];
   readonly dailyLogs: readonly DailyLogEntry[];
   readonly activeFeedTimer: ActiveFeedTimer | null;
+  readonly activeSleepStartMs: number | null;
   readonly healthState: HealthLogState;
   readonly pendingSyncCount: number;
   readonly snapshotSummary: StoredSnapshotSummary;
@@ -145,6 +146,7 @@ export const SERVER_APP_SNAPSHOT: LocalAppSnapshot = {
   childProfiles: [],
   dailyLogs: [],
   activeFeedTimer: null,
+  activeSleepStartMs: null,
   healthState: EMPTY_HEALTH_LOG_STATE,
   pendingSyncCount: 0,
   snapshotSummary: {
@@ -160,6 +162,7 @@ export const SERVER_APP_SNAPSHOT: LocalAppSnapshot = {
 const listeners = new Set<() => void>();
 let transientStatusMessage = '';
 let transientDeletionResult: AccountDeletionResult | null = null;
+let transientSleepStartMs: number | null = null;
 let lastSnapshotSignature: string | null = null;
 let cachedSnapshot: LocalAppSnapshot = SERVER_APP_SNAPSHOT;
 
@@ -344,6 +347,7 @@ export function getLocalAppSnapshot(): LocalAppSnapshot {
     ownedKeys.join(','),
     transientStatusMessage,
     deletionSig,
+    String(transientSleepStartMs ?? ''),
   ].join('\n');
 
   if (signature === lastSnapshotSignature) {
@@ -401,6 +405,7 @@ export function getLocalAppSnapshot(): LocalAppSnapshot {
     childProfiles,
     dailyLogs: parseDailyLogEntries(rawDailyLogs),
     activeFeedTimer: parseActiveFeedTimer(rawActiveTimer),
+    activeSleepStartMs: transientSleepStartMs,
     healthState: parseHealthLogState(rawHealthState),
     pendingSyncCount: parseSyncQueue(rawSyncQueue).length,
     snapshotSummary: {
@@ -662,6 +667,33 @@ export function saveStoredActiveFeedTimer(): void {
 
 export function cancelStoredActiveFeedTimer(): void {
   browserStorage.removeItemSync(LOCAL_STORAGE_KEYS.activeFeedTimer);
+  notifyLocalStoreChange();
+}
+
+export function startStoredSleepTimer(offsetMin = 0): void {
+  transientSleepStartMs = Date.now() - Math.max(0, offsetMin) * 60_000;
+  notifyLocalStoreChange();
+}
+
+export function saveStoredActiveSleepTimer(noteMx?: string): void {
+  if (transientSleepStartMs === null) return;
+  const now = Date.now();
+  const safeSec = Math.max(
+    60,
+    Math.round((now - transientSleepStartMs) / 1000),
+  );
+  transientSleepStartMs = null;
+  addStoredDailyLogEntry({
+    id: `sleep-${now}`,
+    kind: 'sleep',
+    timestampIso: new Date(now).toISOString(),
+    durationSec: safeSec,
+    noteMx: noteMx?.trim() || undefined,
+  });
+}
+
+export function cancelStoredSleepTimer(): void {
+  transientSleepStartMs = null;
   notifyLocalStoreChange();
 }
 

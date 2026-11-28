@@ -79,6 +79,42 @@ export function formatChildAgeMx(ageMonths: number): string {
   return `${yearLabel} y ${monthLabel}`;
 }
 
+export function formatChildAgeCompactMx(
+  profile: Pick<ChildProfileSummary, 'ageMonths' | 'birthDateIso'>,
+  now: Date = new Date(),
+): string {
+  const ymd = profile.birthDateIso?.slice(0, 10) ?? '';
+  const match = YMD_DATE_REGEX.exec(ymd);
+  if (match) {
+    const year = Number.parseInt(match[1] ?? '', 10);
+    const month = Number.parseInt(match[2] ?? '', 10);
+    const day = Number.parseInt(match[3] ?? '', 10);
+    const utcCheck = new Date(Date.UTC(year, month - 1, day));
+    if (
+      utcCheck.getUTCFullYear() === year &&
+      utcCheck.getUTCMonth() === month - 1 &&
+      utcCheck.getUTCDate() === day
+    ) {
+      let months =
+        (now.getFullYear() - year) * 12 + (now.getMonth() + 1 - month);
+      let days = now.getDate() - day;
+      if (days < 0) {
+        months -= 1;
+        const prevMonthLastDay = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          0,
+        ).getDate();
+        days += prevMonthLastDay;
+      }
+      const safeMonths = Math.max(0, Math.min(72, months));
+      const safeDays = Math.max(0, days);
+      return `${safeMonths}m ${safeDays}d`;
+    }
+  }
+  return `${Math.max(0, Math.floor(profile.ageMonths))}m 0d`;
+}
+
 const YMD_DATE_REGEX = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 export function calculateAgeMonthsFromBirthDate(

@@ -3,22 +3,27 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  BABY_EVENT_OPTIONS_MX,
   BOTTLE_PRESET_ML,
   POOP_COLOR_TAG_OPTIONS,
   computeLocalRemindersMx,
   computeTimerElapsedSec,
   filterEntriesByDateRange,
+  formatRetroOffsetLabelMx,
   formatTimerClock,
   getWakeWindowGuidanceMx,
   resolveDateRangePreset,
   suggestNextNapWindowMx,
   summarizeDailyLog,
   toLocalDateKey,
+  type BabyEventKind,
   type DateRangePreset,
   type DiaperKind,
   type PoopColorTag,
 } from '@baby-buddy/core';
 import { useAppState } from '@/components/ThemeProvider';
+
+const OZ_PRESETS = [1, 2, 3, 4, 5, 6] as const;
 
 const RANGE_PRESETS: readonly {
   readonly id: DateRangePreset;
@@ -50,12 +55,16 @@ export function DailyLogPanel() {
     dailyLogs,
     healthState,
     activeFeedTimer,
+    activeSleepStartMs,
     addDailyLogEntry,
     deleteDailyLogEntry,
     startFeedTimer,
     togglePauseFeedTimer,
     saveActiveFeedTimer,
     cancelActiveFeedTimer,
+    startSleepTimer,
+    saveActiveSleepTimer,
+    cancelSleepTimer,
   } = useAppState();
 
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
@@ -63,6 +72,7 @@ export function DailyLogPanel() {
   const [bottleMlInput, setBottleMlInput] = useState('90');
   const [showPumpingPicker, setShowPumpingPicker] = useState(false);
   const [pumpingMlInput, setPumpingMlInput] = useState('90');
+  const [volumeUnit, setVolumeUnit] = useState<'ml' | 'oz'>('ml');
   const [showSolidsPicker, setShowSolidsPicker] = useState(false);
   const [solidsFoodInput, setSolidsFoodInput] = useState('');
   const [solidsIsNew, setSolidsIsNew] = useState(false);
@@ -71,10 +81,8 @@ export function DailyLogPanel() {
   );
   const [selectedPoopColor, setSelectedPoopColor] =
     useState<PoopColorTag>('mostaza');
-  const [retroOffsetMin, setRetroOffsetMin] = useState<0 | 15 | 30 | 60>(0);
-  const [noteInput, setNoteInput] = useState('');
-  const [showNoteInput, setShowNoteInput] = useState(false);
-  const [sleepStartMs, setSleepStartMs] = useState<number | null>(null);
+  const [retroOffsetMin, setRetroOffsetMin] = useState<number>(0);
+  const [customRetroOpen, setCustomRetroOpen] = useState(false);
 
   const [rangePreset, setRangePreset] = useState<DateRangePreset>('today');
   const [customStart, setCustomStart] = useState<string>(() =>
@@ -83,19 +91,25 @@ export function DailyLogPanel() {
   const [customEnd, setCustomEnd] = useState<string>(() =>
     toLocalDateKey(new Date()),
   );
-  const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
+  const [saveFeedback, setSaveFeedback] = useState<{
+    readonly section: 'feed' | 'diaper' | 'sleep' | 'event';
+    readonly message: string;
+  } | null>(null);
   const [remindersDismissed, setRemindersDismissed] = useState(false);
   const feedbackTimerRef = useRef<number | null>(null);
 
-  const flashFeedback = useCallback((msg: string) => {
-    setSaveFeedback(msg);
-    if (feedbackTimerRef.current !== null) {
-      window.clearTimeout(feedbackTimerRef.current);
-    }
-    feedbackTimerRef.current = window.setTimeout(() => {
-      setSaveFeedback(null);
-    }, 3500);
-  }, []);
+  const flashFeedback = useCallback(
+    (section: 'feed' | 'diaper' | 'sleep' | 'event', message: string) => {
+      setSaveFeedback({ section, message });
+      if (feedbackTimerRef.current !== null) {
+        window.clearTimeout(feedbackTimerRef.current);
+      }
+      feedbackTimerRef.current = window.setTimeout(() => {
+        setSaveFeedback(null);
+      }, 3500);
+    },
+    [],
+  );
 
   useEffect(() => {
     return () => {
@@ -106,14 +120,14 @@ export function DailyLogPanel() {
   }, []);
 
   useEffect(() => {
-    if ((!activeFeedTimer || activeFeedTimer.paused) && sleepStartMs === null) {
+    if ((!activeFeedTimer || activeFeedTimer.paused) && activeSleepStartMs === null) {
       return;
     }
     const id = window.setInterval(() => {
       setNowMs(Date.now());
     }, 1000);
     return () => window.clearInterval(id);
-  }, [activeFeedTimer, sleepStartMs]);
+  }, [activeFeedTimer, activeSleepStartMs]);
 
   const activeRange =
     rangePreset === 'custom'
@@ -140,8 +154,9 @@ export function DailyLogPanel() {
   );
 
   const handleSaveBottle = useCallback(
-    (mlValue: number) => {
-      const safeMl = Math.max(5, Math.min(500, Math.round(mlValue)));
+    (rawValue: number) => {
+      const mlVal = volumeUnit === 'oz' ? Math.round(rawValue * 29.5735) : rawValue;
+      const safeMl = Math.max(5, Math.min(500, Math.round(mlVal)));
       const now = Date.now();
       addDailyLogEntry({
         id: `feed-${now}`,
@@ -149,18 +164,17 @@ export function DailyLogPanel() {
         timestampIso: getEntryTimestampIso(now),
         feedType: 'bottle',
         volumeMl: safeMl,
-        noteMx: noteInput.trim() || undefined,
       });
       setShowBottlePicker(false);
-      setNoteInput('');
-      flashFeedback(`✓ Biberón (${safeMl} ml) guardado`);
+      flashFeedback('feed', `✓ Biberón (${safeMl} ml) guardado`);
     },
-    [addDailyLogEntry, flashFeedback, getEntryTimestampIso, noteInput],
+    [addDailyLogEntry, flashFeedback, getEntryTimestampIso, volumeUnit],
   );
 
   const handleSavePumping = useCallback(
-    (mlValue: number) => {
-      const safeMl = Math.max(5, Math.min(500, Math.round(mlValue)));
+    (rawValue: number) => {
+      const mlVal = volumeUnit === 'oz' ? Math.round(rawValue * 29.5735) : rawValue;
+      const safeMl = Math.max(5, Math.min(500, Math.round(mlVal)));
       const now = Date.now();
       addDailyLogEntry({
         id: `pump-${now}`,
@@ -168,13 +182,11 @@ export function DailyLogPanel() {
         timestampIso: getEntryTimestampIso(now),
         feedType: 'pumping',
         volumeMl: safeMl,
-        noteMx: noteInput.trim() || undefined,
       });
       setShowPumpingPicker(false);
-      setNoteInput('');
-      flashFeedback(`✓ Extracción (${safeMl} ml) guardada`);
+      flashFeedback('feed', `✓ Extracción (${safeMl} ml) guardada`);
     },
-    [addDailyLogEntry, flashFeedback, getEntryTimestampIso, noteInput],
+    [addDailyLogEntry, flashFeedback, getEntryTimestampIso, volumeUnit],
   );
 
   const handleSaveSolids = useCallback(() => {
@@ -188,18 +200,15 @@ export function DailyLogPanel() {
       feedType: 'solids',
       foodMx: food,
       isNewFood: solidsIsNew,
-      noteMx: noteInput.trim() || undefined,
     });
     setSolidsFoodInput('');
     setSolidsIsNew(false);
     setShowSolidsPicker(false);
-    setNoteInput('');
-    flashFeedback(`✓ Sólidos (${food}) guardados`);
+    flashFeedback('feed', `✓ Sólidos (${food}) guardados`);
   }, [
     addDailyLogEntry,
     flashFeedback,
     getEntryTimestampIso,
-    noteInput,
     solidsFoodInput,
     solidsIsNew,
   ]);
@@ -211,12 +220,10 @@ export function DailyLogPanel() {
       kind: 'diaper',
       timestampIso: getEntryTimestampIso(now),
       diaperKind: 'wet',
-      noteMx: noteInput.trim() || undefined,
     });
     setPendingDiaperKind(null);
-    setNoteInput('');
-    flashFeedback('✓ Pipí guardado');
-  }, [addDailyLogEntry, flashFeedback, getEntryTimestampIso, noteInput]);
+    flashFeedback('diaper', '✓ Pipí guardado');
+  }, [addDailyLogEntry, flashFeedback, getEntryTimestampIso]);
 
   const handleSaveDirtyDiaper = useCallback(() => {
     if (!pendingDiaperKind) return;
@@ -227,16 +234,15 @@ export function DailyLogPanel() {
       timestampIso: getEntryTimestampIso(now),
       diaperKind: pendingDiaperKind,
       poopColor: selectedPoopColor,
-      noteMx: noteInput.trim() || undefined,
     });
     flashFeedback(
+      'diaper',
       pendingDiaperKind === 'both'
         ? '✓ Pipí + Popó guardados'
         : '✓ Popó guardada',
     );
     setPendingDiaperKind(null);
-    setNoteInput('');
-  }, [addDailyLogEntry, flashFeedback, getEntryTimestampIso, noteInput, pendingDiaperKind, selectedPoopColor]);
+  }, [addDailyLogEntry, flashFeedback, getEntryTimestampIso, pendingDiaperKind, selectedPoopColor]);
 
   const handleSaveSleep = useCallback(
     (durationSec: number) => {
@@ -247,13 +253,24 @@ export function DailyLogPanel() {
         kind: 'sleep',
         timestampIso: getEntryTimestampIso(now),
         durationSec: safeSec,
-        noteMx: noteInput.trim() || undefined,
       });
-      setSleepStartMs(null);
-      setNoteInput('');
-      flashFeedback(`✓ Siesta (${Math.round(safeSec / 60)} min) guardada`);
+      flashFeedback('sleep', `✓ Siesta (${Math.round(safeSec / 60)} min) guardada`);
     },
-    [addDailyLogEntry, flashFeedback, getEntryTimestampIso, noteInput],
+    [addDailyLogEntry, flashFeedback, getEntryTimestampIso],
+  );
+
+  const handleQuickEvent = useCallback(
+    (eventType: BabyEventKind, labelMx: string) => {
+      const now = Date.now();
+      addDailyLogEntry({
+        id: `event-${now}`,
+        kind: 'event',
+        timestampIso: getEntryTimestampIso(now),
+        eventType,
+      });
+      flashFeedback('event', `✓ ${labelMx} registrado`);
+    },
+    [addDailyLogEntry, flashFeedback, getEntryTimestampIso],
   );
 
   const ageMonths = childProfile ? childProfile.ageMonths : 2;
@@ -270,13 +287,15 @@ export function DailyLogPanel() {
     now: new Date(nowMs),
   });
   const sleepElapsedSec =
-    sleepStartMs !== null ? Math.max(0, Math.floor((nowMs - sleepStartMs) / 1000)) : 0;
+    activeSleepStartMs !== null
+      ? Math.max(0, Math.floor((nowMs - activeSleepStartMs) / 1000))
+      : 0;
 
   return (
     <section className="space-y-5">
       {/* Franja visual "Hace cuánto..." */}
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-border-interactive bg-bg-card p-3.5 space-y-1">
+        <div className="rounded-2xl border border-border-interactive bg-bg-card p-3.5 text-center space-y-1">
           <p className="text-[11px] font-bold uppercase text-ink-secondary">
             Última toma
           </p>
@@ -287,11 +306,14 @@ export function DailyLogPanel() {
           </p>
           {suggestedNextSide ? (
             <p className="text-[11px] text-ink-secondary">
-              Siguiente: {suggestedNextSide === 'breast_left' ? 'Pecho izq' : 'Pecho der'}
+              Siguiente:{' '}
+              {suggestedNextSide === 'breast_left'
+                ? 'Pecho izquierdo'
+                : 'Pecho derecho'}
             </p>
           ) : null}
         </div>
-        <div className="rounded-2xl border border-border-interactive bg-bg-card p-3.5 space-y-1">
+        <div className="rounded-2xl border border-border-interactive bg-bg-card p-3.5 text-center space-y-1">
           <p className="text-[11px] font-bold uppercase text-ink-secondary">
             Último pañal
           </p>
@@ -304,7 +326,7 @@ export function DailyLogPanel() {
             Pipí hoy: {summary.wetDiapers} · Popó: {summary.dirtyDiapers}
           </p>
         </div>
-        <div className="rounded-2xl border border-border-interactive bg-bg-card p-3.5 space-y-1">
+        <div className="rounded-2xl border border-border-interactive bg-bg-card p-3.5 text-center space-y-1">
           <p className="text-[11px] font-bold uppercase text-ink-secondary">
             Última siesta
           </p>
@@ -336,16 +358,29 @@ export function DailyLogPanel() {
             </button>
           </div>
           {reminders.slice(0, 2).map((rem) => (
-            <p key={rem.id} className="text-xs text-ink-secondary">
-              <strong
-                className={
-                  rem.urgency === 'due' ? 'text-warm-text' : 'text-brand-text'
-                }
-              >
-                {rem.titleMx}:
-              </strong>{' '}
-              {rem.detailMx}
-            </p>
+            <div
+              key={rem.id}
+              className="flex flex-wrap items-center justify-between gap-2"
+            >
+              <p className="min-w-0 flex-1 text-xs text-ink-secondary">
+                <strong
+                  className={
+                    rem.urgency === 'due' ? 'text-warm-text' : 'text-brand-text'
+                  }
+                >
+                  {rem.titleMx}:
+                </strong>{' '}
+                {rem.detailMx}
+              </p>
+              {rem.kind === 'vaccine' ? (
+                <Link
+                  href="/salud?tab=vacunas"
+                  className="inline-flex shrink-0 items-center rounded-lg border border-brand-primary bg-brand-surface px-2.5 py-1 text-[11px] font-bold text-brand-text hover:opacity-90"
+                >
+                  Ir a vacunas →
+                </Link>
+              ) : null}
+            </div>
           ))}
         </div>
       ) : null}
@@ -356,15 +391,74 @@ export function DailyLogPanel() {
           Registro rápido
         </h2>
 
-        {saveFeedback ? (
-          <div
-            role="status"
-            aria-live="polite"
-            className="rounded-xl border border-brand-primary bg-brand-surface px-3 py-2 text-xs font-bold text-brand-text"
-          >
-            {saveFeedback}
+        {/* Retroactive time presets + custom slider (up to 5 h) */}
+        <div className="space-y-2.5 border-b border-border-subtle pb-3">
+          <div className="flex flex-wrap items-center justify-center gap-1.5">
+            <span className="text-xs font-bold text-ink-secondary">Hora:</span>
+            {([
+              { min: 0, label: 'Ahora' },
+              { min: 5, label: '−5m' },
+              { min: 10, label: '−10m' },
+              { min: 20, label: '−20m' },
+              { min: 30, label: '−30m' },
+            ] as const).map((opt) => (
+              <button
+                key={opt.min}
+                type="button"
+                onClick={() => {
+                  setRetroOffsetMin(opt.min);
+                  setCustomRetroOpen(false);
+                }}
+                aria-pressed={!customRetroOpen && retroOffsetMin === opt.min}
+                className={`min-h-9 rounded-full border px-2.5 py-1 text-xs font-bold ${
+                  !customRetroOpen && retroOffsetMin === opt.min
+                    ? 'border-brand-primary bg-brand-primary text-brand-on'
+                    : 'border-border-interactive bg-bg-elevated text-ink-primary'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setCustomRetroOpen((v) => !v)}
+              aria-pressed={customRetroOpen}
+              className={`min-h-9 rounded-full border px-2.5 py-1 text-xs font-bold ${
+                customRetroOpen
+                  ? 'border-brand-primary bg-brand-primary text-brand-on'
+                  : 'border-border-interactive bg-bg-elevated text-brand-text'
+              }`}
+            >
+              {customRetroOpen && retroOffsetMin > 0
+                ? formatRetroOffsetLabelMx(retroOffsetMin)
+                : 'Personalizado'}
+            </button>
           </div>
-        ) : null}
+          {customRetroOpen ? (
+            <div className="rounded-xl border border-border-subtle bg-bg-elevated p-3 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-ink-secondary">
+                  Tiempo atrás (hasta 5 h):
+                </span>
+                <strong className="text-brand-text tabular-nums">
+                  {formatRetroOffsetLabelMx(retroOffsetMin)}
+                </strong>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={300}
+                step={5}
+                value={retroOffsetMin}
+                onChange={(e) =>
+                  setRetroOffsetMin(Number.parseInt(e.target.value, 10))
+                }
+                aria-label="Ajustar tiempo atrás hasta 5 horas"
+                className="w-full accent-brand-primary"
+              />
+            </div>
+          ) : null}
+        </div>
 
         {/* Active Timer Banner */}
         {activeFeedTimer ? (
@@ -380,7 +474,7 @@ export function DailyLogPanel() {
                   {formatTimerClock(timerElapsedSec)}
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap justify-center gap-2">
                 <button
                   type="button"
                   onClick={togglePauseFeedTimer}
@@ -390,7 +484,10 @@ export function DailyLogPanel() {
                 </button>
                 <button
                   type="button"
-                  onClick={saveActiveFeedTimer}
+                  onClick={() => {
+                    saveActiveFeedTimer();
+                    flashFeedback('feed', '✓ Toma guardada');
+                  }}
                   className="inline-flex min-h-12 items-center rounded-xl bg-brand-primary px-4 py-2 text-xs font-bold text-brand-on"
                 >
                   Guardar toma
@@ -412,14 +509,23 @@ export function DailyLogPanel() {
           <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
             Tomas
           </p>
-          <div className="grid grid-cols-3 gap-2">
+          {saveFeedback?.section === 'feed' ? (
+            <div
+              role="status"
+              aria-live="polite"
+              className="rounded-xl border-2 border-brand-primary bg-brand-surface px-4 py-3 text-center text-sm font-bold text-brand-text"
+            >
+              {saveFeedback.message}
+            </div>
+          ) : null}
+          <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => startFeedTimer('breast_left')}
-              className="flex min-h-12 flex-col items-center justify-center rounded-xl border border-brand-primary bg-brand-surface px-2 py-2.5 text-center hover:opacity-90"
+              className="flex min-h-11 flex-col items-center justify-center rounded-xl border border-brand-primary bg-brand-surface px-2 py-1.5 text-center hover:opacity-90"
             >
-              <span className="text-xs sm:text-sm font-bold text-brand-text">
-                Pecho Izq.
+              <span className="text-sm font-bold text-brand-text">
+                Pecho izquierdo
               </span>
               {suggestedNextSide === 'breast_left' ? (
                 <span className="mt-0.5 rounded-full bg-brand-primary px-2 py-0.5 text-[10px] font-bold text-brand-on">
@@ -431,10 +537,10 @@ export function DailyLogPanel() {
             <button
               type="button"
               onClick={() => startFeedTimer('breast_right')}
-              className="flex min-h-12 flex-col items-center justify-center rounded-xl border border-brand-primary bg-brand-surface px-2 py-2.5 text-center hover:opacity-90"
+              className="flex min-h-11 flex-col items-center justify-center rounded-xl border border-brand-primary bg-brand-surface px-2 py-1.5 text-center hover:opacity-90"
             >
-              <span className="text-xs sm:text-sm font-bold text-brand-text">
-                Pecho Der.
+              <span className="text-sm font-bold text-brand-text">
+                Pecho derecho
               </span>
               {suggestedNextSide === 'breast_right' ? (
                 <span className="mt-0.5 rounded-full bg-brand-primary px-2 py-0.5 text-[10px] font-bold text-brand-on">
@@ -442,7 +548,9 @@ export function DailyLogPanel() {
                 </span>
               ) : null}
             </button>
+          </div>
 
+          <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => {
@@ -451,15 +559,14 @@ export function DailyLogPanel() {
                 setShowSolidsPicker(false);
               }}
               aria-expanded={showBottlePicker}
-              className="flex min-h-12 flex-col items-center justify-center rounded-xl border border-border-interactive bg-bg-elevated px-2 py-2.5 text-center hover:bg-brand-surface"
+              className={`flex min-h-10 items-center justify-center rounded-xl border px-3 py-1.5 text-xs font-bold ${
+                showBottlePicker
+                  ? 'border-brand-primary bg-brand-surface text-brand-text'
+                  : 'border-border-interactive bg-bg-elevated text-ink-primary hover:bg-brand-surface'
+              }`}
             >
-              <span className="text-xs sm:text-sm font-bold text-ink-primary">
-                Biberón
-              </span>
+              Biberón
             </button>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => {
@@ -468,65 +575,91 @@ export function DailyLogPanel() {
                 setShowSolidsPicker(false);
               }}
               aria-expanded={showPumpingPicker}
-              className={`flex min-h-11 items-center justify-center rounded-xl border px-3 py-2 text-xs font-bold ${
+              className={`flex min-h-10 items-center justify-center rounded-xl border px-3 py-1.5 text-xs font-bold ${
                 showPumpingPicker
                   ? 'border-brand-primary bg-brand-surface text-brand-text'
                   : 'border-border-interactive bg-bg-elevated text-ink-primary'
               }`}
             >
-              Extracción (ml)
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setShowSolidsPicker((v) => !v);
-                setShowBottlePicker(false);
-                setShowPumpingPicker(false);
-              }}
-              aria-expanded={showSolidsPicker}
-              className={`flex min-h-11 items-center justify-center rounded-xl border px-3 py-2 text-xs font-bold ${
-                showSolidsPicker
-                  ? 'border-brand-primary bg-brand-surface text-brand-text'
-                  : 'border-border-interactive bg-bg-elevated text-ink-primary'
-              }`}
-            >
-              Sólidos / comida
+              Extracción
             </button>
           </div>
 
+          <button
+            type="button"
+            onClick={() => {
+              setShowSolidsPicker((v) => !v);
+              setShowBottlePicker(false);
+              setShowPumpingPicker(false);
+            }}
+            aria-expanded={showSolidsPicker}
+            className={`flex w-full min-h-10 items-center justify-center rounded-xl border px-3 py-1.5 text-xs font-bold ${
+              showSolidsPicker
+                ? 'border-brand-primary bg-brand-surface text-brand-text'
+                : 'border-border-interactive bg-bg-elevated text-ink-primary'
+            }`}
+          >
+            Sólidos / comida
+          </button>
+
           {showPumpingPicker ? (
-            <div className="rounded-2xl border border-border-subtle bg-bg-elevated p-4 space-y-3">
-              <p className="text-xs font-bold text-ink-primary">
-                Extracción de leche (ml):
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {BOTTLE_PRESET_ML.map((ml) => (
+            <div className="rounded-2xl border border-border-subtle bg-bg-elevated p-3.5 space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-bold text-ink-primary">
+                  Extracción de leche:
+                </p>
+                <div className="flex gap-1">
+                  {(['ml', 'oz'] as const).map((unit) => (
+                    <button
+                      key={`pump-u-${unit}`}
+                      type="button"
+                      onClick={() => {
+                        setVolumeUnit(unit);
+                        setPumpingMlInput(unit === 'ml' ? '90' : '3');
+                      }}
+                      aria-pressed={volumeUnit === unit}
+                      className={`min-h-8 rounded-lg border px-2.5 py-0.5 text-xs font-bold ${
+                        volumeUnit === unit
+                          ? 'border-brand-primary bg-brand-primary text-brand-on'
+                          : 'border-border-interactive bg-bg-card text-ink-primary'
+                      }`}
+                    >
+                      {unit}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-wrap justify-center gap-1.5">
+                {(volumeUnit === 'ml' ? BOTTLE_PRESET_ML : OZ_PRESETS).map((val) => (
                   <button
-                    key={`pump-${ml}`}
+                    key={`pump-${volumeUnit}-${val}`}
                     type="button"
-                    onClick={() => handleSavePumping(ml)}
-                    className="inline-flex min-h-11 items-center rounded-xl border border-brand-primary bg-brand-surface px-3.5 py-2 text-xs font-bold text-brand-text"
+                    onClick={() => handleSavePumping(val)}
+                    className="inline-flex min-h-9 items-center rounded-xl border border-brand-primary bg-brand-surface px-3 py-1 text-xs font-bold text-brand-text"
                   >
-                    {ml} ml
+                    {val} {volumeUnit}
                   </button>
                 ))}
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center justify-center gap-2">
                 <input
                   type="number"
-                  min={5}
-                  max={500}
+                  step={volumeUnit === 'oz' ? '0.5' : '5'}
+                  min={volumeUnit === 'oz' ? 0.5 : 5}
+                  max={volumeUnit === 'oz' ? 17 : 500}
                   value={pumpingMlInput}
                   onChange={(e) => setPumpingMlInput(e.target.value)}
-                  className="min-h-11 w-28 rounded-xl border border-border-interactive bg-bg-card px-3 py-2 text-sm text-ink-primary"
-                  aria-label="Mililitros de extracción"
+                  className="min-h-10 w-24 rounded-xl border border-border-interactive bg-bg-card px-3 py-1.5 text-sm text-ink-primary"
+                  aria-label="Cantidad de extracción"
                 />
                 <button
                   type="button"
                   onClick={() =>
-                    handleSavePumping(Number.parseFloat(pumpingMlInput) || 90)
+                    handleSavePumping(
+                      Number.parseFloat(pumpingMlInput) || (volumeUnit === 'ml' ? 90 : 3),
+                    )
                   }
-                  className="inline-flex min-h-11 items-center rounded-xl bg-brand-primary px-4 py-2 text-xs font-bold text-brand-on"
+                  className="inline-flex min-h-10 items-center rounded-xl bg-brand-primary px-3.5 py-1.5 text-xs font-bold text-brand-on"
                 >
                   Guardar extracción
                 </button>
@@ -536,7 +669,7 @@ export function DailyLogPanel() {
 
           {showSolidsPicker ? (
             <div className="rounded-2xl border border-border-subtle bg-bg-elevated p-4 space-y-3">
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center justify-center gap-2">
                 <input
                   type="text"
                   value={solidsFoodInput}
@@ -568,38 +701,63 @@ export function DailyLogPanel() {
           ) : null}
 
           {showBottlePicker ? (
-            <div className="rounded-2xl border border-border-interactive bg-bg-elevated p-4 space-y-3">
-              <p className="text-xs font-bold text-ink-primary">
-                Selecciona mililitros (ml):
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {BOTTLE_PRESET_ML.map((ml) => (
+            <div className="rounded-2xl border border-border-interactive bg-bg-elevated p-3.5 space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-bold text-ink-primary">
+                  Biberón:
+                </p>
+                <div className="flex gap-1">
+                  {(['ml', 'oz'] as const).map((unit) => (
+                    <button
+                      key={`bot-u-${unit}`}
+                      type="button"
+                      onClick={() => {
+                        setVolumeUnit(unit);
+                        setBottleMlInput(unit === 'ml' ? '90' : '3');
+                      }}
+                      aria-pressed={volumeUnit === unit}
+                      className={`min-h-8 rounded-lg border px-2.5 py-0.5 text-xs font-bold ${
+                        volumeUnit === unit
+                          ? 'border-brand-primary bg-brand-primary text-brand-on'
+                          : 'border-border-interactive bg-bg-card text-ink-primary'
+                      }`}
+                    >
+                      {unit}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-wrap justify-center gap-1.5">
+                {(volumeUnit === 'ml' ? BOTTLE_PRESET_ML : OZ_PRESETS).map((val) => (
                   <button
-                    key={ml}
+                    key={`bot-${volumeUnit}-${val}`}
                     type="button"
-                    onClick={() => handleSaveBottle(ml)}
-                    className="inline-flex min-h-12 items-center rounded-xl border border-brand-primary bg-brand-surface px-4 py-2 text-xs font-bold text-brand-text"
+                    onClick={() => handleSaveBottle(val)}
+                    className="inline-flex min-h-9 items-center rounded-xl border border-brand-primary bg-brand-surface px-3 py-1 text-xs font-bold text-brand-text"
                   >
-                    {ml} ml
+                    {val} {volumeUnit}
                   </button>
                 ))}
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center justify-center gap-2">
                 <input
                   type="number"
-                  min={5}
-                  max={500}
+                  step={volumeUnit === 'oz' ? '0.5' : '5'}
+                  min={volumeUnit === 'oz' ? 0.5 : 5}
+                  max={volumeUnit === 'oz' ? 17 : 500}
                   value={bottleMlInput}
                   onChange={(e) => setBottleMlInput(e.target.value)}
-                  className="min-h-12 w-28 rounded-xl border border-border-interactive bg-bg-card px-3 py-2 text-sm text-ink-primary"
-                  aria-label="Mililitros personalizados"
+                  className="min-h-10 w-24 rounded-xl border border-border-interactive bg-bg-card px-3 py-1.5 text-sm text-ink-primary"
+                  aria-label="Cantidad personalizada"
                 />
                 <button
                   type="button"
                   onClick={() =>
-                    handleSaveBottle(Number.parseFloat(bottleMlInput) || 90)
+                    handleSaveBottle(
+                      Number.parseFloat(bottleMlInput) || (volumeUnit === 'ml' ? 90 : 3),
+                    )
                   }
-                  className="inline-flex min-h-12 items-center rounded-xl bg-brand-primary px-4 py-2 text-xs font-bold text-brand-on"
+                  className="inline-flex min-h-10 items-center rounded-xl bg-brand-primary px-3.5 py-1.5 text-xs font-bold text-brand-on"
                 >
                   Guardar biberón
                 </button>
@@ -611,15 +769,24 @@ export function DailyLogPanel() {
         {/* Diapers Multi-Choice 1-Tap Buttons */}
         <div className="space-y-2">
           <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
-            Pañales y evacuaciones
+            Pañales
           </p>
+          {saveFeedback?.section === 'diaper' ? (
+            <div
+              role="status"
+              aria-live="polite"
+              className="rounded-xl border-2 border-brand-primary bg-brand-surface px-4 py-3 text-sm font-bold text-brand-text"
+            >
+              {saveFeedback.message}
+            </div>
+          ) : null}
           <div className="grid grid-cols-3 gap-2">
             <button
               type="button"
               onClick={handleQuickWetDiaper}
-              className="flex min-h-12 items-center justify-center rounded-xl border border-border-interactive bg-bg-elevated px-2 py-2.5 text-center hover:bg-brand-surface"
+              className="flex min-h-10 items-center justify-center rounded-xl border border-border-interactive bg-bg-elevated px-2 py-1.5 text-center hover:bg-brand-surface"
             >
-              <span className="text-xs sm:text-sm font-bold text-ink-primary">
+              <span className="text-xs font-bold text-ink-primary">
                 Pipí
               </span>
             </button>
@@ -630,13 +797,13 @@ export function DailyLogPanel() {
                 setPendingDiaperKind((k) => (k === 'dirty' ? null : 'dirty'))
               }
               aria-pressed={pendingDiaperKind === 'dirty'}
-              className={`flex min-h-12 items-center justify-center rounded-xl border px-2 py-2.5 text-center ${
+              className={`flex min-h-10 items-center justify-center rounded-xl border px-2 py-1.5 text-center ${
                 pendingDiaperKind === 'dirty'
                   ? 'border-brand-primary bg-brand-surface'
                   : 'border-border-interactive bg-bg-elevated'
               }`}
             >
-              <span className="text-xs sm:text-sm font-bold text-ink-primary">
+              <span className="text-xs font-bold text-ink-primary">
                 Popó
               </span>
             </button>
@@ -647,13 +814,13 @@ export function DailyLogPanel() {
                 setPendingDiaperKind((k) => (k === 'both' ? null : 'both'))
               }
               aria-pressed={pendingDiaperKind === 'both'}
-              className={`flex min-h-12 items-center justify-center rounded-xl border px-2 py-2.5 text-center ${
+              className={`flex min-h-10 items-center justify-center rounded-xl border px-2 py-1.5 text-center ${
                 pendingDiaperKind === 'both'
                   ? 'border-brand-primary bg-brand-surface'
                   : 'border-border-interactive bg-bg-elevated'
               }`}
             >
-              <span className="text-xs sm:text-sm font-bold text-ink-primary">
+              <span className="text-xs font-bold text-ink-primary">
                 Ambos
               </span>
             </button>
@@ -661,10 +828,10 @@ export function DailyLogPanel() {
 
           {pendingDiaperKind ? (
             <div className="rounded-2xl border border-border-interactive bg-bg-elevated p-4 space-y-3">
-              <p className="text-xs font-bold text-ink-primary">
+              <p className="text-center text-xs font-bold text-ink-primary">
                 Color de la popó:
               </p>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap justify-center gap-2">
                 {POOP_COLOR_TAG_OPTIONS.map((opt) => {
                   const active = selectedPoopColor === opt.id;
                   return (
@@ -686,13 +853,15 @@ export function DailyLogPanel() {
                   );
                 })}
               </div>
-              <button
-                type="button"
-                onClick={handleSaveDirtyDiaper}
-                className="inline-flex min-h-12 items-center rounded-xl bg-brand-primary px-4 py-2 text-xs font-bold text-brand-on"
-              >
-                Guardar pañal
-              </button>
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={handleSaveDirtyDiaper}
+                  className="inline-flex min-h-12 items-center rounded-xl bg-brand-primary px-4 py-2 text-xs font-bold text-brand-on"
+                >
+                  Guardar pañal
+                </button>
+              </div>
             </div>
           ) : null}
         </div>
@@ -702,7 +871,16 @@ export function DailyLogPanel() {
           <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
             Sueño y siestas
           </p>
-          {sleepStartMs !== null ? (
+          {saveFeedback?.section === 'sleep' ? (
+            <div
+              role="status"
+              aria-live="polite"
+              className="rounded-xl border-2 border-brand-primary bg-brand-surface px-4 py-3 text-sm font-bold text-brand-text"
+            >
+              {saveFeedback.message}
+            </div>
+          ) : null}
+          {activeSleepStartMs !== null ? (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-brand-primary bg-brand-surface p-3">
               <div>
                 <p className="text-xs font-bold uppercase text-brand-text">
@@ -715,14 +893,18 @@ export function DailyLogPanel() {
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => handleSaveSleep(sleepElapsedSec)}
+                  onClick={() => {
+                    const mins = Math.max(1, Math.round(sleepElapsedSec / 60));
+                    saveActiveSleepTimer();
+                    flashFeedback('sleep', `✓ Siesta (${mins} min) guardada`);
+                  }}
                   className="inline-flex min-h-12 items-center rounded-xl bg-brand-primary px-4 py-2 text-xs font-bold text-brand-on"
                 >
                   Guardar siesta
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSleepStartMs(null)}
+                  onClick={cancelSleepTimer}
                   className="inline-flex min-h-12 items-center rounded-xl border border-alert-red bg-alert-surface px-3 py-2 text-xs font-bold text-alert-text"
                 >
                   Cancelar
@@ -730,10 +912,10 @@ export function DailyLogPanel() {
               </div>
             </div>
           ) : (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap justify-center gap-2">
               <button
                 type="button"
-                onClick={() => setSleepStartMs(Date.now())}
+                onClick={() => startSleepTimer(retroOffsetMin)}
                 className="inline-flex min-h-12 items-center rounded-xl border-2 border-brand-primary bg-brand-surface px-4 py-2 text-xs font-bold text-brand-text"
               >
                 Iniciar siesta (cronómetro)
@@ -752,49 +934,32 @@ export function DailyLogPanel() {
           )}
         </div>
 
-        {/* Retroactive time + collapsible note */}
-        <div className="space-y-2 border-t border-border-subtle pt-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-xs font-bold text-ink-secondary">Hora:</span>
-              {([
-                { min: 0, label: 'Ahora' },
-                { min: 15, label: '−15m' },
-                { min: 30, label: '−30m' },
-                { min: 60, label: '−1h' },
-              ] as const).map((opt) => (
-                <button
-                  key={opt.min}
-                  type="button"
-                  onClick={() => setRetroOffsetMin(opt.min)}
-                  aria-pressed={retroOffsetMin === opt.min}
-                  className={`min-h-9 rounded-full border px-2.5 py-1 text-xs font-bold ${
-                    retroOffsetMin === opt.min
-                      ? 'border-brand-primary bg-brand-primary text-brand-on'
-                      : 'border-border-interactive bg-bg-elevated text-ink-primary'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowNoteInput((v) => !v)}
-              className="text-xs font-semibold text-brand-text hover:underline"
+        {/* Quick Events */}
+        <div className="space-y-2">
+          <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
+            Eventos
+          </p>
+          {saveFeedback?.section === 'event' ? (
+            <div
+              role="status"
+              aria-live="polite"
+              className="rounded-xl border-2 border-brand-primary bg-brand-surface px-4 py-3 text-center text-sm font-bold text-brand-text"
             >
-              {showNoteInput || noteInput ? 'Ocultar nota' : '+ Nota opcional'}
-            </button>
-          </div>
-          {showNoteInput || noteInput ? (
-            <input
-              type="text"
-              value={noteInput}
-              onChange={(e) => setNoteInput(e.target.value)}
-              placeholder="Nota breve (ej. regurgitó un poco, se durmió en brazos)"
-              className="min-h-10 w-full rounded-xl border border-border-interactive bg-bg-elevated px-3 py-2 text-xs text-ink-primary"
-            />
+              {saveFeedback.message}
+            </div>
           ) : null}
+          <div className="flex flex-wrap justify-center gap-2">
+            {BABY_EVENT_OPTIONS_MX.map((ev) => (
+              <button
+                key={ev.id}
+                type="button"
+                onClick={() => handleQuickEvent(ev.id, ev.labelMx)}
+                className="inline-flex min-h-9 items-center justify-center rounded-xl border border-border-interactive bg-bg-elevated px-3 py-1.5 text-center text-xs font-bold text-ink-primary hover:bg-brand-surface"
+              >
+                {ev.labelMx}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -886,7 +1051,7 @@ export function DailyLogPanel() {
         ) : null}
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-2xl border border-border-interactive bg-bg-elevated p-3.5 space-y-1">
+          <div className="rounded-2xl border border-border-interactive bg-bg-elevated p-3.5 text-center space-y-1">
             <p className="text-xs font-semibold text-ink-secondary">Tomas</p>
             <p className="text-2xl font-bold text-ink-primary">
               {summary.totalFeeds}
@@ -896,7 +1061,7 @@ export function DailyLogPanel() {
             </p>
           </div>
 
-          <div className="rounded-2xl border border-border-interactive bg-bg-elevated p-3.5 space-y-1">
+          <div className="rounded-2xl border border-border-interactive bg-bg-elevated p-3.5 text-center space-y-1">
             <p className="text-xs font-semibold text-ink-secondary">
               Pecho / Biberón
             </p>
@@ -909,7 +1074,7 @@ export function DailyLogPanel() {
             </p>
           </div>
 
-          <div className="rounded-2xl border border-border-interactive bg-bg-elevated p-3.5 space-y-1">
+          <div className="rounded-2xl border border-border-interactive bg-bg-elevated p-3.5 text-center space-y-1">
             <p className="text-xs font-semibold text-ink-secondary">
               Pañales mojados (Pipí)
             </p>
@@ -921,7 +1086,7 @@ export function DailyLogPanel() {
             </p>
           </div>
 
-          <div className="rounded-2xl border border-border-interactive bg-bg-elevated p-3.5 space-y-1">
+          <div className="rounded-2xl border border-border-interactive bg-bg-elevated p-3.5 text-center space-y-1">
             <p className="text-xs font-semibold text-ink-secondary">
               Evacuaciones (Popó)
             </p>
@@ -933,7 +1098,7 @@ export function DailyLogPanel() {
             </p>
           </div>
 
-          <div className="rounded-2xl border border-border-interactive bg-bg-elevated p-3.5 space-y-1">
+          <div className="rounded-2xl border border-border-interactive bg-bg-elevated p-3.5 text-center space-y-1">
             <p className="text-xs font-semibold text-ink-secondary">
               Sueño / Siestas
             </p>
@@ -946,7 +1111,7 @@ export function DailyLogPanel() {
           </div>
 
           {summary.totalPumpingMl > 0 || summary.solidsCount > 0 ? (
-            <div className="rounded-2xl border border-border-subtle bg-bg-elevated p-3.5 space-y-1">
+            <div className="rounded-2xl border border-border-subtle bg-bg-elevated p-3.5 text-center space-y-1">
               <p className="text-xs font-semibold text-ink-secondary">
                 Extracción / Sólidos
               </p>
@@ -990,7 +1155,9 @@ export function DailyLogPanel() {
                                 : `Biberón (${entry.volumeMl ?? 0} ml)`
                         : entry.kind === 'sleep'
                           ? `Siesta (${Math.max(1, Math.round(entry.durationSec / 60))} min)`
-                          : entry.diaperKind === 'wet'
+                          : entry.kind === 'event'
+                            ? `Evento: ${BABY_EVENT_OPTIONS_MX.find((o) => o.id === entry.eventType)?.labelMx ?? entry.eventType}`
+                            : entry.diaperKind === 'wet'
                             ? 'Pañal: Pipí'
                             : entry.diaperKind === 'dirty'
                               ? `Pañal: Popó (${entry.poopColor ?? 'normal'})`

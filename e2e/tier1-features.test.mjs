@@ -566,7 +566,7 @@ test('T1-F07-01: apps/web completes clean production build (next build) offline'
 
 test('T1-F07-02: apps/web serves HTTP 200 on all 4 routes with es-MX, nav landmarks, and main', { skip: SKIP_APP_REASON }, async () => {
   const srv = await ensureWebServer();
-  for (const route of ['/', '/guias', '/ropa-y-clima', '/salud']) {
+  for (const route of ['/', '/guias', '/ropa-y-clima', '/salud', '/configuracion']) {
     const page = await srv.getPage(route);
     assert.equal(page.status, 200, `Expected HTTP 200 for ${route}, got ${page.status}`);
     assert.match(page.html, /<html[^>]*\blang="es-MX"/i, `${route} missing lang="es-MX"`);
@@ -640,17 +640,16 @@ test('T1-F08-02: apps/web /guias renders Level 2 GuideDisclaimerHeader with clin
   assert.match(guiasSrc, /sources/);
 });
 
-test('T1-F08-03: apps/web /salud renders Level 3 TriageDisclaimerBanner and non-paywalled 911 alert', { skip: SKIP_APP_REASON }, async () => {
+test('T1-F08-03: apps/web /guias renders Level 3 TriageDisclaimerBanner and non-paywalled 911 alert', { skip: SKIP_APP_REASON }, async () => {
   const srv = await ensureWebServer();
-  const page = await srv.getPage('/salud');
+  const page = await srv.getPage('/guias');
   assert.equal(page.status, 200);
-  const saludSrc = readTextSafe(path.join(ROOT_DIR, 'apps', 'web', 'src', 'app', 'salud', 'page.tsx'));
+  const guiasSrc = readTextSafe(path.join(ROOT_DIR, 'apps', 'web', 'src', 'components', 'GuiasView.tsx'));
   const bannerSrc = readTextSafe(path.join(ROOT_DIR, 'apps', 'web', 'src', 'components', 'TriageDisclaimerBanner.tsx'));
   assert.match(bannerSrc, /triage_banner/);
-  assert.match(saludSrc, /TriageDisclaimerBanner/);
-  assert.match(saludSrc, /911/);
-  assert.match(`${saludSrc}\n${bannerSrc}`, /role="alert"/);
-  assert.match(saludSrc, /urgent_red/);
+  assert.match(guiasSrc, /TriageDisclaimerBanner/);
+  assert.match(guiasSrc, /911/);
+  assert.match(`${guiasSrc}\n${bannerSrc}`, /role="alert"/);
 });
 
 test('T1-F08-04: apps/web uses native <dialog> AccountDeletionDialog wired to LocalAccountLifecycleAdapter', { skip: SKIP_APP_REASON }, () => {
@@ -671,7 +670,7 @@ test('T1-F08-05: apps/web contains zero ads, zero paywalls on 911, and zero trac
   for (const f of readWebFiles()) {
     assert.deepEqual(findEthicalViolations(f.content), [], `Ethical guardrail violation in ${f.relPath}`);
   }
-  for (const route of ['/', '/guias', '/ropa-y-clima', '/salud']) {
+  for (const route of ['/', '/guias', '/ropa-y-clima', '/salud', '/configuracion']) {
     const page = await srv.getPage(route);
     assert.deepEqual(findEthicalViolations(page.html), [], `HTML ethical violation on ${route}`);
   }
@@ -704,13 +703,13 @@ test('T1-F09-02: apps/mobile runs local expo export --platform web --clear clean
   assert.ok(fs.existsSync(path.join(mobileDir, 'dist', 'index.html')), 'apps/mobile/dist/index.html missing');
 });
 
-test('T1-F09-03: apps/mobile defines 4-tab shell (Registro, ¿Es normal?, Ropa y Clima, Salud) with >=48px targets', { skip: SKIP_APP_REASON }, () => {
+test('T1-F09-03: apps/mobile defines 5-tab shell (Registro, Ropa y Clima, Salud, ¿Es normal?, Config.) with >=48px targets', { skip: SKIP_APP_REASON }, () => {
   const tabsDir = path.join(ROOT_DIR, 'apps', 'mobile', 'app', '(tabs)');
-  for (const tabFile of ['_layout.tsx', 'index.tsx', 'guias.tsx', 'ropa-y-clima.tsx', 'salud.tsx']) {
+  for (const tabFile of ['_layout.tsx', 'index.tsx', 'guias.tsx', 'ropa-y-clima.tsx', 'salud.tsx', 'configuracion.tsx']) {
     assert.ok(fs.existsSync(path.join(tabsDir, tabFile)), `Missing mobile tab file: ${tabFile}`);
   }
   const tabsLayout = readTextSafe(path.join(tabsDir, '_layout.tsx'));
-  for (const title of ['Registro', '¿Es normal?', 'Ropa y Clima', 'Salud']) {
+  for (const title of ['Registro', '¿Es normal?', 'Ropa y Clima', 'Salud', 'Config.']) {
     assert.ok(tabsLayout.includes(title), `Mobile tabs layout missing "${title}"`);
   }
   assert.match(tabsLayout, /minHeight:\s*48|min-h-12|height:\s*(?:4[89]|[5-9]\d)/);
@@ -758,13 +757,12 @@ test('T1-F10-02: apps/mobile Guías tab renders Level 2 GuideDisclaimerHeader an
   assert.match(headerSrc, /sources/);
 });
 
-test('T1-F10-03: apps/mobile Salud tab renders Level 3 TriageDisclaimerBanner and non-paywalled 911 card', { skip: SKIP_APP_REASON }, () => {
-  const saludSrc = readTextSafe(path.join(ROOT_DIR, 'apps', 'mobile', 'app', '(tabs)', 'salud.tsx'));
+test('T1-F10-03: apps/mobile ¿Es normal? tab renders Level 3 TriageDisclaimerBanner and non-paywalled 911 card', { skip: SKIP_APP_REASON }, () => {
+  const guiasSrc = readTextSafe(path.join(ROOT_DIR, 'apps', 'mobile', 'app', '(tabs)', 'guias.tsx'));
   const bannerSrc = readTextSafe(path.join(ROOT_DIR, 'apps', 'mobile', 'components', 'TriageDisclaimerBanner.tsx'));
-  assert.match(saludSrc, /TriageDisclaimerBanner/);
+  assert.match(guiasSrc, /TriageDisclaimerBanner/);
   assert.match(bannerSrc, /triage_banner/);
-  assert.match(saludSrc, /911/);
-  assert.match(saludSrc, /urgent_red/);
+  assert.match(guiasSrc, /911/);
 });
 
 test('T1-F10-04: apps/mobile AccountDeletionSheet wires to LocalAccountLifecycleAdapter and resets onboarding', { skip: SKIP_APP_REASON }, () => {

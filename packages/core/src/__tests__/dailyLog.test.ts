@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  BABY_EVENT_OPTIONS_MX,
   computeTimerElapsedSec,
   countInclusiveDays,
+  formatRetroOffsetLabelMx,
   formatTimerClock,
   getWakeWindowGuidanceMx,
+  parseDailyLogEntries,
   resolveDateRangePreset,
   suggestNextNapWindowMx,
   summarizeDailyLog,
@@ -207,5 +210,26 @@ describe('dailyLog domain', () => {
     expect(
       suggestNextNapWindowMx(4, summary.lastSleepIso, new Date(2026, 10, 25, 13, 0, 0)),
     ).toContain('Ventana sugerida pasada (11:30–12:30)');
+  });
+
+  it('parses event log entries and formats retro time offsets', () => {
+    expect(BABY_EVENT_OPTIONS_MX.length).toBeGreaterThanOrEqual(6);
+    expect(formatRetroOffsetLabelMx(0)).toBe('Ahora');
+    expect(formatRetroOffsetLabelMx(20)).toBe('Hace 20 min');
+    expect(formatRetroOffsetLabelMx(90)).toBe('Hace 1 h 30 min');
+    expect(formatRetroOffsetLabelMx(300)).toBe('Hace 5 h');
+
+    const parsed = parseDailyLogEntries(
+      JSON.stringify([
+        {
+          id: 'ev-1',
+          kind: 'event',
+          timestampIso: '2026-11-27T18:00:00.000Z',
+          eventType: 'reflux',
+        },
+      ]),
+    );
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0]?.kind).toBe('event');
   });
 });

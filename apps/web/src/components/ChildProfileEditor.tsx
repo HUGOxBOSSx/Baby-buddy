@@ -175,7 +175,7 @@ export function ChildProfileEditor() {
 
         <fieldset className="space-y-2">
           <legend className="text-sm font-semibold text-ink-primary">Sexo</legend>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap justify-center gap-2">
             {SEX_OPTIONS.map((option) => {
               const selected = sex === option;
               return (

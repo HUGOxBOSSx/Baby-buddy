@@ -2,13 +2,17 @@ import Feather from '@expo/vector-icons/Feather';
 import {
   CHILD_SEX_LABELS_MX,
   MIN_TOUCH_TARGET_PX,
-  formatChildAgeMx,
+  formatChildAgeCompactMx,
 } from '@baby-buddy/core';
 import { Tabs, useRouter } from 'expo-router';
+import { useEffect } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ActiveTimerBanner } from '../../components/ActiveTimerBanner';
 import { MascotAvatar } from '../../components/MascotAvatar';
+import { SimulatedAdBanner } from '../../components/SimulatedAdBanner';
 import { useThemeContext } from '../../components/ThemeProvider';
+import { subscribeNotificationResponse } from '../../lib/notifications';
 
 function HeaderModeToggle() {
   const { mode, palette, toggleMode, iconsLoaded } = useThemeContext();
@@ -17,9 +21,10 @@ function HeaderModeToggle() {
   return (
     <Pressable
       onPress={toggleMode}
-      className="min-h-[48px] min-w-[48px] flex-row items-center justify-center rounded-xl border px-2.5 py-1.5 gap-1.5"
+      hitSlop={8}
+      className="flex-row items-center justify-center rounded-lg border px-2.5 py-1 gap-1"
       style={{
-        minHeight: MIN_TOUCH_TARGET_PX,
+        height: 34,
         minWidth: MIN_TOUCH_TARGET_PX,
         backgroundColor: isNight ? palette.bgElevated : palette.brandSurface,
         borderColor: palette.borderInteractive,
@@ -35,13 +40,13 @@ function HeaderModeToggle() {
       {iconsLoaded ? (
         <Feather
           name={isNight ? 'sun' : 'moon'}
-          size={16}
+          size={14}
           color={palette.brandText}
         />
       ) : null}
       <Text
         numberOfLines={1}
-        className="text-xs font-bold"
+        className="text-[11px] font-bold"
         style={{ color: palette.brandText }}
       >
         {isNight ? 'Día' : 'Nocturno'}
@@ -54,13 +59,25 @@ export default function TabsLayout() {
   const router = useRouter();
   const { palette, iconsLoaded, childProfile } = useThemeContext();
   const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    return subscribeNotificationResponse((tab) => {
+      if (tab === 'vacunas') {
+        router.push({
+          pathname: '/(tabs)/salud',
+          params: { tab: 'vacunas' },
+        });
+      }
+    });
+  }, [router]);
   const bottomPad = Math.max(insets.bottom, 6);
   const babyHeader = childProfile
-    ? `${childProfile.nicknameMx} · ${formatChildAgeMx(childProfile.ageMonths)} · ${CHILD_SEX_LABELS_MX[childProfile.sex ?? 'no_especificado']}`
+    ? `${childProfile.nicknameMx} · ${formatChildAgeCompactMx(childProfile)} · ${CHILD_SEX_LABELS_MX[childProfile.sex ?? 'no_especificado']}`
     : null;
 
   return (
-    <Tabs
+    <View className="flex-1">
+      <Tabs
       screenOptions={{
         headerShown: true,
         headerStyle: {
@@ -76,17 +93,21 @@ export default function TabsLayout() {
         header: () => (
           <View
             style={{
-              paddingTop: insets.top + 6,
-              paddingBottom: 6,
-              paddingHorizontal: 12,
               backgroundColor: palette.bgCard,
               borderBottomWidth: 1,
               borderBottomColor: palette.borderInteractive,
             }}
           >
-            <View className="flex-row items-center justify-between gap-2">
+            <View
+              className="flex-row items-center justify-between gap-2"
+              style={{
+                paddingTop: insets.top + 6,
+                paddingBottom: 8,
+                paddingHorizontal: 12,
+              }}
+            >
               <Pressable
-                onPress={() => router.push('/(tabs)/salud')}
+                onPress={() => router.push('/(tabs)/configuracion')}
                 className="flex-1 min-w-0 flex-row items-center gap-2 rounded-xl pr-2"
                 style={{ minHeight: MIN_TOUCH_TARGET_PX }}
                 accessibilityRole="button"
@@ -121,6 +142,7 @@ export default function TabsLayout() {
               </Pressable>
               <HeaderModeToggle />
             </View>
+            <ActiveTimerBanner />
           </View>
         ),
         tabBarActiveTintColor: palette.brandText,
@@ -211,6 +233,24 @@ export default function TabsLayout() {
             ),
         }}
       />
-    </Tabs>
+      <Tabs.Screen
+        name="configuracion"
+        options={{
+          title: 'Configuraciones',
+          tabBarLabel: 'Config.',
+          tabBarAccessibilityLabel: 'Pestaña Configuraciones',
+          tabBarIcon: ({ color, size }) =>
+            iconsLoaded ? (
+              <Feather name="settings" size={size} color={color} />
+            ) : (
+              <View className="w-5 h-5 items-center justify-center">
+                <Text style={{ color, fontWeight: '700' }}>•</Text>
+              </View>
+            ),
+        }}
+      />
+      </Tabs>
+      <SimulatedAdBanner floatingBottomOffset={64 + bottomPad} />
+    </View>
   );
 }

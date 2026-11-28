@@ -129,31 +129,31 @@ test('T3-04 (F03+F04+F06+F09): Core stages/tokens/content integrate into apps/mo
   assert.match(combined, /getThemePalette|THEME_PALETTES/);
 });
 
-test('T3-05 (F04+F07+F08): 3:00 AM Mode + apps/web /salud TriageDisclaimerBanner + 911 AA alert', { skip: SKIP_APP_REASON }, async () => {
+test('T3-05 (F04+F07+F08): 3:00 AM Mode + apps/web /guias TriageDisclaimerBanner + 911 AA alert', { skip: SKIP_APP_REASON }, async () => {
   const core = await importCore();
   const srv = await ensureWebServer();
-  const page = await srv.getPage('/salud');
+  const page = await srv.getPage('/guias');
   assert.equal(page.status, 200);
 
   const night = core.NIGHT_3AM_PALETTE;
   assertContrastAtLeast(night.onAlertRedText, night.alertRedSurface, 4.5, '3AM #F3EDE2 on #471D1D');
   assertContrastAtLeast(night.alertRedText, night.bgPrimary, 4.5, '3AM #F07575 on #121110');
 
-  const saludSrc = readTextSafe(path.join(ROOT_DIR, 'apps', 'web', 'src', 'app', 'salud', 'page.tsx'));
+  const guiasSrc = readTextSafe(path.join(ROOT_DIR, 'apps', 'web', 'src', 'components', 'GuiasView.tsx'));
   const bannerSrc = readTextSafe(path.join(ROOT_DIR, 'apps', 'web', 'src', 'components', 'TriageDisclaimerBanner.tsx'));
-  assert.match(`${saludSrc}\n${bannerSrc}`, /911/);
-  assert.match(`${saludSrc}\n${bannerSrc}`, /role="alert"/);
-  assert.deepEqual(findEthicalViolations(`${saludSrc}\n${bannerSrc}`), []);
+  assert.match(`${guiasSrc}\n${bannerSrc}`, /911/);
+  assert.match(`${guiasSrc}\n${bannerSrc}`, /role="alert"/);
+  assert.deepEqual(findEthicalViolations(`${guiasSrc}\n${bannerSrc}`), []);
 });
 
-test('T3-06 (F04+F09+F10): 3:00 AM Mode + apps/mobile Salud TriageDisclaimerBanner + 911 >=48px', { skip: SKIP_APP_REASON }, () => {
-  const saludSrc = readTextSafe(path.join(ROOT_DIR, 'apps', 'mobile', 'app', '(tabs)', 'salud.tsx'));
+test('T3-06 (F04+F09+F10): 3:00 AM Mode + apps/mobile ¿Es normal? TriageDisclaimerBanner + 911 >=48px', { skip: SKIP_APP_REASON }, () => {
+  const guiasSrc = readTextSafe(path.join(ROOT_DIR, 'apps', 'mobile', 'app', '(tabs)', 'guias.tsx'));
   const bannerSrc = readTextSafe(path.join(ROOT_DIR, 'apps', 'mobile', 'components', 'TriageDisclaimerBanner.tsx'));
   const badgeSrc = readTextSafe(path.join(ROOT_DIR, 'apps', 'mobile', 'components', 'StatusBadge.tsx'));
-  assert.match(`${saludSrc}\n${bannerSrc}`, /911/);
-  assert.match(`${saludSrc}\n${badgeSrc}`, /STATUS_SPECS|StatusBadge/);
-  assert.match(`${saludSrc}\n${bannerSrc}`, /minHeight:\s*48|min-h-12|MIN_TOUCH_TARGET_PX/);
-  assert.deepEqual(findEthicalViolations(`${saludSrc}\n${bannerSrc}`), []);
+  assert.match(`${guiasSrc}\n${bannerSrc}`, /911/);
+  assert.match(`${badgeSrc}`, /STATUS_SPECS|StatusBadge/);
+  assert.match(`${guiasSrc}\n${bannerSrc}`, /minHeight:\s*48|min-h-12|MIN_TOUCH_TARGET_PX/);
+  assert.deepEqual(findEthicalViolations(`${guiasSrc}\n${bannerSrc}`), []);
 });
 
 test('T3-07 (F05+F07+F08): Web OnboardingGate -> stage/theme persistence -> AccountDeletionDialog reset', { skip: SKIP_APP_REASON }, async () => {

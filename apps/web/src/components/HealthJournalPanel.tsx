@@ -1,11 +1,15 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
+  BABY_EVENT_OPTIONS_MX,
+  type EventLogEntry,
   MX_VACCINE_CHECKLIST,
   STAGE_SPECS,
   buildPediatricianReportText,
+  computeAgeMonthsAtTimestamp,
   evaluateTemperatureAlertMx,
+  formatGrowthAgeMx,
   getStageForAgeMonths,
   resolveDateRangePreset,
   summarizeDailyLog,
@@ -17,7 +21,7 @@ import {
 import { GrowthChartCard } from '@/components/GrowthChartCard';
 import { useAppState } from '@/components/ThemeProvider';
 
-type HealthSubTab = 'fiebre' | 'vacunas' | 'crecimiento' | 'hitos' | 'reporte';
+type HealthSubTab = 'temperatura' | 'medicamentos' | 'vacunas' | 'crecimiento';
 
 export function HealthJournalPanel() {
   const {
@@ -34,7 +38,22 @@ export function HealthJournalPanel() {
     toggleMilestoneCompleted,
   } = useAppState();
 
-  const [subTab, setSubTab] = useState<HealthSubTab>('fiebre');
+  const [subTab, setSubTab] = useState<HealthSubTab>('temperatura');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const tab = new URLSearchParams(window.location.search).get('tab');
+    if (
+      tab === 'temperatura' ||
+      tab === 'medicamentos' ||
+      tab === 'vacunas' ||
+      tab === 'crecimiento'
+    ) {
+      const id = window.setTimeout(() => setSubTab(tab), 0);
+      return () => window.clearTimeout(id);
+    }
+    return undefined;
+  }, []);
   const [tempInput, setTempInput] = useState('36.8');
   const [tempNote, setTempNote] = useState('');
   const [medName, setMedName] = useState('');
@@ -42,6 +61,9 @@ export function HealthJournalPanel() {
   const [weightInput, setWeightInput] = useState('');
   const [heightInput, setHeightInput] = useState('');
   const [headCmInput, setHeadCmInput] = useState('');
+  const [growthAgeMode, setGrowthAgeMode] = useState<'current' | 'past'>('current');
+  const [pastAgeValue, setPastAgeValue] = useState('14');
+  const [pastAgeUnit, setPastAgeUnit] = useState<'days' | 'weeks' | 'months'>('days');
   const [copied, setCopied] = useState(false);
 
   const ageMonths = childProfile ? childProfile.ageMonths : 2;
@@ -85,20 +107,80 @@ export function HealthJournalPanel() {
       return;
     }
     const now = Date.now();
+    const birthMs = childProfile?.birthDateIso
+      ? new Date(childProfile.birthDateIso).getTime()
+      : Number.NaN;
+    const currentAgeDays = Number.isFinite(birthMs)
+      ? Math.max(0, Math.round((now - birthMs) / 86_400_000))
+      : Math.round(ageMonths * 30.4375);
+
+    let ageAtEntryDays = currentAgeDays;
+    let ageLabelMx = formatGrowthAgeMx(currentAgeDays);
+    let timestampIso = new Date(now).toISOString();
+
+    if (growthAgeMode === 'past') {
+      const rawVal = Number.parseFloat(pastAgeValue);
+      if (!Number.isFinite(rawVal) || rawVal < 0) return;
+      const multiplier =
+        pastAgeUnit === 'days' ? 1 : pastAgeUnit === 'weeks' ? 7 : 30.4375;
+      ageAtEntryDays = Math.max(0, Math.min(2190, Math.round(rawVal * multiplier)));
+      const roundedVal = Math.round(rawVal);
+      const unitLabel =
+        pastAgeUnit === 'days'
+          ? roundedVal === 1
+            ? 'día'
+            : 'días'
+          : pastAgeUnit === 'weeks'
+            ? 'sem'
+            : roundedVal === 1
+              ? 'mes'
+              : 'meses';
+      ageLabelMx = `${roundedVal} ${unitLabel}`;
+      const entryMs = Number.isFinite(birthMs)
+        ? birthMs + ageAtEntryDays * 86_400_000
+        : now - Math.max(0, currentAgeDays - ageAtEntryDays) * 86_400_000;
+      timestampIso = new Date(entryMs).toISOString();
+    }
+
     addGrowthLog({
       id: `growth-${now}`,
-      timestampIso: new Date(now).toISOString(),
+      timestampIso,
       weightKg: Number.isFinite(w) ? Math.round(w * 100) / 100 : undefined,
       heightCm: Number.isFinite(h) ? Math.round(h * 10) / 10 : undefined,
       headCircumferenceCm: Number.isFinite(hc)
         ? Math.round(hc * 10) / 10
         : undefined,
+      ageAtEntryDays,
+      ageLabelMx,
     });
     setWeightInput('');
     setHeightInput('');
     setHeadCmInput('');
-  }, [addGrowthLog, headCmInput, heightInput, weightInput]);
+  }, [
+    addGrowthLog,
+    ageMonths,
+    childProfile,
+    growthAgeMode,
+    headCmInput,
+    heightInput,
+    pastAgeUnit,
+    pastAgeValue,
+    weightInput,
+  ]);
 
+  const stageId = childProfile
+    ? childProfile.stageId
+    : getStageForAgeMonths(ageMonths);
+  const stageMilestones = getMilestonesForStage(stageId);
+  const completedMilestoneIds = healthState.completedMilestoneIds ?? [];
+  const doneMilestonesCount = stageMilestones.filter((m) =>
+    completedMilestoneIds.includes(m.id),
+  ).length;
+
+  const summaryToday = summarizeDailyLog(
+    dailyLogs,
+    resolveDateRangePreset('today'),
+  );
   const summary3d = summarizeDailyLog(
     dailyLogs,
     resolveDateRangePreset('last_3_days'),
@@ -111,16 +193,36 @@ export function HealthJournalPanel() {
     dailyLogs,
     resolveDateRangePreset('last_30_days'),
   );
+  const recentEvents = dailyLogs
+    .filter((e): e is EventLogEntry => e.kind === 'event')
+    .slice(0, 15);
+  const latestEvent = recentEvents[0];
+  const latestEventLabel = latestEvent
+    ? (BABY_EVENT_OPTIONS_MX.find((o) => o.id === latestEvent.eventType)
+        ?.labelMx ?? latestEvent.eventType)
+    : null;
+  const activeDailyAlerts = [
+    summaryToday.hydrationAlertMx ?? summary3d.hydrationAlertMx,
+    summaryToday.stoolAlertMx ?? summary3d.stoolAlertMx,
+  ].filter((a): a is string => Boolean(a));
+
   const reportText = buildPediatricianReportText({
     profile: childProfile,
+    dailySummaryToday: summaryToday,
     dailySummary3d: summary3d,
     dailySummary7d: summary7d,
     dailySummary30d: summary30d,
+    recentEvents,
+    stageMilestonesSummary: {
+      done: doneMilestonesCount,
+      total: stageMilestones.length,
+      stageLabelMx: STAGE_SPECS[stageId].shortLabel,
+    },
     health: healthState,
     generatedAtIso: new Date().toISOString(),
   });
 
-  const handleCopyReport = useCallback(async () => {
+  const handleCopyReport = async () => {
     try {
       await navigator.clipboard.writeText(reportText);
       setCopied(true);
@@ -128,48 +230,50 @@ export function HealthJournalPanel() {
     } catch {
       // Clipboard may be unavailable in non-HTTPS contexts
     }
-  }, [reportText]);
+  };
+
+  const latestTemp = healthState.temperatures[0];
+  const latestGrowth = healthState.growth[0];
 
   return (
-    <section
-      aria-label="Bitácora de salud, vacunas y reporte para pediatra"
-      className="rounded-2xl border border-border-subtle bg-bg-card p-5 space-y-4 shadow-sm"
-    >
-      <h2 className="text-base font-bold text-ink-primary">
-        Bitácora de salud
-      </h2>
+    <div className="space-y-6">
+      <section
+        aria-label="Bitácora de salud y vacunas"
+        className="rounded-2xl border border-border-subtle bg-bg-card p-5 space-y-4 shadow-sm"
+      >
+        <h2 className="text-base font-bold text-ink-primary">
+          Bitácora de salud
+        </h2>
 
-      <div className="flex flex-wrap gap-2">
-        {(
-          [
-            { id: 'fiebre', label: 'Fiebre y meds' },
-            { id: 'vacunas', label: 'Vacunas' },
-            { id: 'crecimiento', label: 'Crecimiento' },
-            { id: 'hitos', label: 'Hitos' },
-            { id: 'reporte', label: 'Reporte' },
-          ] as const
-        ).map((t) => {
-          const active = subTab === t.id;
-          return (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setSubTab(t.id)}
-              aria-pressed={active}
-              className={`inline-flex min-h-11 items-center rounded-full border px-4 py-2 text-xs font-bold ${
-                active
-                  ? 'border-brand-primary bg-brand-primary text-brand-on'
-                  : 'border-border-interactive bg-bg-elevated text-ink-primary'
-              }`}
-            >
-              {t.label}
-            </button>
-          );
-        })}
-      </div>
+        <div className="flex flex-wrap justify-center gap-2">
+          {(
+            [
+              { id: 'temperatura', label: 'Temperatura' },
+              { id: 'medicamentos', label: 'Medicamentos' },
+              { id: 'vacunas', label: 'Vacunas' },
+              { id: 'crecimiento', label: 'Crecimiento' },
+            ] as const
+          ).map((t) => {
+            const active = subTab === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setSubTab(t.id)}
+                aria-pressed={active}
+                className={`inline-flex min-h-9 items-center rounded-full border px-3.5 py-1 text-xs font-bold ${
+                  active
+                    ? 'border-brand-primary bg-brand-primary text-brand-on'
+                    : 'border-border-interactive bg-bg-elevated text-ink-primary'
+                }`}
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
 
-      {subTab === 'fiebre' ? (
-        <div className="space-y-5">
+        {subTab === 'temperatura' ? (
           <div className="rounded-2xl border border-border-subtle bg-bg-elevated p-4 space-y-3">
             <h3 className="text-sm font-bold text-ink-primary">
               Registro de temperatura (°C)
@@ -235,7 +339,9 @@ export function HealthJournalPanel() {
               </div>
             ))}
           </div>
+        ) : null}
 
+        {subTab === 'medicamentos' ? (
           <div className="rounded-2xl border border-border-subtle bg-bg-elevated p-4 space-y-3">
             <h3 className="text-sm font-bold text-ink-primary">
               Medicamentos (solo registro, según indicación de tu pediatra)
@@ -284,8 +390,7 @@ export function HealthJournalPanel() {
               </div>
             ))}
           </div>
-        </div>
-      ) : null}
+        ) : null}
 
       {subTab === 'vacunas' ? (
         <div className="space-y-3">
@@ -340,8 +445,72 @@ export function HealthJournalPanel() {
             sex={childProfile?.sex}
           />
           <h3 className="text-sm font-bold text-ink-primary">
-            Peso (kg), Talla (cm) y P. cefálico (cm)
+            Peso (kg), Talla (cm) y Cabeza (cm)
           </h3>
+
+          <div className="space-y-2 rounded-xl border border-border-subtle bg-bg-card p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setGrowthAgeMode('current')}
+                aria-pressed={growthAgeMode === 'current'}
+                className={`inline-flex min-h-10 items-center rounded-full border px-3 py-1 text-xs font-bold ${
+                  growthAgeMode === 'current'
+                    ? 'border-brand-primary bg-brand-primary text-brand-on'
+                    : 'border-border-interactive bg-bg-elevated text-ink-primary'
+                }`}
+              >
+                Edad actual
+              </button>
+              <button
+                type="button"
+                onClick={() => setGrowthAgeMode('past')}
+                aria-pressed={growthAgeMode === 'past'}
+                className={`inline-flex min-h-10 items-center rounded-full border px-3 py-1 text-xs font-bold ${
+                  growthAgeMode === 'past'
+                    ? 'border-brand-primary bg-brand-primary text-brand-on'
+                    : 'border-border-interactive bg-bg-elevated text-ink-primary'
+                }`}
+              >
+                Registro pasado
+              </button>
+            </div>
+            {growthAgeMode === 'past' ? (
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <input
+                  type="number"
+                  min="0"
+                  max="2190"
+                  value={pastAgeValue}
+                  onChange={(e) => setPastAgeValue(e.target.value)}
+                  aria-label="Edad en el registro pasado"
+                  className="min-h-10 w-20 rounded-xl border border-border-interactive bg-bg-elevated px-3 py-1.5 text-sm text-ink-primary"
+                />
+                {(
+                  [
+                    { id: 'days', label: 'Días' },
+                    { id: 'weeks', label: 'Semanas' },
+                    { id: 'months', label: 'Meses' },
+                  ] as const
+                ).map((u) => (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => setPastAgeUnit(u.id)}
+                    aria-pressed={pastAgeUnit === u.id}
+                    className={`min-h-10 rounded-xl border px-3 py-1.5 text-xs font-semibold ${
+                      pastAgeUnit === u.id
+                        ? 'border-brand-primary bg-brand-surface text-brand-text'
+                        : 'border-border-interactive bg-bg-elevated text-ink-secondary'
+                    }`}
+                  >
+                    {u.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
           <div className="flex flex-wrap items-center gap-2">
             <input
               type="number"
@@ -370,9 +539,9 @@ export function HealthJournalPanel() {
               max="65"
               value={headCmInput}
               onChange={(e) => setHeadCmInput(e.target.value)}
-              placeholder="PC (cm)"
-              aria-label="Perímetro cefálico en centímetros"
-              className="min-h-12 w-28 rounded-xl border border-border-interactive bg-bg-card px-3 py-2 text-sm text-ink-primary"
+              placeholder="Cabeza (cm) · opcional"
+              aria-label="Medida de cabeza en centímetros (opcional)"
+              className="min-h-12 flex-1 min-w-[160px] rounded-xl border border-border-interactive bg-bg-card px-3 py-2 text-sm text-ink-primary"
             />
             <button
               type="button"
@@ -382,122 +551,221 @@ export function HealthJournalPanel() {
               Guardar medición
             </button>
           </div>
-          {healthState.growth.slice(0, 6).map((g) => (
-            <div
-              key={g.id}
-              className="flex items-center justify-between rounded-xl border border-border-subtle bg-bg-card px-3 py-2 text-xs"
-            >
-              <span>
-                <strong className="text-ink-primary">
-                  {g.weightKg !== undefined ? `${g.weightKg} kg` : '—'} ·{' '}
-                  {g.heightCm !== undefined ? `${g.heightCm} cm` : '—'}
-                  {g.headCircumferenceCm !== undefined
-                    ? ` · ${g.headCircumferenceCm} cm PC`
-                    : ''}
-                </strong>{' '}
-                <span className="text-ink-secondary">
-                  · {g.timestampIso.slice(0, 10)}
-                </span>
-              </span>
-              <button
-                type="button"
-                onClick={() => deleteGrowthLog(g.id)}
-                className="text-[11px] font-semibold text-ink-secondary hover:text-alert-text"
+          {healthState.growth.slice(0, 6).map((g) => {
+            const itemAgeLabel =
+              g.ageLabelMx ??
+              formatGrowthAgeMx(
+                computeAgeMonthsAtTimestamp(
+                  childProfile?.birthDateIso,
+                  g.timestampIso,
+                  ageMonths,
+                ) * 30.4375,
+              );
+            return (
+              <div
+                key={g.id}
+                className="flex items-center justify-between rounded-xl border border-border-subtle bg-bg-card px-3 py-2 text-xs"
               >
-                Eliminar
-              </button>
-            </div>
-          ))}
+                <span>
+                  <strong className="text-ink-primary">
+                    {g.weightKg !== undefined ? `${g.weightKg} kg` : '—'} ·{' '}
+                    {g.heightCm !== undefined ? `${g.heightCm} cm` : '—'}
+                    {g.headCircumferenceCm !== undefined
+                      ? ` · ${g.headCircumferenceCm} cm PC`
+                      : ''}
+                  </strong>{' '}
+                  <span className="text-ink-secondary">
+                    · {g.timestampIso.slice(0, 10)} · {itemAgeLabel}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => deleteGrowthLog(g.id)}
+                  className="text-[11px] font-semibold text-ink-secondary hover:text-alert-text"
+                >
+                  Eliminar
+                </button>
+              </div>
+            );
+          })}
         </div>
       ) : null}
+      </section>
 
-      {subTab === 'hitos' ? (() => {
-        const stageId = childProfile
-          ? childProfile.stageId
-          : getStageForAgeMonths(ageMonths);
-        const stageMilestones = getMilestonesForStage(stageId);
-        const completedIds = healthState.completedMilestoneIds ?? [];
-        const doneCount = stageMilestones.filter((m) =>
-          completedIds.includes(m.id),
-        ).length;
-        return (
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <p className="text-xs font-semibold text-brand-text">
-                {doneCount} de {stageMilestones.length} hitos en etapa{' '}
-                {STAGE_SPECS[stageId].shortLabel}
+      {/* Sección separada: Hitos del desarrollo */}
+      <section
+        aria-label="Hitos del desarrollo"
+        className="rounded-2xl border border-border-subtle bg-bg-card p-5 space-y-3 shadow-sm"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-base font-bold text-ink-primary">
+            Hitos del desarrollo
+          </h2>
+          <span className="text-xs font-semibold text-brand-text">
+            {doneMilestonesCount} de {stageMilestones.length} en{' '}
+            {STAGE_SPECS[stageId].shortLabel}
+          </span>
+        </div>
+        <div className="h-2.5 w-full overflow-hidden rounded-full bg-bg-elevated">
+          <div
+            className="h-full rounded-full bg-brand-primary transition-all"
+            style={{
+              width: `${Math.round((doneMilestonesCount / Math.max(1, stageMilestones.length)) * 100)}%`,
+            }}
+          />
+        </div>
+        <div className="space-y-2">
+          {stageMilestones.map((m) => {
+            const done = completedMilestoneIds.includes(m.id);
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => toggleMilestoneCompleted(m.id)}
+                aria-pressed={done}
+                className={`w-full rounded-xl border p-3.5 text-left space-y-1 ${
+                  done
+                    ? 'border-brand-primary bg-brand-surface'
+                    : 'border-border-interactive bg-bg-elevated'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-bold text-ink-primary">
+                    {m.titleMx}
+                  </span>
+                  <span className="shrink-0 text-xs font-bold text-brand-text">
+                    {done ? '✓ Logrado' : 'Marcar'}
+                  </span>
+                </div>
+                <p className="text-[11px] font-semibold text-ink-secondary">
+                  {MILESTONE_DOMAIN_LABELS_MX[m.domain]} · {m.ageLabelMx}
+                </p>
+                <p className="text-xs text-ink-secondary">{m.activityMx}</p>
+                <p className="text-[11px] text-ink-muted">{m.watchForMx}</p>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Sección separada: Reporte para pediatra */}
+      <section
+        aria-label="Reporte para pediatra"
+        className="rounded-2xl border-2 border-brand-primary bg-bg-card p-5 space-y-4 shadow-sm"
+      >
+        <div className="space-y-1">
+          <h2 className="text-base font-bold text-ink-primary">
+            Reporte para pediatra
+          </h2>
+          <p className="text-xs text-ink-secondary">
+            Resumen listo para tu consulta con registros de hoy, promedios
+            diarios, eventos, crecimiento, temperaturas, medicamentos, vacunas
+            e hitos.
+          </p>
+        </div>
+
+        {activeDailyAlerts.length > 0 ? (
+          <div className="rounded-xl border border-alert-red bg-alert-surface p-3 space-y-1">
+            <p className="text-xs font-bold text-alert-text">
+              Alertas activas del registro diario
+            </p>
+            {activeDailyAlerts.map((alert, idx) => (
+              <p key={idx} className="text-xs text-alert-text">
+                • {alert}
               </p>
-              <div className="h-2.5 w-full overflow-hidden rounded-full bg-bg-elevated">
-                <div
-                  className="h-full rounded-full bg-brand-primary transition-all"
-                  style={{
-                    width: `${Math.round((doneCount / Math.max(1, stageMilestones.length)) * 100)}%`,
-                  }}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              {stageMilestones.map((m) => {
-                const done = completedIds.includes(m.id);
-                return (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => toggleMilestoneCompleted(m.id)}
-                    aria-pressed={done}
-                    className={`w-full rounded-xl border p-3.5 text-left space-y-1 ${
-                      done
-                        ? 'border-brand-primary bg-brand-surface'
-                        : 'border-border-interactive bg-bg-elevated'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-bold text-ink-primary">
-                        {m.titleMx}
-                      </span>
-                      <span className="shrink-0 text-xs font-bold text-brand-text">
-                        {done ? '✓ Logrado' : 'Marcar'}
-                      </span>
-                    </div>
-                    <p className="text-[11px] font-semibold text-ink-secondary">
-                      {MILESTONE_DOMAIN_LABELS_MX[m.domain]} · {m.ageLabelMx}
-                    </p>
-                    <p className="text-xs text-ink-secondary">{m.activityMx}</p>
-                    <p className="text-[11px] text-ink-muted">{m.watchForMx}</p>
-                  </button>
-                );
-              })}
-            </div>
+            ))}
           </div>
-        );
-      })() : null}
+        ) : null}
 
-      {subTab === 'reporte' ? (
-        <div className="space-y-3">
+        <div className="grid gap-2.5 sm:grid-cols-2">
+          <div className="rounded-xl border border-border-subtle bg-bg-elevated p-3 text-center space-y-1">
+            <p className="text-[11px] font-bold uppercase text-ink-secondary">
+              Hoy y promedios (3d / 7d / 30d)
+            </p>
+            <p className="text-xs font-semibold text-ink-primary">
+              Hoy: {summaryToday.totalFeeds} tomas · Prom.:{' '}
+              {summary3d.avgFeedsPerDay}/d · {summary7d.avgFeedsPerDay}/d ·{' '}
+              {summary30d.avgFeedsPerDay}/d
+            </p>
+            <p className="text-xs text-ink-secondary">
+              Sueño prom.: {summary7d.avgSleepMinPerDay} min/d · Pañales:{' '}
+              {summary7d.avgWetDiapersPerDay + summary7d.avgDirtyDiapersPerDay}/d
+            </p>
+          </div>
+          <div className="rounded-xl border border-border-subtle bg-bg-elevated p-3 text-center space-y-1">
+            <p className="text-[11px] font-bold uppercase text-ink-secondary">
+              Eventos recientes
+            </p>
+            <p className="text-xs font-semibold text-ink-primary">
+              {recentEvents.length}{' '}
+              {recentEvents.length === 1
+                ? 'evento registrado'
+                : 'eventos registrados'}
+            </p>
+            <p className="text-xs text-ink-secondary">
+              {latestEvent && latestEventLabel
+                ? `Último: ${latestEventLabel} (${latestEvent.timestampIso.slice(0, 16).replace('T', ' ')})`
+                : 'Sin reflujo, vómito ni cólicos recientes'}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border-subtle bg-bg-elevated p-3 text-center space-y-1">
+            <p className="text-[11px] font-bold uppercase text-ink-secondary">
+              Crecimiento y fiebre
+            </p>
+            <p className="text-xs font-semibold text-ink-primary">
+              {latestGrowth
+                ? `${latestGrowth.weightKg !== undefined ? `${latestGrowth.weightKg} kg` : '—'} · ${latestGrowth.heightCm !== undefined ? `${latestGrowth.heightCm} cm` : '—'}${latestGrowth.headCircumferenceCm !== undefined ? ` · Cabeza ${latestGrowth.headCircumferenceCm} cm` : ''}`
+                : 'Sin mediciones'}
+            </p>
+            <p className="text-xs text-ink-secondary">
+              Última temp.:{' '}
+              {latestTemp ? `${latestTemp.tempC.toFixed(1)} °C` : 'Sin registro'}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border-subtle bg-bg-elevated p-3 text-center space-y-1">
+            <p className="text-[11px] font-bold uppercase text-ink-secondary">
+              Vacunas, meds e hitos
+            </p>
+            <p className="text-xs font-semibold text-ink-primary">
+              Vacunas MX: {healthState.completedVaccineIds.length} /{' '}
+              {MX_VACCINE_CHECKLIST.length} · Hitos: {doneMilestonesCount} /{' '}
+              {stageMilestones.length}
+            </p>
+            <p className="text-xs text-ink-secondary">
+              Medicamentos: {healthState.medications.length} registros
+            </p>
+          </div>
+        </div>
+
+        <details className="rounded-xl border border-border-subtle bg-bg-elevated p-3">
+          <summary className="cursor-pointer text-xs font-bold text-brand-text">
+            Ver vista previa completa del reporte
+          </summary>
           <pre
             data-print-report="true"
-            className="overflow-x-auto whitespace-pre-wrap rounded-2xl border border-border-interactive bg-bg-elevated p-4 text-xs text-ink-primary"
+            className="mt-3 overflow-x-auto whitespace-pre-wrap text-xs text-ink-primary"
           >
             {reportText}
           </pre>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => void handleCopyReport()}
-              className="inline-flex min-h-12 items-center rounded-xl bg-brand-primary px-4 py-2 text-xs font-bold text-brand-on"
-            >
-              {copied ? '✓ Reporte copiado' : 'Copiar reporte para pediatra'}
-            </button>
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="inline-flex min-h-12 items-center rounded-xl border border-border-interactive bg-bg-elevated px-4 py-2 text-xs font-bold text-ink-primary hover:bg-brand-surface"
-            >
-              Imprimir / Guardar PDF
-            </button>
-          </div>
+        </details>
+
+        <div className="flex flex-wrap justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => void handleCopyReport()}
+            className="inline-flex min-h-12 items-center rounded-xl bg-brand-primary px-4 py-2 text-xs font-bold text-brand-on"
+          >
+            {copied ? '✓ Reporte copiado' : 'Copiar reporte para pediatra'}
+          </button>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="inline-flex min-h-12 items-center rounded-xl border border-border-interactive bg-bg-elevated px-4 py-2 text-xs font-bold text-ink-primary hover:bg-brand-surface"
+          >
+            Imprimir / Guardar PDF
+          </button>
         </div>
-      ) : null}
-    </section>
+      </section>
+    </div>
   );
 }

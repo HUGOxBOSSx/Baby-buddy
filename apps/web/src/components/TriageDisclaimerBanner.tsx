@@ -1,6 +1,5 @@
 import { DISCLAIMERS_MX } from '@baby-buddy/core';
 import { PhoneCallIcon } from '@/components/Icons';
-import { StatusBadge } from '@/components/StatusBadge';
 
 export function TriageDisclaimerBanner() {
   const disclaimer = DISCLAIMERS_MX.triage_banner;
@@ -12,13 +11,6 @@ export function TriageDisclaimerBanner() {
         aria-labelledby="emergencia-911-titulo"
         className="rounded-2xl border-2 border-alert-red bg-alert-surface p-4 space-y-2.5"
       >
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <StatusBadge severity="urgent_red" />
-          <span className="text-xs font-semibold text-alert-text">
-            Gratis siempre
-          </span>
-        </div>
-
         <h2
           id="emergencia-911-titulo"
           className="text-base font-bold text-ink-primary"

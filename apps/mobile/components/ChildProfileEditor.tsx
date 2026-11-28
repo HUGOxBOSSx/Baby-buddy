@@ -195,7 +195,7 @@ export function ChildProfileEditor() {
         <Text className="text-xs font-bold" style={{ color: palette.textPrimary }}>
           Sexo
         </Text>
-        <View className="flex-row flex-wrap gap-2">
+        <View className="flex-row flex-wrap justify-center gap-2">
           {SEX_OPTIONS.map((opt) => {
             const selected = sex === opt;
             return (

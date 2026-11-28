@@ -111,7 +111,7 @@ export function RopaClimaView() {
 
   const [tempC, setTempC] = useState<number>(21);
   const [outdoorTempC, setOutdoorTempC] = useState<number | undefined>(undefined);
-  const [weatherNote, setWeatherNote] = useState<string>('');
+  const [weatherCity, setWeatherCity] = useState<string>('');
   const [detectingWeather, setDetectingWeather] = useState(false);
   const autoDetectedRef = useRef(false);
   const [environment, setEnvironment] =
@@ -205,10 +205,9 @@ export function RopaClimaView() {
   const handleDetectWeather = async () => {
     if (detectingWeather) return;
     setDetectingWeather(true);
-    setWeatherNote('Consultando clima exterior...');
 
     try {
-      let coords: { lat: number; lon: number; label: string } | null = null;
+      let coords: { lat: number; lon: number; city: string } | null = null;
 
       if (
         typeof window !== 'undefined' &&
@@ -219,14 +218,14 @@ export function RopaClimaView() {
         coords = await new Promise<{
           lat: number;
           lon: number;
-          label: string;
+          city: string;
         } | null>((resolve) => {
           navigator.geolocation.getCurrentPosition(
             (pos) =>
               resolve({
                 lat: pos.coords.latitude,
                 lon: pos.coords.longitude,
-                label: 'GPS',
+                city: '',
               }),
             () => resolve(null),
             { timeout: 6000, maximumAge: 300_000 },
@@ -240,15 +239,12 @@ export function RopaClimaView() {
           coords = {
             lat: ipLoc.lat,
             lon: ipLoc.lon,
-            label: ipLoc.city ? `red (${ipLoc.city})` : 'red',
+            city: ipLoc.city ?? '',
           };
         }
       }
 
       if (!coords) {
-        setWeatherNote(
-          'No se pudo detectar ubicación (sin conexión o tiempo agotado); ajusta °C afuera manualmente.',
-        );
         return;
       }
 
@@ -290,6 +286,7 @@ export function RopaClimaView() {
                 ? 'soleado'
                 : 'despejado_noche';
         setOutdoorTempC(clamped);
+        setWeatherCity(coords.city);
         setContext((prev) => ({
           ...prev,
           weatherCondition: cond,
@@ -298,18 +295,9 @@ export function RopaClimaView() {
         if (environment === 'exterior') {
           setTempC(clamped);
         }
-        setWeatherNote(
-          `Clima exterior por ${coords.label}: ${clamped} °C (Open-Meteo).`,
-        );
-      } else {
-        setWeatherNote(
-          'No se pudo leer la temperatura exterior; usa el control manual.',
-        );
       }
     } catch {
-      setWeatherNote(
-        'No se pudo detectar el clima (sin conexión o tiempo agotado); ajusta °C manualmente.',
-      );
+      // Keep manual weather state when offline.
     } finally {
       setDetectingWeather(false);
     }
@@ -322,18 +310,37 @@ export function RopaClimaView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const weatherSummaryText = detectingWeather
+    ? 'Buscando clima...'
+    : outdoorTempC !== undefined
+      ? `${weatherCity || 'Exterior'} · ${outdoorTempC} °C · ${
+          WEATHER_CONDITIONS.find((w) => w.id === context.weatherCondition)?.label ?? ''
+        }${context.isWindy ? ' · Viento' : ''}`
+      : 'Clima exterior · Manual';
+
   return (
     <div className="mx-auto max-w-3xl space-y-4">
-      <header className="space-y-1">
-        <h1 className="text-xl font-bold text-ink-primary sm:text-2xl">
-          Ropa y Clima
-        </h1>
-        <p className="text-xs text-ink-secondary">
-          Etapa:{' '}
-          <strong className="text-ink-primary">
-            {STAGE_SPECS[effectiveStage].label}
-          </strong>
-        </p>
+      <header className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0 space-y-0.5">
+          <h1 className="text-xl font-bold text-ink-primary sm:text-2xl">
+            Ropa y Clima
+          </h1>
+          <p className="text-xs text-ink-secondary">
+            Etapa:{' '}
+            <strong className="text-ink-primary">
+              {STAGE_SPECS[effectiveStage].label}
+            </strong>
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleDetectWeather}
+          aria-label="Actualizar clima exterior"
+          className="inline-flex min-h-12 max-w-full items-center gap-1.5 rounded-2xl border border-border-subtle bg-bg-elevated px-3 py-1.5 text-xs font-semibold text-ink-primary hover:bg-brand-surface tabular-nums"
+        >
+          <span className="truncate">{weatherSummaryText}</span>
+          <span className="shrink-0 font-bold text-brand-text">↻</span>
+        </button>
       </header>
 
       {childProfile ? null : (
@@ -343,32 +350,6 @@ export function RopaClimaView() {
           label="Etapa para calcular vestimenta"
         />
       )}
-
-      {/* Franja compacta de clima exterior en 1 línea */}
-      <div className="flex items-center justify-between gap-2 rounded-2xl border border-border-subtle bg-bg-elevated px-3.5 py-2 text-xs">
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold text-ink-secondary tabular-nums">
-            Exterior:{' '}
-            <strong className="text-ink-primary">
-              {outdoorTempC !== undefined
-                ? `${outdoorTempC} °C · ${
-                    WEATHER_CONDITIONS.find((w) => w.id === context.weatherCondition)?.label
-                  }${context.isWindy ? ' · Viento' : ''}`
-                : 'Manual'}
-            </strong>
-          </p>
-          {weatherNote ? (
-            <p className="truncate text-[11px] text-ink-secondary">{weatherNote}</p>
-          ) : null}
-        </div>
-        <button
-          type="button"
-          onClick={handleDetectWeather}
-          className="inline-flex min-h-12 shrink-0 items-center rounded-xl border border-brand-primary bg-brand-surface px-3.5 py-1.5 text-xs font-bold text-brand-text"
-        >
-          {detectingWeather ? 'Buscando...' : 'Actualizar'}
-        </button>
-      </div>
 
       {/* 1. Temperatura y Entorno */}
       <section
@@ -447,7 +428,7 @@ export function RopaClimaView() {
             className="w-full accent-brand-primary"
           />
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap justify-center gap-2">
             {TEMP_PRESETS.map((preset) => (
               <button
                 key={preset}
@@ -524,9 +505,6 @@ export function RopaClimaView() {
                 </button>
               </div>
             ) : null}
-            {weatherNote ? (
-              <p className="text-xs text-ink-secondary">{weatherNote}</p>
-            ) : null}
           </div>
         ) : null}
       </section>
@@ -560,7 +538,7 @@ export function RopaClimaView() {
                 : 'Despliega para personalizar estado del bebé, contexto o prendas.'}
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap justify-center gap-2">
             {customLayers !== null ? (
               <button
                 type="button"
@@ -595,7 +573,7 @@ export function RopaClimaView() {
               <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
                 Estado del bebé (elige una opción)
               </p>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap justify-center gap-2">
                 {HEALTH_OPTIONS.map((opt) => {
                   const selected = context.babyHealthStatus === opt.id;
                   return (
@@ -630,7 +608,7 @@ export function RopaClimaView() {
                   <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
                     Dónde está el bebé
                   </p>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap justify-center gap-2">
                     {INDOOR_LOCATIONS.map((loc) => {
                       const selected = context.indoorLocation === loc.id;
                       return (
@@ -661,7 +639,7 @@ export function RopaClimaView() {
                   <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
                     Extras de interior
                   </p>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap justify-center gap-2">
                     {INDOOR_EXTRAS.map((chip) => {
                       const active = context[chip.key];
                       return (
@@ -689,7 +667,7 @@ export function RopaClimaView() {
                   <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
                     Cómo van en el paseo
                   </p>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap justify-center gap-2">
                     {OUTDOOR_TRANSPORTS.map((tr) => {
                       const selected = context.outdoorTransport === tr.id;
                       return (
@@ -720,7 +698,7 @@ export function RopaClimaView() {
                   <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
                     Condiciones del exterior
                   </p>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap justify-center gap-2">
                     {WEATHER_CONDITIONS.map((w) => {
                       const selected = context.weatherCondition === w.id;
                       return (

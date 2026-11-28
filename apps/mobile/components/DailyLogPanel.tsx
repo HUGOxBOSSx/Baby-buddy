@@ -1,23 +1,29 @@
 import {
+  BABY_EVENT_OPTIONS_MX,
   BOTTLE_PRESET_ML,
   MIN_TOUCH_TARGET_PX,
   POOP_COLOR_TAG_OPTIONS,
   computeLocalRemindersMx,
   computeTimerElapsedSec,
   filterEntriesByDateRange,
+  formatRetroOffsetLabelMx,
   formatTimerClock,
   getWakeWindowGuidanceMx,
   resolveDateRangePreset,
   suggestNextNapWindowMx,
   summarizeDailyLog,
   toLocalDateKey,
+  type BabyEventKind,
   type DateRangePreset,
   type DiaperKind,
   type PoopColorTag,
 } from '@baby-buddy/core';
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useThemeContext } from './ThemeProvider';
+
+const OZ_PRESETS = [1, 2, 3, 4, 5, 6] as const;
 
 const RANGE_PRESETS: readonly {
   readonly id: DateRangePreset;
@@ -44,18 +50,23 @@ function formatEntryTime(iso: string): string {
 }
 
 export function DailyLogPanel() {
+  const router = useRouter();
   const {
     palette,
     childProfile,
     dailyLogs,
     healthState,
     activeFeedTimer,
+    activeSleepStartMs,
     addDailyLogEntry,
     deleteDailyLogEntry,
     startFeedTimer,
     togglePauseFeedTimer,
     saveActiveFeedTimer,
     cancelActiveFeedTimer,
+    startSleepTimer,
+    saveActiveSleepTimer,
+    cancelSleepTimer,
   } = useThemeContext();
 
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
@@ -63,6 +74,7 @@ export function DailyLogPanel() {
   const [bottleMlInput, setBottleMlInput] = useState('90');
   const [showPumpingPicker, setShowPumpingPicker] = useState(false);
   const [pumpingMlInput, setPumpingMlInput] = useState('90');
+  const [volumeUnit, setVolumeUnit] = useState<'ml' | 'oz'>('ml');
   const [showSolidsPicker, setShowSolidsPicker] = useState(false);
   const [solidsFoodInput, setSolidsFoodInput] = useState('');
   const [solidsIsNew, setSolidsIsNew] = useState(false);
@@ -71,10 +83,9 @@ export function DailyLogPanel() {
   );
   const [selectedPoopColor, setSelectedPoopColor] =
     useState<PoopColorTag>('mostaza');
-  const [retroOffsetMin, setRetroOffsetMin] = useState<0 | 15 | 30 | 60>(0);
-  const [noteInput, setNoteInput] = useState('');
-  const [showNoteInput, setShowNoteInput] = useState(false);
-  const [sleepStartMs, setSleepStartMs] = useState<number | null>(null);
+  const [retroOffsetMin, setRetroOffsetMin] = useState<number>(0);
+  const [customRetroOpen, setCustomRetroOpen] = useState(false);
+  const [sliderWidth, setSliderWidth] = useState(240);
 
   const [rangePreset, setRangePreset] = useState<DateRangePreset>('today');
   const [customStart, setCustomStart] = useState<string>(() =>
@@ -83,19 +94,25 @@ export function DailyLogPanel() {
   const [customEnd, setCustomEnd] = useState<string>(() =>
     toLocalDateKey(new Date()),
   );
-  const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
+  const [saveFeedback, setSaveFeedback] = useState<{
+    readonly section: 'feed' | 'diaper' | 'sleep' | 'event';
+    readonly message: string;
+  } | null>(null);
   const [remindersDismissed, setRemindersDismissed] = useState(false);
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const flashFeedback = useCallback((msg: string) => {
-    setSaveFeedback(msg);
-    if (feedbackTimerRef.current !== null) {
-      clearTimeout(feedbackTimerRef.current);
-    }
-    feedbackTimerRef.current = setTimeout(() => {
-      setSaveFeedback(null);
-    }, 3500);
-  }, []);
+  const flashFeedback = useCallback(
+    (section: 'feed' | 'diaper' | 'sleep' | 'event', message: string) => {
+      setSaveFeedback({ section, message });
+      if (feedbackTimerRef.current !== null) {
+        clearTimeout(feedbackTimerRef.current);
+      }
+      feedbackTimerRef.current = setTimeout(() => {
+        setSaveFeedback(null);
+      }, 3500);
+    },
+    [],
+  );
 
   useEffect(() => {
     return () => {
@@ -106,14 +123,14 @@ export function DailyLogPanel() {
   }, []);
 
   useEffect(() => {
-    if ((!activeFeedTimer || activeFeedTimer.paused) && sleepStartMs === null) {
+    if ((!activeFeedTimer || activeFeedTimer.paused) && activeSleepStartMs === null) {
       return;
     }
     const id = setInterval(() => {
       setNowMs(Date.now());
     }, 1000);
     return () => clearInterval(id);
-  }, [activeFeedTimer, sleepStartMs]);
+  }, [activeFeedTimer, activeSleepStartMs]);
 
   const activeRange =
     rangePreset === 'custom'
@@ -137,8 +154,9 @@ export function DailyLogPanel() {
   const getEntryTimestampIso = (now: number) =>
     new Date(now - retroOffsetMin * 60_000).toISOString();
 
-  const handleSaveBottle = (mlValue: number) => {
-    const safeMl = Math.max(5, Math.min(500, Math.round(mlValue)));
+  const handleSaveBottle = (rawValue: number) => {
+    const mlVal = volumeUnit === 'oz' ? Math.round(rawValue * 29.5735) : rawValue;
+    const safeMl = Math.max(5, Math.min(500, Math.round(mlVal)));
     const now = Date.now();
     addDailyLogEntry({
       id: `feed-${now}`,
@@ -146,15 +164,14 @@ export function DailyLogPanel() {
       timestampIso: getEntryTimestampIso(now),
       feedType: 'bottle',
       volumeMl: safeMl,
-      noteMx: noteInput.trim() || undefined,
     });
     setShowBottlePicker(false);
-    setNoteInput('');
-    flashFeedback(`✓ Biberón (${safeMl} ml) guardado`);
+    flashFeedback('feed', `✓ Biberón (${safeMl} ml) guardado`);
   };
 
-  const handleSavePumping = (mlValue: number) => {
-    const safeMl = Math.max(5, Math.min(500, Math.round(mlValue)));
+  const handleSavePumping = (rawValue: number) => {
+    const mlVal = volumeUnit === 'oz' ? Math.round(rawValue * 29.5735) : rawValue;
+    const safeMl = Math.max(5, Math.min(500, Math.round(mlVal)));
     const now = Date.now();
     addDailyLogEntry({
       id: `pump-${now}`,
@@ -162,11 +179,9 @@ export function DailyLogPanel() {
       timestampIso: getEntryTimestampIso(now),
       feedType: 'pumping',
       volumeMl: safeMl,
-      noteMx: noteInput.trim() || undefined,
     });
     setShowPumpingPicker(false);
-    setNoteInput('');
-    flashFeedback(`✓ Extracción (${safeMl} ml) guardada`);
+    flashFeedback('feed', `✓ Extracción (${safeMl} ml) guardada`);
   };
 
   const handleSaveSolids = () => {
@@ -180,13 +195,11 @@ export function DailyLogPanel() {
       feedType: 'solids',
       foodMx: food,
       isNewFood: solidsIsNew,
-      noteMx: noteInput.trim() || undefined,
     });
     setSolidsFoodInput('');
     setSolidsIsNew(false);
     setShowSolidsPicker(false);
-    setNoteInput('');
-    flashFeedback(`✓ Sólidos (${food}) guardados`);
+    flashFeedback('feed', `✓ Sólidos (${food}) guardados`);
   };
 
   const handleQuickWetDiaper = () => {
@@ -196,11 +209,9 @@ export function DailyLogPanel() {
       kind: 'diaper',
       timestampIso: getEntryTimestampIso(now),
       diaperKind: 'wet',
-      noteMx: noteInput.trim() || undefined,
     });
     setPendingDiaperKind(null);
-    setNoteInput('');
-    flashFeedback('✓ Pipí guardado');
+    flashFeedback('diaper', '✓ Pipí guardado');
   };
 
   const handleSaveDirtyDiaper = () => {
@@ -212,15 +223,14 @@ export function DailyLogPanel() {
       timestampIso: getEntryTimestampIso(now),
       diaperKind: pendingDiaperKind,
       poopColor: selectedPoopColor,
-      noteMx: noteInput.trim() || undefined,
     });
     flashFeedback(
+      'diaper',
       pendingDiaperKind === 'both'
         ? '✓ Pipí + Popó guardados'
         : '✓ Popó guardada',
     );
     setPendingDiaperKind(null);
-    setNoteInput('');
   };
 
   const handleSaveSleep = (durationSec: number) => {
@@ -231,11 +241,19 @@ export function DailyLogPanel() {
       kind: 'sleep',
       timestampIso: getEntryTimestampIso(now),
       durationSec: safeSec,
-      noteMx: noteInput.trim() || undefined,
     });
-    setSleepStartMs(null);
-    setNoteInput('');
-    flashFeedback(`✓ Siesta (${Math.round(safeSec / 60)} min) guardada`);
+    flashFeedback('sleep', `✓ Siesta (${Math.round(safeSec / 60)} min) guardada`);
+  };
+
+  const handleQuickEvent = (eventType: BabyEventKind, labelMx: string) => {
+    const now = Date.now();
+    addDailyLogEntry({
+      id: `event-${now}`,
+      kind: 'event',
+      timestampIso: getEntryTimestampIso(now),
+      eventType,
+    });
+    flashFeedback('event', `✓ ${labelMx} registrado`);
   };
 
   const ageMonths = childProfile ? childProfile.ageMonths : 2;
@@ -252,56 +270,58 @@ export function DailyLogPanel() {
     now: new Date(nowMs),
   });
   const sleepElapsedSec =
-    sleepStartMs !== null ? Math.max(0, Math.floor((nowMs - sleepStartMs) / 1000)) : 0;
+    activeSleepStartMs !== null
+      ? Math.max(0, Math.floor((nowMs - activeSleepStartMs) / 1000))
+      : 0;
 
   return (
     <View className="gap-4">
       {/* Franja visual "Hace cuánto..." */}
-      <View className="flex-row flex-wrap gap-2">
+      <View className="flex-row gap-2">
         <View
-          className="flex-1 min-w-[100px] rounded-2xl border p-3 gap-0.5"
+          className="flex-1 rounded-2xl border p-2.5 gap-0.5"
           style={{ backgroundColor: palette.bgCard, borderColor: palette.borderInteractive }}
         >
-          <Text className="text-[10px] font-bold uppercase" style={{ color: palette.textSecondary }}>
+          <Text className="text-[10px] font-bold uppercase text-center" style={{ color: palette.textSecondary }}>
             Última toma
           </Text>
-          <Text className="text-sm font-extrabold" style={{ color: palette.brandText }}>
+          <Text className="text-sm font-extrabold text-center" style={{ color: palette.brandText }}>
             {summary.hoursSinceLastFeed !== null
               ? `Hace ${summary.hoursSinceLastFeed} h`
               : 'Sin registro'}
           </Text>
         </View>
         <View
-          className="flex-1 min-w-[100px] rounded-2xl border p-3 gap-0.5"
+          className="flex-1 rounded-2xl border p-2.5 gap-0.5"
           style={{ backgroundColor: palette.bgCard, borderColor: palette.borderInteractive }}
         >
-          <Text className="text-[10px] font-bold uppercase" style={{ color: palette.textSecondary }}>
+          <Text className="text-[10px] font-bold uppercase text-center" style={{ color: palette.textSecondary }}>
             Último pañal
           </Text>
-          <Text className="text-sm font-extrabold" style={{ color: palette.textPrimary }}>
+          <Text className="text-sm font-extrabold text-center" style={{ color: palette.textPrimary }}>
             {summary.hoursSinceLastDiaper !== null
               ? `Hace ${summary.hoursSinceLastDiaper} h`
               : 'Sin registro'}
           </Text>
         </View>
         <View
-          className="flex-1 min-w-[100px] rounded-2xl border p-3 gap-0.5"
+          className="flex-1 rounded-2xl border p-2.5 gap-0.5"
           style={{ backgroundColor: palette.bgCard, borderColor: palette.borderInteractive }}
         >
-          <Text className="text-[10px] font-bold uppercase" style={{ color: palette.textSecondary }}>
+          <Text className="text-[10px] font-bold uppercase text-center" style={{ color: palette.textSecondary }}>
             Última siesta
           </Text>
-          <Text className="text-sm font-extrabold" style={{ color: palette.textPrimary }}>
+          <Text className="text-sm font-extrabold text-center" style={{ color: palette.textPrimary }}>
             {summary.hoursSinceLastSleep !== null
               ? `Hace ${summary.hoursSinceLastSleep} h`
               : 'Sin registro'}
           </Text>
         </View>
       </View>
-      <Text className="text-xs px-1" style={{ color: palette.textSecondary }}>
+      <Text className="text-xs px-1 text-center" style={{ color: palette.textSecondary }}>
         {wakeGuidance}
       </Text>
-      <Text className="text-xs font-semibold px-1" style={{ color: palette.brandText }}>
+      <Text className="text-xs font-semibold px-1 text-center" style={{ color: palette.brandText }}>
         {napSuggestion}
       </Text>
 
@@ -325,20 +345,43 @@ export function DailyLogPanel() {
             </Pressable>
           </View>
           {reminders.slice(0, 2).map((rem) => (
-            <Text key={rem.id} className="text-xs" style={{ color: palette.textSecondary }}>
-              <Text
-                className="font-bold"
-                style={{
-                  color:
-                    rem.urgency === 'due'
-                      ? palette.accentWarmText
-                      : palette.brandText,
-                }}
-              >
-                {rem.titleMx}:{' '}
+            <View key={rem.id} className="flex-row items-center justify-between gap-2">
+              <Text className="text-xs flex-1" style={{ color: palette.textSecondary }}>
+                <Text
+                  className="font-bold"
+                  style={{
+                    color:
+                      rem.urgency === 'due'
+                        ? palette.accentWarmText
+                        : palette.brandText,
+                  }}
+                >
+                  {rem.titleMx}:{' '}
+                </Text>
+                {rem.detailMx}
               </Text>
-              {rem.detailMx}
-            </Text>
+              {rem.kind === 'vaccine' ? (
+                <Pressable
+                  onPress={() =>
+                    router.push({
+                      pathname: '/(tabs)/salud',
+                      params: { tab: 'vacunas' },
+                    })
+                  }
+                  hitSlop={6}
+                  className="rounded-lg border px-2.5 py-1 justify-center"
+                  style={{
+                    minHeight: 32,
+                    backgroundColor: palette.brandSurface,
+                    borderColor: palette.brandPrimary,
+                  }}
+                >
+                  <Text className="text-[11px] font-bold" style={{ color: palette.brandText }}>
+                    Ir a vacunas →
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
           ))}
         </View>
       ) : null}
@@ -355,19 +398,127 @@ export function DailyLogPanel() {
           Registro rápido
         </Text>
 
-        {saveFeedback ? (
-          <View
-            className="rounded-xl border px-3 py-2"
-            style={{
-              backgroundColor: palette.brandSurface,
-              borderColor: palette.brandPrimary,
-            }}
-          >
-            <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
-              {saveFeedback}
+        <View className="gap-2.5 pb-2 border-b" style={{ borderBottomColor: palette.borderInteractive }}>
+          <View className="flex-row flex-wrap items-center justify-center gap-1.5">
+            <Text className="text-xs font-bold" style={{ color: palette.textSecondary }}>
+              Hora:
             </Text>
+            {([
+              { min: 0, label: 'Ahora' },
+              { min: 5, label: '−5m' },
+              { min: 10, label: '−10m' },
+              { min: 20, label: '−20m' },
+              { min: 30, label: '−30m' },
+            ] as const).map((opt) => {
+              const active = !customRetroOpen && retroOffsetMin === opt.min;
+              return (
+                <Pressable
+                  key={opt.min}
+                  onPress={() => {
+                    setRetroOffsetMin(opt.min);
+                    setCustomRetroOpen(false);
+                  }}
+                  className="rounded-full border px-2.5 py-1"
+                  style={{
+                    backgroundColor: active ? palette.brandPrimary : palette.bgElevated,
+                    borderColor: active ? palette.brandPrimary : palette.borderInteractive,
+                  }}
+                >
+                  <Text
+                    className="text-xs font-bold"
+                    style={{ color: active ? palette.onBrandPrimary : palette.textPrimary }}
+                  >
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+            <Pressable
+              onPress={() => setCustomRetroOpen((v) => !v)}
+              className="rounded-full border px-2.5 py-1"
+              style={{
+                backgroundColor: customRetroOpen ? palette.brandPrimary : palette.bgElevated,
+                borderColor: customRetroOpen ? palette.brandPrimary : palette.borderInteractive,
+              }}
+            >
+              <Text
+                className="text-xs font-bold"
+                style={{
+                  color: customRetroOpen ? palette.onBrandPrimary : palette.brandText,
+                }}
+              >
+                {customRetroOpen && retroOffsetMin > 0
+                  ? formatRetroOffsetLabelMx(retroOffsetMin)
+                  : 'Personalizado'}
+              </Text>
+            </Pressable>
           </View>
-        ) : null}
+          {customRetroOpen ? (
+            <View
+              className="rounded-xl border p-3 gap-2"
+              style={{
+                backgroundColor: palette.bgElevated,
+                borderColor: palette.borderInteractive,
+              }}
+            >
+              <View className="flex-row items-center justify-between">
+                <Text className="text-xs font-semibold" style={{ color: palette.textSecondary }}>
+                  Tiempo atrás (hasta 5 h):
+                </Text>
+                <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
+                  {formatRetroOffsetLabelMx(retroOffsetMin)}
+                </Text>
+              </View>
+              <View
+                onLayout={(e) => setSliderWidth(Math.max(1, e.nativeEvent.layout.width))}
+                onStartShouldSetResponder={() => true}
+                onMoveShouldSetResponder={() => true}
+                onResponderGrant={(e) => {
+                  const pct = Math.max(0, Math.min(1, e.nativeEvent.locationX / sliderWidth));
+                  setRetroOffsetMin(Math.round(pct * 60) * 5);
+                }}
+                onResponderMove={(e) => {
+                  const pct = Math.max(0, Math.min(1, e.nativeEvent.locationX / sliderWidth));
+                  setRetroOffsetMin(Math.round(pct * 60) * 5);
+                }}
+                className="h-9 justify-center"
+              >
+                <View
+                  className="h-2 rounded-full overflow-hidden"
+                  style={{ backgroundColor: palette.bgCard }}
+                >
+                  <View
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${Math.round((retroOffsetMin / 300) * 100)}%`,
+                      backgroundColor: palette.brandPrimary,
+                    }}
+                  />
+                </View>
+              </View>
+              <View className="flex-row justify-between gap-2">
+                <Pressable
+                  onPress={() => setRetroOffsetMin((m) => Math.max(0, m - 15))}
+                  className="rounded-lg border px-3 py-1"
+                  style={{ backgroundColor: palette.bgCard, borderColor: palette.borderInteractive }}
+                >
+                  <Text className="text-xs font-bold" style={{ color: palette.textPrimary }}>
+                    −15m
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setRetroOffsetMin((m) => Math.min(300, m + 15))}
+                  className="rounded-lg border px-3 py-1"
+                  style={{ backgroundColor: palette.bgCard, borderColor: palette.borderInteractive }}
+                >
+                  <Text className="text-xs font-bold" style={{ color: palette.textPrimary }}>
+                    +15m
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
+        </View>
 
         {activeFeedTimer ? (
           <View
@@ -385,7 +536,7 @@ export function DailyLogPanel() {
             <Text className="text-3xl font-extrabold" style={{ color: palette.textPrimary }}>
               {formatTimerClock(timerElapsedSec)}
             </Text>
-            <View className="flex-row flex-wrap gap-2">
+            <View className="flex-row flex-wrap justify-center gap-2">
               <Pressable
                 onPress={togglePauseFeedTimer}
                 className="rounded-xl border px-4 py-2 justify-center"
@@ -400,7 +551,10 @@ export function DailyLogPanel() {
                 </Text>
               </Pressable>
               <Pressable
-                onPress={saveActiveFeedTimer}
+                onPress={() => {
+                  saveActiveFeedTimer();
+                  flashFeedback('feed', '✓ Toma guardada');
+                }}
                 className="rounded-xl px-4 py-2 justify-center"
                 style={{
                   minHeight: MIN_TOUCH_TARGET_PX,
@@ -431,21 +585,35 @@ export function DailyLogPanel() {
         <Text className="text-xs font-bold uppercase" style={{ color: palette.textSecondary }}>
           Tomas
         </Text>
-        <View className="flex-row gap-2">
-          <Pressable
-            onPress={() => startFeedTimer('breast_left')}
-            className="flex-1 rounded-xl border px-2 py-2.5 items-center justify-center"
+        {saveFeedback?.section === 'feed' ? (
+          <View
+            className="rounded-xl border-2 px-4 py-3"
             style={{
-              minHeight: MIN_TOUCH_TARGET_PX,
               backgroundColor: palette.brandSurface,
               borderColor: palette.brandPrimary,
             }}
           >
-            <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
-              Pecho Izq.
+            <Text className="text-sm font-bold text-center" style={{ color: palette.brandText }}>
+              {saveFeedback.message}
+            </Text>
+          </View>
+        ) : null}
+        <View className="flex-row gap-2">
+          <Pressable
+            onPress={() => startFeedTimer('breast_left')}
+            hitSlop={5}
+            className="flex-1 rounded-xl border px-2 py-1.5 items-center justify-center"
+            style={{
+              minHeight: 44,
+              backgroundColor: palette.brandSurface,
+              borderColor: palette.brandPrimary,
+            }}
+          >
+            <Text className="text-sm font-bold text-center" style={{ color: palette.brandText }}>
+              Pecho izquierdo
             </Text>
             {suggestedNextSide === 'breast_left' ? (
-              <Text className="text-[10px] font-bold" style={{ color: palette.brandText }}>
+              <Text className="text-[10px] font-bold text-center" style={{ color: palette.brandText }}>
                 Sugerido
               </Text>
             ) : null}
@@ -453,52 +621,57 @@ export function DailyLogPanel() {
 
           <Pressable
             onPress={() => startFeedTimer('breast_right')}
-            className="flex-1 rounded-xl border px-2 py-2.5 items-center justify-center"
+            hitSlop={5}
+            className="flex-1 rounded-xl border px-2 py-1.5 items-center justify-center"
             style={{
-              minHeight: MIN_TOUCH_TARGET_PX,
+              minHeight: 44,
               backgroundColor: palette.brandSurface,
               borderColor: palette.brandPrimary,
             }}
           >
-            <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
-              Pecho Der.
+            <Text className="text-sm font-bold text-center" style={{ color: palette.brandText }}>
+              Pecho derecho
             </Text>
             {suggestedNextSide === 'breast_right' ? (
-              <Text className="text-[10px] font-bold" style={{ color: palette.brandText }}>
+              <Text className="text-[10px] font-bold text-center" style={{ color: palette.brandText }}>
                 Sugerido
               </Text>
             ) : null}
-          </Pressable>
-
-          <Pressable
-            onPress={() => {
-              setShowBottlePicker((v) => !v);
-              setShowPumpingPicker(false);
-              setShowSolidsPicker(false);
-            }}
-            className="flex-1 rounded-xl border px-2 py-2.5 items-center justify-center"
-            style={{
-              minHeight: MIN_TOUCH_TARGET_PX,
-              backgroundColor: palette.bgElevated,
-              borderColor: palette.borderInteractive,
-            }}
-          >
-            <Text className="text-xs font-bold" style={{ color: palette.textPrimary }}>
-              Biberón
-            </Text>
           </Pressable>
         </View>
 
         <View className="flex-row gap-2">
           <Pressable
             onPress={() => {
+              setShowBottlePicker((v) => !v);
+              setShowPumpingPicker(false);
+              setShowSolidsPicker(false);
+            }}
+            hitSlop={5}
+            className="flex-1 rounded-xl border px-2 py-1.5 items-center justify-center"
+            style={{
+              minHeight: 38,
+              backgroundColor: showBottlePicker ? palette.brandSurface : palette.bgElevated,
+              borderColor: showBottlePicker ? palette.brandPrimary : palette.borderInteractive,
+            }}
+          >
+            <Text
+              className="text-xs font-bold"
+              style={{ color: showBottlePicker ? palette.brandText : palette.textPrimary }}
+            >
+              Biberón
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
               setShowPumpingPicker((v) => !v);
               setShowBottlePicker(false);
               setShowSolidsPicker(false);
             }}
-            className="flex-1 rounded-xl border px-3 py-2 items-center justify-center"
+            hitSlop={5}
+            className="flex-1 rounded-xl border px-3 py-1.5 items-center justify-center"
             style={{
-              minHeight: MIN_TOUCH_TARGET_PX,
+              minHeight: 38,
               backgroundColor: showPumpingPicker ? palette.brandSurface : palette.bgElevated,
               borderColor: showPumpingPicker ? palette.brandPrimary : palette.borderInteractive,
             }}
@@ -507,30 +680,32 @@ export function DailyLogPanel() {
               className="text-xs font-bold"
               style={{ color: showPumpingPicker ? palette.brandText : palette.textPrimary }}
             >
-              Extracción (ml)
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => {
-              setShowSolidsPicker((v) => !v);
-              setShowBottlePicker(false);
-              setShowPumpingPicker(false);
-            }}
-            className="flex-1 rounded-xl border px-3 py-2 items-center justify-center"
-            style={{
-              minHeight: MIN_TOUCH_TARGET_PX,
-              backgroundColor: showSolidsPicker ? palette.brandSurface : palette.bgElevated,
-              borderColor: showSolidsPicker ? palette.brandPrimary : palette.borderInteractive,
-            }}
-          >
-            <Text
-              className="text-xs font-bold"
-              style={{ color: showSolidsPicker ? palette.brandText : palette.textPrimary }}
-            >
-              Sólidos / comida
+              Extracción
             </Text>
           </Pressable>
         </View>
+
+        <Pressable
+          onPress={() => {
+            setShowSolidsPicker((v) => !v);
+            setShowBottlePicker(false);
+            setShowPumpingPicker(false);
+          }}
+          hitSlop={5}
+          className="rounded-xl border px-3 py-1.5 items-center justify-center"
+          style={{
+            minHeight: 38,
+            backgroundColor: showSolidsPicker ? palette.brandSurface : palette.bgElevated,
+            borderColor: showSolidsPicker ? palette.brandPrimary : palette.borderInteractive,
+          }}
+        >
+          <Text
+            className="text-xs font-bold"
+            style={{ color: showSolidsPicker ? palette.brandText : palette.textPrimary }}
+          >
+            Sólidos / comida
+          </Text>
+        </Pressable>
 
         {showPumpingPicker ? (
           <View
@@ -540,32 +715,64 @@ export function DailyLogPanel() {
               borderColor: palette.borderInteractive,
             }}
           >
-            <View className="flex-row flex-wrap gap-2">
-              {BOTTLE_PRESET_ML.map((ml) => (
+            <View className="flex-row items-center justify-between">
+              <Text className="text-xs font-bold" style={{ color: palette.textPrimary }}>
+                Extracción:
+              </Text>
+              <View className="flex-row gap-1">
+                {(['ml', 'oz'] as const).map((unit) => (
+                  <Pressable
+                    key={`pump-u-${unit}`}
+                    onPress={() => {
+                      setVolumeUnit(unit);
+                      setPumpingMlInput(unit === 'ml' ? '90' : '3');
+                    }}
+                    className="rounded-lg border px-2.5 py-1"
+                    style={{
+                      backgroundColor: volumeUnit === unit ? palette.brandPrimary : palette.bgCard,
+                      borderColor:
+                        volumeUnit === unit ? palette.brandPrimary : palette.borderInteractive,
+                    }}
+                  >
+                    <Text
+                      className="text-xs font-bold"
+                      style={{
+                        color: volumeUnit === unit ? palette.onBrandPrimary : palette.textPrimary,
+                      }}
+                    >
+                      {unit}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+            <View className="flex-row flex-wrap justify-center gap-1.5">
+              {(volumeUnit === 'ml' ? BOTTLE_PRESET_ML : OZ_PRESETS).map((val) => (
                 <Pressable
-                  key={`pump-${ml}`}
-                  onPress={() => handleSavePumping(ml)}
-                  className="rounded-xl border px-3 py-2 justify-center"
+                  key={`pump-${volumeUnit}-${val}`}
+                  onPress={() => handleSavePumping(val)}
+                  hitSlop={4}
+                  className="rounded-xl border px-3 py-1.5 justify-center"
                   style={{
-                    minHeight: MIN_TOUCH_TARGET_PX,
+                    minHeight: 36,
                     backgroundColor: palette.brandSurface,
                     borderColor: palette.brandPrimary,
                   }}
                 >
                   <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
-                    {ml} ml
+                    {val} {volumeUnit}
                   </Text>
                 </Pressable>
               ))}
             </View>
-            <View className="flex-row items-center gap-2">
+            <View className="flex-row items-center justify-center gap-2">
               <TextInput
                 value={pumpingMlInput}
                 onChangeText={setPumpingMlInput}
-                keyboardType="numeric"
-                className="rounded-xl border px-3 py-2 w-24 text-sm"
+                keyboardType="decimal-pad"
+                className="rounded-xl border px-3 py-1.5 w-20 text-sm"
                 style={{
-                  minHeight: MIN_TOUCH_TARGET_PX,
+                  minHeight: 40,
                   backgroundColor: palette.bgCard,
                   borderColor: palette.borderInteractive,
                   color: palette.textPrimary,
@@ -573,11 +780,14 @@ export function DailyLogPanel() {
               />
               <Pressable
                 onPress={() =>
-                  handleSavePumping(Number.parseFloat(pumpingMlInput) || 90)
+                  handleSavePumping(
+                    Number.parseFloat(pumpingMlInput) || (volumeUnit === 'ml' ? 90 : 3),
+                  )
                 }
-                className="rounded-xl px-4 py-2 justify-center"
+                hitSlop={4}
+                className="rounded-xl px-3.5 py-1.5 justify-center"
                 style={{
-                  minHeight: MIN_TOUCH_TARGET_PX,
+                  minHeight: 40,
                   backgroundColor: palette.brandPrimary,
                 }}
               >
@@ -610,7 +820,7 @@ export function DailyLogPanel() {
                 color: palette.textPrimary,
               }}
             />
-            <View className="flex-row flex-wrap items-center gap-2">
+            <View className="flex-row flex-wrap items-center justify-center gap-2">
               <Pressable
                 onPress={() => setSolidsIsNew((v) => !v)}
                 className="rounded-xl border px-3 py-2 justify-center"
@@ -651,32 +861,64 @@ export function DailyLogPanel() {
               borderColor: palette.borderInteractive,
             }}
           >
-            <View className="flex-row flex-wrap gap-2">
-              {BOTTLE_PRESET_ML.map((ml) => (
+            <View className="flex-row items-center justify-between">
+              <Text className="text-xs font-bold" style={{ color: palette.textPrimary }}>
+                Biberón:
+              </Text>
+              <View className="flex-row gap-1">
+                {(['ml', 'oz'] as const).map((unit) => (
+                  <Pressable
+                    key={`bot-u-${unit}`}
+                    onPress={() => {
+                      setVolumeUnit(unit);
+                      setBottleMlInput(unit === 'ml' ? '90' : '3');
+                    }}
+                    className="rounded-lg border px-2.5 py-1"
+                    style={{
+                      backgroundColor: volumeUnit === unit ? palette.brandPrimary : palette.bgCard,
+                      borderColor:
+                        volumeUnit === unit ? palette.brandPrimary : palette.borderInteractive,
+                    }}
+                  >
+                    <Text
+                      className="text-xs font-bold"
+                      style={{
+                        color: volumeUnit === unit ? palette.onBrandPrimary : palette.textPrimary,
+                      }}
+                    >
+                      {unit}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+            <View className="flex-row flex-wrap justify-center gap-1.5">
+              {(volumeUnit === 'ml' ? BOTTLE_PRESET_ML : OZ_PRESETS).map((val) => (
                 <Pressable
-                  key={ml}
-                  onPress={() => handleSaveBottle(ml)}
-                  className="rounded-xl border px-3 py-2 justify-center"
+                  key={`bot-${volumeUnit}-${val}`}
+                  onPress={() => handleSaveBottle(val)}
+                  hitSlop={4}
+                  className="rounded-xl border px-3 py-1.5 justify-center"
                   style={{
-                    minHeight: MIN_TOUCH_TARGET_PX,
+                    minHeight: 36,
                     backgroundColor: palette.brandSurface,
                     borderColor: palette.brandPrimary,
                   }}
                 >
                   <Text className="text-xs font-bold" style={{ color: palette.brandText }}>
-                    {ml} ml
+                    {val} {volumeUnit}
                   </Text>
                 </Pressable>
               ))}
             </View>
-            <View className="flex-row items-center gap-2">
+            <View className="flex-row items-center justify-center gap-2">
               <TextInput
                 value={bottleMlInput}
                 onChangeText={setBottleMlInput}
-                keyboardType="numeric"
-                className="rounded-xl border px-3 py-2 w-24 text-sm"
+                keyboardType="decimal-pad"
+                className="rounded-xl border px-3 py-1.5 w-20 text-sm"
                 style={{
-                  minHeight: MIN_TOUCH_TARGET_PX,
+                  minHeight: 40,
                   backgroundColor: palette.bgCard,
                   borderColor: palette.borderInteractive,
                   color: palette.textPrimary,
@@ -684,16 +926,19 @@ export function DailyLogPanel() {
               />
               <Pressable
                 onPress={() =>
-                  handleSaveBottle(Number.parseFloat(bottleMlInput) || 90)
+                  handleSaveBottle(
+                    Number.parseFloat(bottleMlInput) || (volumeUnit === 'ml' ? 90 : 3),
+                  )
                 }
-                className="rounded-xl px-4 py-2 justify-center"
+                hitSlop={4}
+                className="rounded-xl px-3.5 py-1.5 justify-center"
                 style={{
-                  minHeight: MIN_TOUCH_TARGET_PX,
+                  minHeight: 40,
                   backgroundColor: palette.brandPrimary,
                 }}
               >
                 <Text className="text-xs font-bold" style={{ color: palette.onBrandPrimary }}>
-                  Guardar ml
+                  Guardar biberón
                 </Text>
               </Pressable>
             </View>
@@ -701,8 +946,21 @@ export function DailyLogPanel() {
         ) : null}
 
         <Text className="text-xs font-bold uppercase pt-1" style={{ color: palette.textSecondary }}>
-          Pañales y evacuaciones
+          Pañales
         </Text>
+        {saveFeedback?.section === 'diaper' ? (
+          <View
+            className="rounded-xl border-2 px-4 py-3"
+            style={{
+              backgroundColor: palette.brandSurface,
+              borderColor: palette.brandPrimary,
+            }}
+          >
+            <Text className="text-sm font-bold" style={{ color: palette.brandText }}>
+              {saveFeedback.message}
+            </Text>
+          </View>
+        ) : null}
         <View className="flex-row gap-2">
           <Pressable
             onPress={handleQuickWetDiaper}
@@ -771,10 +1029,10 @@ export function DailyLogPanel() {
               borderColor: palette.borderInteractive,
             }}
           >
-            <Text className="text-xs font-bold" style={{ color: palette.textPrimary }}>
+            <Text className="text-xs font-bold text-center" style={{ color: palette.textPrimary }}>
               Color de la popó:
             </Text>
-            <View className="flex-row flex-wrap gap-1.5">
+            <View className="flex-row flex-wrap justify-center gap-1.5">
               {POOP_COLOR_TAG_OPTIONS.map((opt) => {
                 const active = selectedPoopColor === opt.id;
                 return (
@@ -814,7 +1072,7 @@ export function DailyLogPanel() {
             </View>
             <Pressable
               onPress={handleSaveDirtyDiaper}
-              className="rounded-xl px-4 py-2 self-start justify-center"
+              className="rounded-xl px-4 py-2 self-center justify-center"
               style={{
                 minHeight: MIN_TOUCH_TARGET_PX,
                 backgroundColor: palette.brandPrimary,
@@ -830,7 +1088,20 @@ export function DailyLogPanel() {
         <Text className="text-xs font-bold uppercase pt-1" style={{ color: palette.textSecondary }}>
           Sueño y siestas
         </Text>
-        {sleepStartMs !== null ? (
+        {saveFeedback?.section === 'sleep' ? (
+          <View
+            className="rounded-xl border-2 px-4 py-3"
+            style={{
+              backgroundColor: palette.brandSurface,
+              borderColor: palette.brandPrimary,
+            }}
+          >
+            <Text className="text-sm font-bold" style={{ color: palette.brandText }}>
+              {saveFeedback.message}
+            </Text>
+          </View>
+        ) : null}
+        {activeSleepStartMs !== null ? (
           <View
             className="rounded-2xl border-2 p-3 gap-2"
             style={{ backgroundColor: palette.brandSurface, borderColor: palette.brandPrimary }}
@@ -843,7 +1114,11 @@ export function DailyLogPanel() {
             </Text>
             <View className="flex-row gap-2">
               <Pressable
-                onPress={() => handleSaveSleep(sleepElapsedSec)}
+                onPress={() => {
+                  const mins = Math.max(1, Math.round(sleepElapsedSec / 60));
+                  saveActiveSleepTimer();
+                  flashFeedback('sleep', `✓ Siesta (${mins} min) guardada`);
+                }}
                 className="rounded-xl px-4 py-2 justify-center"
                 style={{ minHeight: MIN_TOUCH_TARGET_PX, backgroundColor: palette.brandPrimary }}
               >
@@ -852,7 +1127,7 @@ export function DailyLogPanel() {
                 </Text>
               </Pressable>
               <Pressable
-                onPress={() => setSleepStartMs(null)}
+                onPress={cancelSleepTimer}
                 className="rounded-xl border px-3 py-2 justify-center"
                 style={{
                   minHeight: MIN_TOUCH_TARGET_PX,
@@ -867,9 +1142,9 @@ export function DailyLogPanel() {
             </View>
           </View>
         ) : (
-          <View className="flex-row flex-wrap gap-2">
+          <View className="flex-row flex-wrap justify-center gap-2">
             <Pressable
-              onPress={() => setSleepStartMs(Date.now())}
+              onPress={() => startSleepTimer(retroOffsetMin)}
               className="rounded-xl border-2 px-3 py-2 justify-center"
               style={{
                 minHeight: MIN_TOUCH_TARGET_PX,
@@ -900,60 +1175,40 @@ export function DailyLogPanel() {
           </View>
         )}
 
-        <View className="gap-2 pt-1">
-          <View className="flex-row flex-wrap items-center justify-between gap-2">
-            <View className="flex-row flex-wrap items-center gap-1.5">
-              <Text className="text-xs font-bold" style={{ color: palette.textSecondary }}>
-                Hora:
-              </Text>
-              {([
-                { min: 0, label: 'Ahora' },
-                { min: 15, label: '−15m' },
-                { min: 30, label: '−30m' },
-                { min: 60, label: '−1h' },
-              ] as const).map((opt) => {
-                const active = retroOffsetMin === opt.min;
-                return (
-                  <Pressable
-                    key={opt.min}
-                    onPress={() => setRetroOffsetMin(opt.min)}
-                    className="rounded-full border px-2.5 py-1"
-                    style={{
-                      backgroundColor: active ? palette.brandPrimary : palette.bgElevated,
-                      borderColor: active ? palette.brandPrimary : palette.borderInteractive,
-                    }}
-                  >
-                    <Text
-                      className="text-xs font-bold"
-                      style={{ color: active ? palette.onBrandPrimary : palette.textPrimary }}
-                    >
-                      {opt.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <Pressable onPress={() => setShowNoteInput((v) => !v)}>
-              <Text className="text-xs font-semibold" style={{ color: palette.brandText }}>
-                {showNoteInput || noteInput ? 'Ocultar nota' : '+ Nota'}
-              </Text>
-            </Pressable>
+        <Text className="text-xs font-bold uppercase pt-1" style={{ color: palette.textSecondary }}>
+          Eventos
+        </Text>
+        {saveFeedback?.section === 'event' ? (
+          <View
+            className="rounded-xl border-2 px-4 py-3"
+            style={{
+              backgroundColor: palette.brandSurface,
+              borderColor: palette.brandPrimary,
+            }}
+          >
+            <Text className="text-sm font-bold text-center" style={{ color: palette.brandText }}>
+              {saveFeedback.message}
+            </Text>
           </View>
-          {showNoteInput || noteInput ? (
-            <TextInput
-              value={noteInput}
-              onChangeText={setNoteInput}
-              placeholder="Nota breve (ej. regurgitó, se durmió)"
-              placeholderTextColor={palette.textMuted}
-              className="rounded-xl border px-3 py-2 text-xs"
+        ) : null}
+        <View className="flex-row flex-wrap justify-center gap-2">
+          {BABY_EVENT_OPTIONS_MX.map((ev) => (
+            <Pressable
+              key={ev.id}
+              onPress={() => handleQuickEvent(ev.id, ev.labelMx)}
+              hitSlop={4}
+              className="rounded-xl border px-3 py-1.5 items-center justify-center"
               style={{
-                minHeight: 40,
+                minHeight: 36,
                 backgroundColor: palette.bgElevated,
                 borderColor: palette.borderInteractive,
-                color: palette.textPrimary,
               }}
-            />
-          ) : null}
+            >
+              <Text className="text-xs font-bold text-center" style={{ color: palette.textPrimary }}>
+                {ev.labelMx}
+              </Text>
+            </Pressable>
+          ))}
         </View>
       </View>
 
@@ -1075,13 +1330,13 @@ export function DailyLogPanel() {
               borderColor: palette.borderInteractive,
             }}
           >
-            <Text className="text-xs" style={{ color: palette.textSecondary }}>
+            <Text className="text-xs text-center" style={{ color: palette.textSecondary }}>
               Tomas
             </Text>
-            <Text className="text-xl font-bold" style={{ color: palette.textPrimary }}>
+            <Text className="text-xl font-bold text-center" style={{ color: palette.textPrimary }}>
               {summary.totalFeeds}
             </Text>
-            <Text className="text-xs font-semibold" style={{ color: palette.brandText }}>
+            <Text className="text-xs font-semibold text-center" style={{ color: palette.brandText }}>
               Prom: {summary.avgFeedsPerDay} / día
             </Text>
           </View>
@@ -1093,13 +1348,13 @@ export function DailyLogPanel() {
               borderColor: palette.borderInteractive,
             }}
           >
-            <Text className="text-xs" style={{ color: palette.textSecondary }}>
+            <Text className="text-xs text-center" style={{ color: palette.textSecondary }}>
               Pecho / Biberón
             </Text>
-            <Text className="text-sm font-bold" style={{ color: palette.textPrimary }}>
+            <Text className="text-sm font-bold text-center" style={{ color: palette.textPrimary }}>
               {summary.totalBreastMin} min · {summary.totalBottleMl} ml
             </Text>
-            <Text className="text-xs font-semibold" style={{ color: palette.brandText }}>
+            <Text className="text-xs font-semibold text-center" style={{ color: palette.brandText }}>
               {summary.avgBreastMinPerDay} m/d · {summary.avgBottleMlPerDay} ml/d
             </Text>
           </View>
@@ -1111,13 +1366,13 @@ export function DailyLogPanel() {
               borderColor: palette.borderInteractive,
             }}
           >
-            <Text className="text-xs" style={{ color: palette.textSecondary }}>
+            <Text className="text-xs text-center" style={{ color: palette.textSecondary }}>
               Pipí / Popó
             </Text>
-            <Text className="text-xl font-bold" style={{ color: palette.textPrimary }}>
+            <Text className="text-xl font-bold text-center" style={{ color: palette.textPrimary }}>
               {summary.wetDiapers} / {summary.dirtyDiapers}
             </Text>
-            <Text className="text-xs font-semibold" style={{ color: palette.brandText }}>
+            <Text className="text-xs font-semibold text-center" style={{ color: palette.brandText }}>
               Prom: {summary.avgWetDiapersPerDay} / {summary.avgDirtyDiapersPerDay} d
             </Text>
           </View>
@@ -1129,13 +1384,13 @@ export function DailyLogPanel() {
               borderColor: palette.borderInteractive,
             }}
           >
-            <Text className="text-xs" style={{ color: palette.textSecondary }}>
+            <Text className="text-xs text-center" style={{ color: palette.textSecondary }}>
               Sueño / Siestas
             </Text>
-            <Text className="text-xl font-bold" style={{ color: palette.textPrimary }}>
+            <Text className="text-xl font-bold text-center" style={{ color: palette.textPrimary }}>
               {summary.totalSleeps} ({summary.totalSleepMin} min)
             </Text>
-            <Text className="text-xs font-semibold" style={{ color: palette.brandText }}>
+            <Text className="text-xs font-semibold text-center" style={{ color: palette.brandText }}>
               Prom: {summary.avgSleepMinPerDay} min / día
             </Text>
           </View>
@@ -1148,13 +1403,13 @@ export function DailyLogPanel() {
                 borderColor: palette.borderInteractive,
               }}
             >
-              <Text className="text-xs" style={{ color: palette.textSecondary }}>
+              <Text className="text-xs text-center" style={{ color: palette.textSecondary }}>
                 Extracción / Sólidos
               </Text>
-              <Text className="text-sm font-bold" style={{ color: palette.textPrimary }}>
+              <Text className="text-sm font-bold text-center" style={{ color: palette.textPrimary }}>
                 {summary.totalPumpingMl} ml · {summary.solidsCount} comidas
               </Text>
-              <Text className="text-xs font-semibold" style={{ color: palette.brandText }}>
+              <Text className="text-xs font-semibold text-center" style={{ color: palette.brandText }}>
                 {summary.avgPumpingMlPerDay} ml/d · {summary.avgSolidsPerDay}/d
               </Text>
             </View>
@@ -1187,7 +1442,9 @@ export function DailyLogPanel() {
                           : `Biberón (${entry.volumeMl ?? 0} ml)`
                   : entry.kind === 'sleep'
                     ? `Siesta (${Math.max(1, Math.round(entry.durationSec / 60))} min)`
-                    : entry.diaperKind === 'wet'
+                    : entry.kind === 'event'
+                      ? `Evento: ${BABY_EVENT_OPTIONS_MX.find((o) => o.id === entry.eventType)?.labelMx ?? entry.eventType}`
+                      : entry.diaperKind === 'wet'
                       ? 'Pañal: Pipí'
                       : entry.diaperKind === 'dirty'
                         ? `Pañal: Popó (${entry.poopColor ?? 'normal'})`

@@ -67,13 +67,13 @@ test('T4-01: Scenario A — Mamá a las 3:00 AM (0-3m, fiebre °C / rozadura, 91
   assert.ok(feverGuide, 'Expected urgent_red fever guide scaffold');
   assert.match(`${feverGuide.titleMx} ${feverGuide.summaryMx}`, /°C|911/);
 
-  // Web live route + Mobile Salud source
-  const saludPage = await srv.getPage('/salud');
-  assert.equal(saludPage.status, 200);
-  const webSalud = readTextSafe(path.join(ROOT_DIR, 'apps', 'web', 'src', 'app', 'salud', 'page.tsx'));
-  const mobileSalud = readTextSafe(path.join(ROOT_DIR, 'apps', 'mobile', 'app', '(tabs)', 'salud.tsx'));
-  assert.match(webSalud, /911/);
-  assert.match(mobileSalud, /911/);
+  // Web live route + Mobile ¿Es normal? source
+  const guiasPage = await srv.getPage('/guias');
+  assert.equal(guiasPage.status, 200);
+  const webGuias = readTextSafe(path.join(ROOT_DIR, 'apps', 'web', 'src', 'components', 'GuiasView.tsx'));
+  const mobileGuias = readTextSafe(path.join(ROOT_DIR, 'apps', 'mobile', 'app', '(tabs)', 'guias.tsx'));
+  assert.match(webGuias, /911/);
+  assert.match(mobileGuias, /911/);
 });
 
 test('T4-02: Scenario B — Papá revisando ropa térmica (pañalero, mameluco, °C) y guía clínica en Modo Calma', { skip: SKIP_APP_REASON }, async () => {

@@ -530,13 +530,13 @@ test('T2-F07-04: Zero imperial units appear anywhere in apps/web rendered HTML o
   }
 });
 
-test('T2-F07-05: Critical 3:00 AM -> Salud -> 911 flow requires <=3 taps from Hoy', { skip: SKIP_APP_REASON }, () => {
+test('T2-F07-05: Critical 3:00 AM -> ¿Es normal? -> 911 flow requires <=3 taps from Hoy', { skip: SKIP_APP_REASON }, () => {
   const shellSrc = readTextSafe(path.join(ROOT_DIR, 'apps', 'web', 'src', 'components', 'AppShell.tsx'));
-  const saludSrc = readTextSafe(path.join(ROOT_DIR, 'apps', 'web', 'src', 'app', 'salud', 'page.tsx'));
-  // Tap 1: direct 3:00 AM toggle in top shell; Tap 2: direct /salud nav link (911 visible immediately without extra gate)
+  const guiasSrc = readTextSafe(path.join(ROOT_DIR, 'apps', 'web', 'src', 'components', 'GuiasView.tsx'));
+  // Tap 1: direct 3:00 AM toggle in top shell; Tap 2: direct /guias nav link (911 visible without extra gate)
   assert.match(shellSrc, /Modo 3:00 AM|night_3am/i);
-  assert.match(shellSrc, /href="\/salud"|\/salud/);
-  assert.match(saludSrc, /911/);
+  assert.match(shellSrc, /href="\/guias"|\/guias/);
+  assert.match(guiasSrc, /911/);
 });
 
 // =============================================================================
@@ -558,11 +558,11 @@ test('T2-F08-02: Native <dialog> AccountDeletionDialog supports Cancel/Escape wi
   assert.match(dialogSrc, /\.close\(/);
 });
 
-test('T2-F08-03: Web 911 card on /salud is never gated behind login or paywall', { skip: SKIP_APP_REASON }, () => {
-  const saludSrc = readTextSafe(path.join(ROOT_DIR, 'apps', 'web', 'src', 'app', 'salud', 'page.tsx'));
-  assert.match(saludSrc, /911/);
-  assert.deepEqual(findEthicalViolations(saludSrc), []);
-  assert.doesNotMatch(saludSrc, /iniciar\s+sesi[oó]n\s+para\s+ver\s+911/i);
+test('T2-F08-03: Web 911 card on /guias is never gated behind login or paywall', { skip: SKIP_APP_REASON }, () => {
+  const guiasSrc = readTextSafe(path.join(ROOT_DIR, 'apps', 'web', 'src', 'components', 'GuiasView.tsx'));
+  assert.match(guiasSrc, /911/);
+  assert.deepEqual(findEthicalViolations(guiasSrc), []);
+  assert.doesNotMatch(guiasSrc, /iniciar\s+sesi[oó]n\s+para\s+ver\s+911/i);
 });
 
 test('T2-F08-04: Zero M4 Supabase RLS, M6 live Gemini RAG, or M7 billing/ad SDKs leak into apps/web', { skip: SKIP_APP_REASON }, () => {
@@ -652,11 +652,11 @@ test('T2-F10-02: Mobile AccountDeletionSheet supports Cancel/Dismiss preserving 
   assert.match(sheetSrc, /onRequestClose|setOpen\(false\)|setVisible\(false\)/);
 });
 
-test('T2-F10-03: Mobile 911 card on Salud tab is never paywalled or ad-supported', { skip: SKIP_APP_REASON }, () => {
-  const saludSrc = readTextSafe(path.join(ROOT_DIR, 'apps', 'mobile', 'app', '(tabs)', 'salud.tsx'));
-  assert.match(saludSrc, /911/);
-  assert.match(saludSrc, /StatusBadge/);
-  assert.deepEqual(findEthicalViolations(saludSrc), []);
+test('T2-F10-03: Mobile 911 card on ¿Es normal? tab is never paywalled or ad-supported', { skip: SKIP_APP_REASON }, () => {
+  const guiasSrc = readTextSafe(path.join(ROOT_DIR, 'apps', 'mobile', 'app', '(tabs)', 'guias.tsx'));
+  assert.match(guiasSrc, /911/);
+  assert.match(guiasSrc, /TriageDisclaimerBanner/);
+  assert.deepEqual(findEthicalViolations(guiasSrc), []);
 });
 
 test('T2-F10-04: Zero diagnostic language appears across apps/mobile screens and components', { skip: SKIP_APP_REASON }, () => {

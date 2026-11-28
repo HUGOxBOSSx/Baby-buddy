@@ -203,6 +203,19 @@ export function GrowthChartCard({
             <text x={padL - 4} y={padT + 8} textAnchor="end" fontSize="9" fill="#15803d" fontWeight="700">
               {Math.ceil(wMax)}kg
             </text>
+            {[0.25, 0.5, 0.75].map((frac) => (
+              <text
+                key={`wy-${frac}`}
+                x={padL - 4}
+                y={padT + plotH * frac + 3}
+                textAnchor="end"
+                fontSize="8"
+                fill="#15803d"
+                opacity={0.75}
+              >
+                {Math.round((wMax + 2) * (1 - frac))}
+              </text>
+            ))}
             <text x={padL - 4} y={padT + plotH} textAnchor="end" fontSize="9" fill="#15803d" fontWeight="700">
               0kg
             </text>
@@ -225,7 +238,9 @@ export function GrowthChartCard({
                 fill="#16a34a"
                 stroke="#ffffff"
                 strokeWidth={1.5}
-              />
+              >
+                <title>{`${p.weightKg} kg · ${p.dateLabel} (${p.ageLabelMx})`}</title>
+              </circle>
             ))}
           </>
         ) : null}
@@ -248,6 +263,19 @@ export function GrowthChartCard({
             <text x={padL + plotW + 4} y={padT + 8} textAnchor="start" fontSize="9" fill="#1d4ed8" fontWeight="700">
               {Math.ceil(hMax)}cm
             </text>
+            {[0.25, 0.5, 0.75].map((frac) => (
+              <text
+                key={`hy-${frac}`}
+                x={padL + plotW + 4}
+                y={padT + plotH * frac + 3}
+                textAnchor="start"
+                fontSize="8"
+                fill="#1d4ed8"
+                opacity={0.75}
+              >
+                {Math.round(25 + (hMax + 5 - 25) * (1 - frac))}
+              </text>
+            ))}
             <text x={padL + plotW + 4} y={padT + plotH} textAnchor="start" fontSize="9" fill="#1d4ed8" fontWeight="700">
               25cm
             </text>
@@ -270,16 +298,16 @@ export function GrowthChartCard({
                 fill="#2563eb"
                 stroke="#ffffff"
                 strokeWidth={1.5}
-              />
+              >
+                <title>{`${p.heightCm} cm · ${p.dateLabel} (${p.ageLabelMx})`}</title>
+              </circle>
             ))}
           </>
         ) : null}
       </svg>
 
       <p className="text-[11px] text-ink-secondary">
-        Estándares de Crecimiento Infantil de la OMS (2006) · Bandas sombreadas
-        (P3–P97) en azul (altura en cm) y verde (peso en kg). Referencia visual
-        educativa; tu pediatra evalúa la curva completa.
+        Estándares de Crecimiento Infantil de la OMS (2006)
       </p>
     </div>
   );

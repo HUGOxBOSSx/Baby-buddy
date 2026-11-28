@@ -43,7 +43,27 @@ export interface SleepLogEntry {
   readonly noteMx?: string;
 }
 
-export type DailyLogEntry = FeedLogEntry | DiaperLogEntry | SleepLogEntry;
+export type BabyEventKind =
+  | 'reflux'
+  | 'vomit'
+  | 'colic'
+  | 'crying'
+  | 'hiccups'
+  | 'rash';
+
+export interface EventLogEntry {
+  readonly id: string;
+  readonly kind: 'event';
+  readonly timestampIso: string;
+  readonly eventType: BabyEventKind;
+  readonly noteMx?: string;
+}
+
+export type DailyLogEntry =
+  | FeedLogEntry
+  | DiaperLogEntry
+  | SleepLogEntry
+  | EventLogEntry;
 
 export interface ActiveFeedTimer {
   readonly side: 'breast_left' | 'breast_right';
@@ -101,6 +121,27 @@ export interface DailyLogSummary {
 }
 
 export const BOTTLE_PRESET_ML = [30, 60, 90, 120, 150, 180] as const;
+
+export const BABY_EVENT_OPTIONS_MX: readonly {
+  readonly id: BabyEventKind;
+  readonly labelMx: string;
+}[] = [
+  { id: 'reflux', labelMx: 'Reflujo' },
+  { id: 'vomit', labelMx: 'Vómito' },
+  { id: 'colic', labelMx: 'Cólico / gases' },
+  { id: 'crying', labelMx: 'Llanto intenso' },
+  { id: 'hiccups', labelMx: 'Hipo' },
+  { id: 'rash', labelMx: 'Rozadura' },
+] as const;
+
+export function formatRetroOffsetLabelMx(minutes: number): string {
+  const safeMin = Math.max(0, Math.round(minutes));
+  if (safeMin === 0) return 'Ahora';
+  if (safeMin < 60) return `Hace ${safeMin} min`;
+  const hrs = Math.floor(safeMin / 60);
+  const rem = safeMin % 60;
+  return rem === 0 ? `Hace ${hrs} h` : `Hace ${hrs} h ${rem} min`;
+}
 
 export const POOP_COLOR_TAG_OPTIONS: readonly {
   readonly id: PoopColorTag;
@@ -261,7 +302,7 @@ export function summarizeDailyLog(
     } else if (entry.kind === 'sleep') {
       totalSleeps += 1;
       totalSleepSec += entry.durationSec;
-    } else {
+    } else if (entry.kind === 'diaper') {
       totalDiapers += 1;
       if (entry.diaperKind === 'wet' || entry.diaperKind === 'both') {
         wetDiapers += 1;
@@ -411,7 +452,10 @@ export function parseDailyLogEntries(
       return (
         typeof obj.id === 'string' &&
         typeof obj.timestampIso === 'string' &&
-        (obj.kind === 'feed' || obj.kind === 'diaper' || obj.kind === 'sleep')
+        (obj.kind === 'feed' ||
+          obj.kind === 'diaper' ||
+          obj.kind === 'sleep' ||
+          obj.kind === 'event')
       );
     });
   } catch {

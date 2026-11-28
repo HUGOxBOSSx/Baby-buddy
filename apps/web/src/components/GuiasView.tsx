@@ -9,17 +9,16 @@ import {
 } from '@baby-buddy/core';
 import {
   GUIDE_CATEGORIES_MX,
-  askEditorialAssistantMx,
   getRelatedGuideLinks,
   searchClinicalGuides,
   type ClinicalGuideEntry,
-  type EditorialAssistantReply,
 } from '@baby-buddy/content';
 import { MascotAvatar } from '@/components/MascotAvatar';
 import { PoopColorChart } from '@/components/PoopColorChart';
 import { StageSelector } from '@/components/StageSelector';
 import { useAppState } from '@/components/ThemeProvider';
 import { TriageBadge } from '@/components/TriageBadge';
+import { TriageDisclaimerBanner } from '@/components/TriageDisclaimerBanner';
 
 type ViewTab = 'es_normal' | 'no_es_normal' | 'urgencia' | 'popo';
 type SubFilter = TriageLevel;
@@ -49,15 +48,12 @@ const TRIAGE_GROUP_ORDER: readonly TriageLevel[] = [
 ];
 
 export function GuiasView() {
-  const { childProfile, activeStageId } = useAppState();
+  const { childProfile, childProfiles, selectChildProfile } = useAppState();
   const [query, setQuery] = useState('');
-  const [assistantOpen, setAssistantOpen] = useState(false);
-  const [assistantInput, setAssistantInput] = useState('');
-  const [assistantReply, setAssistantReply] =
-    useState<EditorialAssistantReply | null>(null);
+  const [babyPickerOpen, setBabyPickerOpen] = useState(false);
   const [tab, setTab] = useState<ViewTab>('es_normal');
   const [subFilter, setSubFilter] = useState<SubFilter>('green_home');
-  const [categoryFilter, setCategoryFilter] = useState<string>('Recién nacido');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [stageFilter, setStageFilter] = useState<StageId | 'all'>('all');
   const [includeOtherAges, setIncludeOtherAges] = useState(false);
 
@@ -91,9 +87,10 @@ export function GuiasView() {
     level2Pool.some((g) => g.categoryMx === cat),
   );
 
-  const effectiveCategory: string = availableCategories.includes(categoryFilter)
-    ? categoryFilter
-    : (availableCategories[0] ?? 'all');
+  const effectiveCategory: string =
+    categoryFilter === 'all' || availableCategories.includes(categoryFilter)
+      ? categoryFilter
+      : 'all';
 
   const guides = searchClinicalGuides({
     query,
@@ -109,197 +106,81 @@ export function GuiasView() {
   })).filter((group) => group.items.length > 0);
 
   return (
-    <div className="space-y-6">
-      <header className="flex items-center gap-3">
-        <MascotAvatar variant="es_normal" size="md" />
-        <div className="flex-1 space-y-0.5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-brand-text">
-            Guías por etapa y síntomas
-          </p>
-          <h1 className="text-xl font-bold text-ink-primary sm:text-2xl">
-            ¿Es normal?
-          </h1>
+    <div className="space-y-5">
+      <header className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <MascotAvatar variant="es_normal" size="md" />
+          <div className="min-w-0 flex-1 space-y-0.5">
+            <h1 className="text-xl font-bold text-ink-primary sm:text-2xl">
+              ¿Es normal?
+            </h1>
+            <p className="text-xs text-ink-secondary">
+              Guías por etapa, síntomas y emergencias 911
+            </p>
+          </div>
         </div>
-      </header>
-
-      <div className="space-y-3">
-        <label className="block">
-          <span className="sr-only">Buscar en guías</span>
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar: fiebre, hipo, popó, berrinche..."
-            className="block min-h-12 w-full rounded-2xl border border-border-interactive bg-bg-card px-4 py-3 text-sm text-ink-primary shadow-sm"
-          />
-        </label>
-
-        {/* Asistente editorial acotado al corpus (Hito 6 offline) */}
-        <div className="rounded-2xl border border-border-subtle bg-bg-card p-3.5 space-y-2.5">
+        {childProfiles.length > 1 ? (
           <button
             type="button"
-            onClick={() => setAssistantOpen((v) => !v)}
-            aria-expanded={assistantOpen}
-            className="flex w-full items-center justify-between text-left text-xs font-bold text-brand-text"
+            onClick={() => setBabyPickerOpen((v) => !v)}
+            aria-expanded={babyPickerOpen}
+            className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-border-interactive bg-bg-card px-3 py-1.5 text-xs font-bold text-brand-text hover:bg-brand-surface"
           >
-            <span>Asistente editorial (solo guías verificadas)</span>
-            <span>{assistantOpen ? 'Ocultar' : 'Preguntar'}</span>
+            <span>{childProfile ? childProfile.nicknameMx : 'Bebés'}</span>
+            <span aria-hidden="true">{babyPickerOpen ? '▲' : '▼'}</span>
           </button>
-          {assistantOpen ? (
-            <div className="space-y-3 pt-1">
-              <div className="flex flex-wrap gap-2">
-                <input
-                  type="text"
-                  value={assistantInput}
-                  onChange={(e) => setAssistantInput(e.target.value)}
-                  placeholder="Ej. Mi bebé tiene hipo o fiebre..."
-                  className="min-h-12 flex-1 min-w-[180px] rounded-xl border border-border-interactive bg-bg-elevated px-3 py-2 text-xs text-ink-primary"
-                />
-                <button
-                  type="button"
-                  onClick={() =>
-                    setAssistantReply(
-                      askEditorialAssistantMx({
-                        queryMx: assistantInput,
-                        ageMonths: childProfile?.ageMonths ?? 2,
-                        stageId: childProfile?.stageId ?? activeStageId,
-                      }),
-                    )
-                  }
-                  className="inline-flex min-h-12 items-center rounded-xl bg-brand-primary px-4 py-2 text-xs font-bold text-brand-on"
-                >
-                  Consultar
-                </button>
-              </div>
-              {assistantReply ? (
-                <div className="rounded-xl border border-border-subtle bg-bg-elevated p-3 space-y-2">
-                  <TriageBadge level={assistantReply.triageLevel} />
-                  <p className="text-sm font-bold text-ink-primary">
-                    {assistantReply.headlineMx}
-                  </p>
-                  <p className="text-xs text-ink-secondary">
-                    {assistantReply.answerMx}
-                  </p>
-                  {assistantReply.actionStepsMx.length > 0 ? (
-                    <ul className="list-disc pl-4 text-xs text-ink-primary space-y-0.5">
-                      {assistantReply.actionStepsMx.map((step) => (
-                        <li key={step}>{step}</li>
-                      ))}
-                    </ul>
-                  ) : null}
-                  {assistantReply.isEmergency911 ? (
-                    <a
-                      href="tel:911"
-                      className="inline-flex min-h-12 items-center rounded-xl bg-alert-text px-4 py-2 text-xs font-bold text-alert-on"
-                    >
-                      Llamar al 911 (Gratis)
-                    </a>
-                  ) : null}
-                  {assistantReply.citations.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5 pt-1">
-                      {assistantReply.citations.map((c) => (
-                        <Link
-                          key={c.slug}
-                          href={`/guias/${c.slug}`}
-                          className="inline-flex min-h-9 items-center rounded-full border border-brand-primary bg-brand-surface px-3 py-1 text-[11px] font-bold text-brand-text"
-                        >
-                          {c.titleMx} →
-                        </Link>
-                      ))}
-                    </div>
-                  ) : null}
-                  <p className="text-[11px] text-ink-muted">
-                    {assistantReply.disclaimerMx}
-                  </p>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
+        ) : (
+          <Link
+            href="/configuracion#perfil-bebe"
+            className="inline-flex min-h-10 shrink-0 items-center rounded-full border border-border-interactive bg-bg-card px-3 py-1.5 text-xs font-bold text-brand-text hover:bg-brand-surface"
+          >
+            {childProfile ? 'Cambiar bebé' : 'Configurar bebé'}
+          </Link>
+        )}
+      </header>
+
+      {babyPickerOpen && childProfiles.length > 1 ? (
+        <div className="flex flex-wrap items-center justify-center gap-2 rounded-2xl border border-border-subtle bg-bg-card p-3">
+          {childProfiles.map((p) => {
+            const active = childProfile?.id === p.id;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => {
+                  selectChildProfile(p.id);
+                  setBabyPickerOpen(false);
+                }}
+                aria-pressed={active}
+                className={`min-h-9 rounded-full border px-3 py-1 text-xs font-bold ${
+                  active
+                    ? 'border-brand-primary bg-brand-primary text-brand-on'
+                    : 'border-border-interactive bg-bg-elevated text-ink-primary'
+                }`}
+              >
+                {p.nicknameMx} ({STAGE_SPECS[p.stageId].shortLabel})
+              </button>
+            );
+          })}
+          <Link
+            href="/configuracion#perfil-bebe"
+            className="ml-auto text-xs font-bold text-brand-text underline"
+          >
+            Administrar
+          </Link>
         </div>
+      ) : null}
 
-        <div className="space-y-2.5">
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {TABS.map((t) => {
-              const active = tab === t.id;
-              const isUrgencia = t.id === 'urgencia';
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setTab(t.id)}
-                  aria-pressed={active}
-                  className={`inline-flex min-h-11 shrink-0 items-center rounded-full border px-4 py-2 text-xs font-bold whitespace-nowrap ${
-                    isUrgencia
-                      ? active
-                        ? 'border-alert-red bg-alert-surface text-alert-text ring-2 ring-alert-red'
-                        : 'border-alert-red bg-alert-surface text-alert-text'
-                      : active
-                        ? 'border-brand-primary bg-brand-primary text-brand-on'
-                        : 'border-border-interactive bg-bg-card text-ink-primary'
-                  }`}
-                >
-                  {t.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {tab !== 'popo' && availableSubFilters.length > 1 ? (
-            <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Filtrar por nivel de atención">
-              {availableSubFilters.map((c) => {
-                const active = effectiveSubFilter === c.id;
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => setSubFilter(c.id)}
-                    aria-pressed={active}
-                    className={`inline-flex min-h-10 shrink-0 items-center rounded-full border px-3 py-1.5 text-xs font-semibold whitespace-nowrap ${
-                      active
-                        ? 'border-brand-primary bg-brand-primary text-brand-on'
-                        : 'border-border-interactive bg-bg-card text-ink-primary'
-                    }`}
-                  >
-                    {c.label}
-                  </button>
-                );
-              })}
-            </div>
-          ) : null}
-
-          {tab !== 'popo' && availableCategories.length > 0 ? (
-            <div className="flex gap-1.5 overflow-x-auto pb-1" role="group" aria-label="Filtrar por tema">
-              {availableCategories.map((cat) => {
-                const active = effectiveCategory === cat;
-                return (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => setCategoryFilter(cat)}
-                    aria-pressed={active}
-                    className={`inline-flex min-h-9 shrink-0 items-center rounded-full border px-3 py-1 text-xs font-semibold whitespace-nowrap ${
-                      active
-                        ? 'border-brand-primary bg-brand-surface text-brand-text'
-                        : 'border-border-interactive bg-bg-card text-ink-secondary'
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                );
-              })}
-            </div>
-          ) : null}
-        </div>
-
+      <div className="space-y-3">
         {childProfile ? (
-          <div className="space-y-3">
+          <div className="space-y-2">
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-ink-secondary">
               <span>
                 {includeOtherAges ? (
                   'Mostrando todas las edades'
                 ) : (
                   <>
-                    Mostrando etapa automática:{' '}
+                    Etapa:{' '}
                     <strong className="text-ink-primary">
                       {STAGE_SPECS[childProfile.stageId].label}
                     </strong>
@@ -310,11 +191,9 @@ export function GuiasView() {
                 type="button"
                 onClick={() => setIncludeOtherAges((v) => !v)}
                 aria-pressed={includeOtherAges}
-                className="inline-flex min-h-12 items-center rounded-xl border border-border-interactive bg-bg-elevated px-3 py-1.5 font-semibold text-brand-text"
+                className="inline-flex min-h-9 items-center rounded-lg border border-border-interactive bg-bg-elevated px-2.5 py-1 text-[11px] font-bold text-brand-text"
               >
-                {includeOtherAges
-                  ? 'Solo etapa de mi bebé'
-                  : 'Incluir todas las edades'}
+                {includeOtherAges ? 'Solo su etapa' : 'Todas las edades'}
               </button>
             </div>
             {includeOtherAges ? (
@@ -324,6 +203,7 @@ export function GuiasView() {
                 includeAllOption
                 onSelectAll={() => setStageFilter('all')}
                 label="Filtrar guías por edad"
+                compact
               />
             ) : null}
           </div>
@@ -334,8 +214,121 @@ export function GuiasView() {
             includeAllOption
             onSelectAll={() => setStageFilter('all')}
             label="Filtrar guías por etapa"
+            compact
           />
         )}
+
+        <div className="rounded-2xl border border-border-subtle bg-bg-card p-3 space-y-2.5">
+          <div className="space-y-1.5">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-ink-secondary">
+              1. Tipo
+            </p>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {TABS.map((t) => {
+                const active = tab === t.id;
+                const isUrgencia = t.id === 'urgencia';
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setTab(t.id)}
+                    aria-pressed={active}
+                    className={`inline-flex min-h-9 shrink-0 items-center rounded-full border px-3 py-1 text-xs font-bold whitespace-nowrap ${
+                      isUrgencia
+                        ? active
+                          ? 'border-alert-red bg-alert-surface text-alert-text ring-2 ring-alert-red'
+                          : 'border-alert-red bg-alert-surface text-alert-text'
+                        : active
+                          ? 'border-brand-primary bg-brand-primary text-brand-on'
+                          : 'border-border-interactive bg-bg-card text-ink-primary'
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {tab !== 'popo' && availableSubFilters.length > 1 ? (
+            <div className="border-t border-border-subtle pt-2.5 space-y-1.5">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-ink-secondary">
+                2. Nivel de atención
+              </p>
+              <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Filtrar por nivel de atención">
+                {availableSubFilters.map((c) => {
+                  const active = effectiveSubFilter === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setSubFilter(c.id)}
+                      aria-pressed={active}
+                      className={`inline-flex min-h-10 shrink-0 items-center rounded-full border px-3 py-1.5 text-xs font-semibold whitespace-nowrap ${
+                        active
+                          ? 'border-brand-primary bg-brand-primary text-brand-on'
+                          : 'border-border-interactive bg-bg-card text-ink-primary'
+                      }`}
+                    >
+                      {c.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          {tab !== 'popo' && availableCategories.length > 0 ? (
+            <div className="border-t border-border-subtle pt-2.5 space-y-1.5">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-ink-secondary">
+                3. Tema
+              </p>
+              <div className="flex gap-1.5 overflow-x-auto pb-1" role="group" aria-label="Filtrar por tema">
+                <button
+                  type="button"
+                  onClick={() => setCategoryFilter('all')}
+                  aria-pressed={effectiveCategory === 'all'}
+                  className={`inline-flex min-h-9 shrink-0 items-center rounded-full border px-3 py-1 text-xs font-semibold whitespace-nowrap ${
+                    effectiveCategory === 'all'
+                      ? 'border-brand-primary bg-brand-surface text-brand-text'
+                      : 'border-border-interactive bg-bg-card text-ink-secondary'
+                  }`}
+                >
+                  Todos
+                </button>
+                {availableCategories.map((cat) => {
+                  const active = effectiveCategory === cat;
+                  return (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setCategoryFilter(cat)}
+                      aria-pressed={active}
+                      className={`inline-flex min-h-9 shrink-0 items-center rounded-full border px-3 py-1 text-xs font-semibold whitespace-nowrap ${
+                        active
+                          ? 'border-brand-primary bg-brand-surface text-brand-text'
+                          : 'border-border-interactive bg-bg-card text-ink-secondary'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        <label className="block">
+          <span className="sr-only">Buscar en guías</span>
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar: fiebre, hipo, popó, berrinche..."
+            className="block min-h-12 w-full rounded-2xl border border-border-interactive bg-bg-card px-4 py-3 text-sm text-ink-primary shadow-sm"
+          />
+        </label>
       </div>
 
       {tab === 'urgencia' ? (
@@ -459,6 +452,8 @@ export function GuiasView() {
           ))}
         </div>
       )}
+
+      <TriageDisclaimerBanner />
     </div>
   );
 }

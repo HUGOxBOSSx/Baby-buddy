@@ -107,53 +107,108 @@ export function GrowthChartCard({
         className="rounded-xl border p-3 gap-2"
         style={{ backgroundColor: palette.bgCard, borderColor: palette.borderInteractive }}
       >
-        <View className="flex-row items-end justify-between gap-1 h-28">
-          {curve.map((pt) => {
-            const bandBottom = ((pt.p3 - minVal) / (maxVal - minVal)) * 100;
-            const bandTop = ((pt.p97 - minVal) / (maxVal - minVal)) * 100;
-            const babyAtBucket = points.find(
-              (p) => Math.abs(p.ageMonths - pt.month) <= horizon / 10,
-            );
-            const babyVal =
-              metric === 'weight' ? babyAtBucket?.weightKg : babyAtBucket?.heightCm;
-            const babyPct =
-              babyVal !== undefined
-                ? Math.max(4, Math.min(96, ((babyVal - minVal) / (maxVal - minVal)) * 100))
-                : null;
-
-            return (
-              <View key={pt.month} className="flex-1 items-center h-full justify-end">
-                <View className="w-full flex-1 relative items-center justify-end">
-                  <View
-                    className="w-3/4 rounded-full"
-                    style={{
-                      position: 'absolute',
-                      bottom: `${Math.max(0, bandBottom)}%`,
-                      height: `${Math.max(8, bandTop - bandBottom)}%`,
-                      backgroundColor: metric === 'weight' ? '#22c55e33' : '#3b82f633',
-                    }}
-                  />
-                  {babyPct !== null ? (
-                    <View
-                      className="w-2.5 h-2.5 rounded-full border border-white"
-                      style={{
-                        position: 'absolute',
-                        bottom: `${babyPct}%`,
-                        backgroundColor: metric === 'weight' ? '#16a34a' : '#2563eb',
-                      }}
-                    />
-                  ) : null}
-                </View>
-                <Text className="text-[9px]" style={{ color: palette.textMuted }}>
-                  {pt.month}m
+        <View className="flex-row items-stretch gap-1.5">
+          {/* Y-axis value labels */}
+          <View
+            className="justify-between items-end pb-4 pr-1"
+            style={{ width: 38, height: 128 }}
+          >
+            {[1, 0.67, 0.33, 0].map((frac) => {
+              const tickVal = Math.round(minVal + (maxVal - minVal) * frac);
+              return (
+                <Text
+                  key={`y-lbl-${frac}`}
+                  className="text-[9px] font-semibold"
+                  style={{ color: palette.textMuted }}
+                >
+                  {tickVal}
+                  {metric === 'weight' ? 'kg' : 'cm'}
                 </Text>
-              </View>
-            );
-          })}
+              );
+            })}
+          </View>
+
+          {/* Chart plot area with subtle gridlines */}
+          <View className="flex-1 h-32 relative">
+            {/* Horizontal gridlines */}
+            <View
+              className="absolute inset-x-0 top-0 bottom-4 pointer-events-none"
+            >
+              {[0, 0.33, 0.67, 1].map((frac) => (
+                <View
+                  key={`grid-h-${frac}`}
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    right: 0,
+                    bottom: `${frac * 100}%`,
+                    height: 1,
+                    backgroundColor: palette.borderInteractive,
+                    opacity: 0.25,
+                  }}
+                />
+              ))}
+            </View>
+
+            <View className="flex-row items-end justify-between flex-1">
+              {curve.map((pt, idx) => {
+                const bandBottom = ((pt.p3 - minVal) / (maxVal - minVal)) * 100;
+                const bandTop = ((pt.p97 - minVal) / (maxVal - minVal)) * 100;
+                const babyAtBucket = points.find(
+                  (p) => Math.abs(p.ageMonths - pt.month) <= horizon / 10,
+                );
+                const babyVal =
+                  metric === 'weight' ? babyAtBucket?.weightKg : babyAtBucket?.heightCm;
+                const babyPct =
+                  babyVal !== undefined
+                    ? Math.max(4, Math.min(96, ((babyVal - minVal) / (maxVal - minVal)) * 100))
+                    : null;
+
+                return (
+                  <View key={pt.month} className="flex-1 items-center h-full justify-end">
+                    <View
+                      className="w-full flex-1 relative items-center justify-end"
+                      style={
+                        idx > 0
+                          ? {
+                              borderLeftWidth: 0.5,
+                              borderColor: `${palette.borderInteractive}26`,
+                            }
+                          : undefined
+                      }
+                    >
+                      <View
+                        className="w-3/4 rounded-full"
+                        style={{
+                          position: 'absolute',
+                          bottom: `${Math.max(0, bandBottom)}%`,
+                          height: `${Math.max(8, bandTop - bandBottom)}%`,
+                          backgroundColor: metric === 'weight' ? '#22c55e33' : '#3b82f633',
+                        }}
+                      />
+                      {babyPct !== null ? (
+                        <View
+                          className="w-2.5 h-2.5 rounded-full border border-white"
+                          style={{
+                            position: 'absolute',
+                            bottom: `${babyPct}%`,
+                            backgroundColor: metric === 'weight' ? '#16a34a' : '#2563eb',
+                          }}
+                        />
+                      ) : null}
+                    </View>
+                    <Text className="text-[9px] h-4" style={{ color: palette.textMuted }}>
+                      {pt.month}m
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
         </View>
         {latest ? (
           <Text className="text-xs font-semibold" style={{ color: palette.brandText }}>
-            Último registro ({latest.dateLabel}):{' '}
+            Último registro ({latest.dateLabel} · {latest.ageLabelMx}):{' '}
             {latest.weightKg !== undefined ? `${latest.weightKg} kg` : '—'} ·{' '}
             {latest.heightCm !== undefined ? `${latest.heightCm} cm` : '—'}
           </Text>
@@ -165,8 +220,7 @@ export function GrowthChartCard({
       </View>
 
       <Text className="text-[11px]" style={{ color: palette.textSecondary }}>
-        Estándares de Crecimiento Infantil de la OMS (2006) · Referencia
-        educativa; tu pediatra evalúa la curva completa.
+        Estándares de Crecimiento Infantil de la OMS (2006)
       </Text>
     </View>
   );

@@ -6,15 +6,20 @@ import {
   ETHICAL_GUARDRAILS,
   STAGE_SPECS,
   assertEthicalComplianceConfig,
+  computeLocalRemindersMx,
+  computeTimerElapsedSec,
   createChildProfileSummary,
   enqueueSyncMutation,
   exportFamilyBackupJson,
+  formatTimerClock,
   getThemePalette,
   mergeChildProfiles,
   mergeDailyLogEntries,
   mergeHealthLogState,
   parseFamilyBackupJson,
+  resolveDateRangePreset,
   resolveEffectiveThemeMode,
+  summarizeDailyLog,
   type AccountDeletionResult,
   type ActiveFeedTimer,
   type ChildProfileSummary,
@@ -23,6 +28,7 @@ import {
   type GrowthLogEntry,
   type HealthLogState,
   type MedicationLogEntry,
+  type PlanTier,
   type StageId,
   type StoredSnapshotSummary,
   type SyncEntityType,
@@ -39,9 +45,17 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
+import { AppState } from 'react-native';
+import { requestMobileLocationPermission } from '../lib/location';
+import {
+  dismissLocalNotification,
+  requestMobileNotificationPermission,
+  sendLocalNotification,
+} from '../lib/notifications';
 import {
   accountLifecycleAdapter,
   loadPersistedActiveFeedTimer,
@@ -73,6 +87,12 @@ const EMPTY_SNAPSHOT_SUMMARY: StoredSnapshotSummary = {
   keys: [],
 };
 
+export interface AdPreviewConfig {
+  readonly enabled: boolean;
+  readonly plan: PlanTier;
+  readonly hourMode: 'day_14' | 'night_23' | 'real';
+}
+
 export interface ThemeContextValue {
   readonly mode: ThemeMode;
   readonly palette: ThemePalette;
@@ -102,12 +122,16 @@ export interface ThemeContextValue {
   readonly clearLastDeletionResult: () => void;
   readonly dailyLogs: readonly DailyLogEntry[];
   readonly activeFeedTimer: ActiveFeedTimer | null;
+  readonly activeSleepStartMs: number | null;
   readonly addDailyLogEntry: (entry: DailyLogEntry) => void;
   readonly deleteDailyLogEntry: (id: string) => void;
   readonly startFeedTimer: (side: 'breast_left' | 'breast_right') => void;
   readonly togglePauseFeedTimer: () => void;
   readonly saveActiveFeedTimer: () => void;
   readonly cancelActiveFeedTimer: () => void;
+  readonly startSleepTimer: (offsetMin?: number) => void;
+  readonly saveActiveSleepTimer: (noteMx?: string) => void;
+  readonly cancelSleepTimer: () => void;
   readonly healthState: HealthLogState;
   readonly addTemperatureLog: (entry: TemperatureLogEntry) => void;
   readonly deleteTemperatureLog: (id: string) => void;
@@ -126,6 +150,11 @@ export interface ThemeContextValue {
   readonly statusAnnouncement: string;
   readonly hydrated: boolean;
   readonly iconsLoaded: boolean;
+  readonly adPreview: AdPreviewConfig;
+  readonly setAdPreview: (next: AdPreviewConfig) => void;
+  readonly notificationsEnabled: boolean;
+  readonly enableNotifications: () => Promise<boolean>;
+  readonly disableNotifications: () => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -154,6 +183,9 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
   const [dailyLogs, setDailyLogs] = useState<readonly DailyLogEntry[]>([]);
   const [activeFeedTimer, setActiveFeedTimer] =
     useState<ActiveFeedTimer | null>(null);
+  const [activeSleepStartMs, setActiveSleepStartMs] = useState<number | null>(
+    null,
+  );
   const [healthState, setHealthState] = useState<HealthLogState>(
     EMPTY_HEALTH_LOG_STATE,
   );
@@ -161,6 +193,141 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
   const [statusAnnouncement, setStatusAnnouncement] = useState('');
   const [hydrated, setHydrated] = useState(false);
   const [iconsLoaded, setIconsLoaded] = useState(false);
+  const [adPreview, setAdPreview] = useState<AdPreviewConfig>({
+    enabled: false,
+    plan: 'free',
+    hourMode: 'day_14',
+  });
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const notifiedIdsRef = useRef<Set<string>>(new Set());
+  const autoPromptedNotifRef = useRef(false);
+
+  useEffect(() => {
+    if (!hydrated || !onboardingAccepted || autoPromptedNotifRef.current) {
+      return;
+    }
+    autoPromptedNotifRef.current = true;
+    void requestMobileNotificationPermission()
+      .then((granted) => {
+        if (granted) {
+          setNotificationsEnabled(true);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        void requestMobileLocationPermission().catch(() => {});
+      });
+  }, [hydrated, onboardingAccepted]);
+
+  const enableNotifications = useCallback(async () => {
+    const granted = await requestMobileNotificationPermission();
+    setNotificationsEnabled(granted);
+    return granted;
+  }, []);
+
+  const disableNotifications = useCallback(() => {
+    setNotificationsEnabled(false);
+    void dismissLocalNotification('bbmx-active-timer');
+  }, []);
+
+  // Dismiss active timer notification when no timer is active
+  useEffect(() => {
+    if (!activeFeedTimer && activeSleepStartMs === null) {
+      void dismissLocalNotification('bbmx-active-timer');
+    }
+  }, [activeFeedTimer, activeSleepStartMs]);
+
+  // Send active timer notification when app goes to background
+  useEffect(() => {
+    if (!notificationsEnabled) return;
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState !== 'background' && nextState !== 'inactive') {
+        return;
+      }
+      if (!activeFeedTimer && activeSleepStartMs === null) {
+        return;
+      }
+      const now = Date.now();
+      const babyName = childProfile?.nicknameMx ?? 'tu bebé';
+      if (activeFeedTimer) {
+        const sec = computeTimerElapsedSec(activeFeedTimer, now);
+        const side =
+          activeFeedTimer.side === 'breast_left'
+            ? 'Pecho izquierdo'
+            : 'Pecho derecho';
+        void sendLocalNotification({
+          id: 'bbmx-active-timer',
+          title: `⏱ Toma en curso · ${babyName}`,
+          body: `${side} · ${formatTimerClock(sec)} transcurridos al salir`,
+          channelId: 'baby-buddy-timers',
+        });
+      } else if (activeSleepStartMs !== null) {
+        const sec = Math.max(0, Math.floor((now - activeSleepStartMs) / 1000));
+        void sendLocalNotification({
+          id: 'bbmx-active-timer',
+          title: `😴 Siesta en curso · ${babyName}`,
+          body: `${formatTimerClock(sec)} transcurridos al salir`,
+          channelId: 'baby-buddy-timers',
+        });
+      }
+    });
+    return () => sub.remove();
+  }, [activeFeedTimer, activeSleepStartMs, childProfile, notificationsEnabled]);
+
+  // Send deduplicated notifications for daily alerts and due reminders
+  useEffect(() => {
+    if (!notificationsEnabled) return;
+    const now = new Date();
+    const todaySummary = summarizeDailyLog(
+      dailyLogs,
+      resolveDateRangePreset('today', now),
+      now,
+    );
+    if (todaySummary.hydrationAlertMx) {
+      const key = `hydration:${todaySummary.hydrationAlertMx}`;
+      if (!notifiedIdsRef.current.has(key)) {
+        notifiedIdsRef.current.add(key);
+        void sendLocalNotification({
+          id: 'bbmx-hydration-alert',
+          title: 'Alerta de hidratación — Baby Buddy MX',
+          body: todaySummary.hydrationAlertMx,
+          channelId: 'baby-buddy-alerts',
+        });
+      }
+    }
+    if (todaySummary.stoolAlertMx) {
+      const key = `stool:${todaySummary.stoolAlertMx}`;
+      if (!notifiedIdsRef.current.has(key)) {
+        notifiedIdsRef.current.add(key);
+        void sendLocalNotification({
+          id: 'bbmx-stool-alert',
+          title: 'Alerta de evacuación — Baby Buddy MX',
+          body: todaySummary.stoolAlertMx,
+          channelId: 'baby-buddy-alerts',
+        });
+      }
+    }
+    const reminders = computeLocalRemindersMx({
+      profile: childProfile,
+      dailySummary: todaySummary,
+      healthState,
+      now,
+    });
+    for (const rem of reminders) {
+      if (rem.urgency !== 'due') continue;
+      const key = `rem:${rem.id}:${rem.titleMx}`;
+      if (!notifiedIdsRef.current.has(key)) {
+        notifiedIdsRef.current.add(key);
+        void sendLocalNotification({
+          id: `bbmx-${rem.id}`,
+          title: rem.titleMx,
+          body: rem.detailMx,
+          channelId: 'baby-buddy-alerts',
+          data: rem.kind === 'vaccine' ? { tab: 'vacunas' } : undefined,
+        });
+      }
+    }
+  }, [childProfile, dailyLogs, healthState, notificationsEnabled]);
 
   const refreshSnapshot = useCallback(async () => {
     const [summary, single, multi] = await Promise.all([
@@ -510,6 +677,34 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
     void savePersistedActiveFeedTimer(null);
   }, []);
 
+  const startSleepTimer = useCallback((offsetMin = 0) => {
+    setActiveSleepStartMs(Date.now() - Math.max(0, offsetMin) * 60_000);
+  }, []);
+
+  const saveActiveSleepTimer = useCallback(
+    (noteMx?: string) => {
+      if (activeSleepStartMs === null) return;
+      const now = Date.now();
+      const safeSec = Math.max(
+        60,
+        Math.round((now - activeSleepStartMs) / 1000),
+      );
+      setActiveSleepStartMs(null);
+      addDailyLogEntry({
+        id: `sleep-${now}`,
+        kind: 'sleep',
+        timestampIso: new Date(now).toISOString(),
+        durationSec: safeSec,
+        noteMx: noteMx?.trim() || undefined,
+      });
+    },
+    [activeSleepStartMs, addDailyLogEntry],
+  );
+
+  const cancelSleepTimer = useCallback(() => {
+    setActiveSleepStartMs(null);
+  }, []);
+
   const addTemperatureLog = useCallback((entry: TemperatureLogEntry) => {
     setHealthState((prev) => {
       const next: HealthLogState = {
@@ -685,12 +880,16 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       clearLastDeletionResult,
       dailyLogs,
       activeFeedTimer,
+      activeSleepStartMs,
       addDailyLogEntry,
       deleteDailyLogEntry,
       startFeedTimer,
       togglePauseFeedTimer,
       saveActiveFeedTimer,
       cancelActiveFeedTimer,
+      startSleepTimer,
+      saveActiveSleepTimer,
+      cancelSleepTimer,
       healthState,
       addTemperatureLog,
       deleteTemperatureLog,
@@ -706,6 +905,11 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       statusAnnouncement,
       hydrated,
       iconsLoaded,
+      adPreview,
+      setAdPreview,
+      notificationsEnabled,
+      enableNotifications,
+      disableNotifications,
     }),
     [
       mode,
@@ -730,12 +934,16 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       clearLastDeletionResult,
       dailyLogs,
       activeFeedTimer,
+      activeSleepStartMs,
       addDailyLogEntry,
       deleteDailyLogEntry,
       startFeedTimer,
       togglePauseFeedTimer,
       saveActiveFeedTimer,
       cancelActiveFeedTimer,
+      startSleepTimer,
+      saveActiveSleepTimer,
+      cancelSleepTimer,
       healthState,
       addTemperatureLog,
       deleteTemperatureLog,
@@ -751,6 +959,10 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
       statusAnnouncement,
       hydrated,
       iconsLoaded,
+      adPreview,
+      notificationsEnabled,
+      enableNotifications,
+      disableNotifications,
     ],
   );
 

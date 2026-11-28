@@ -6,31 +6,35 @@ import type { ReactNode } from 'react';
 import {
   CHILD_SEX_LABELS_MX,
   STAGE_SPECS,
-  formatChildAgeMx,
+  formatChildAgeCompactMx,
 } from '@baby-buddy/core';
 import {
   BookOpenIcon,
   HeartPulseIcon,
   HomeIcon,
   MoonIcon,
+  SettingsIcon,
   ShirtIcon,
   SunIcon,
 } from '@/components/Icons';
+import { ActiveTimerBanner } from '@/components/ActiveTimerBanner';
 import { MascotAvatar } from '@/components/MascotAvatar';
 import { OnboardingGate } from '@/components/OnboardingGate';
+import { SimulatedAdBanner } from '@/components/SimulatedAdBanner';
 import { useAppState } from '@/components/ThemeProvider';
 
 interface NavItem {
   readonly href: string;
   readonly label: string;
-  readonly icon: 'home' | 'guides' | 'clothing' | 'health';
+  readonly icon: 'home' | 'guides' | 'clothing' | 'health' | 'settings';
 }
 
 const NAV_ITEMS: readonly NavItem[] = [
-  { href: '/', label: 'Registro diario', icon: 'home' },
+  { href: '/', label: 'Registro', icon: 'home' },
   { href: '/ropa-y-clima', label: 'Ropa y Clima', icon: 'clothing' },
   { href: '/salud', label: 'Salud', icon: 'health' },
   { href: '/guias', label: '¿Es normal?', icon: 'guides' },
+  { href: '/configuracion', label: 'Config.', icon: 'settings' },
 ] as const;
 
 function renderNavIcon(icon: NavItem['icon']) {
@@ -43,6 +47,8 @@ function renderNavIcon(icon: NavItem['icon']) {
       return <ShirtIcon className="h-5 w-5 shrink-0" />;
     case 'health':
       return <HeartPulseIcon className="h-5 w-5 shrink-0" />;
+    case 'settings':
+      return <SettingsIcon className="h-5 w-5 shrink-0" />;
   }
 }
 
@@ -61,11 +67,12 @@ export function AppShell({ children }: { readonly children: ReactNode }) {
     activeStageId,
     onboardingAccepted,
     childProfile,
+    adPreview,
   } = useAppState();
   const isNight = themeMode === 'night_3am';
   const activeStage = STAGE_SPECS[activeStageId];
   const babyBarSummary = childProfile
-    ? `${childProfile.nicknameMx} · ${formatChildAgeMx(childProfile.ageMonths)} · ${CHILD_SEX_LABELS_MX[childProfile.sex ?? 'no_especificado']}`
+    ? `${childProfile.nicknameMx} · ${formatChildAgeCompactMx(childProfile)} · ${CHILD_SEX_LABELS_MX[childProfile.sex ?? 'no_especificado']}`
     : null;
 
   const themeToggleLabel = isNight ? 'Cambiar a Modo Día' : 'Activar Modo nocturno';
@@ -111,6 +118,8 @@ export function AppShell({ children }: { readonly children: ReactNode }) {
           </div>
         </header>
 
+        <ActiveTimerBanner />
+
         <main
           id="contenido-principal"
           tabIndex={-1}
@@ -148,7 +157,7 @@ export function AppShell({ children }: { readonly children: ReactNode }) {
               </p>
             ) : null}
             <Link
-              href="/salud#perfil-bebe"
+              href="/configuracion#perfil-bebe"
               className="mt-1.5 flex w-full items-center justify-center rounded-lg border border-border-interactive bg-bg-elevated px-3 py-1.5 text-xs font-semibold text-brand-text hover:bg-brand-surface"
             >
               {childProfile
@@ -207,7 +216,7 @@ export function AppShell({ children }: { readonly children: ReactNode }) {
         <header className="border-b border-border-subtle bg-bg-card px-4 py-2 md:hidden">
           <div className="flex items-center justify-between gap-2">
             <Link
-              href="/salud#perfil-bebe"
+              href="/configuracion#perfil-bebe"
               className="flex min-h-12 min-w-0 flex-1 items-center gap-2 rounded-xl px-1.5 py-1 hover:bg-bg-elevated"
             >
               <div className="min-w-0 flex-1">
@@ -229,13 +238,21 @@ export function AppShell({ children }: { readonly children: ReactNode }) {
           </div>
         </header>
 
+        <ActiveTimerBanner />
+
         <main
           id="contenido-principal"
           tabIndex={-1}
-          className="mx-auto w-full max-w-4xl flex-1 px-4 py-5 pb-24 md:px-8 md:pb-8"
+          className={`mx-auto w-full max-w-4xl flex-1 px-4 py-5 md:px-8 md:pb-8 ${
+            adPreview.enabled ? 'pb-36' : 'pb-24'
+          }`}
         >
           {children}
         </main>
+
+        <div className="hidden md:block px-8 pb-2">
+          <SimulatedAdBanner />
+        </div>
 
         <footer className="hidden md:block border-t border-border-subtle bg-bg-card px-8 py-4 text-xs text-ink-muted">
           Baby Buddy MX · Contenido educativo en español de México (°C, kg, cm,
@@ -245,9 +262,10 @@ export function AppShell({ children }: { readonly children: ReactNode }) {
 
       {/* Mobile Bottom Thumb-Zone Navigation + 1-Tap 3:00 AM Switcher */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border-interactive bg-bg-card px-2 py-2 md:hidden">
+        <SimulatedAdBanner />
         <nav
           aria-label="Navegación principal"
-          className="grid grid-cols-5 gap-1"
+          className="grid grid-cols-6 gap-1"
         >
           {NAV_ITEMS.map((item) => {
             const active = isRouteActive(pathname, item.href);

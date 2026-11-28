@@ -1,5 +1,5 @@
 import type { GrowthLogEntry } from './healthLog';
-import type { ChildSex } from './profile';
+import { formatChildAgeMx, type ChildSex } from './profile';
 
 export type GrowthHorizonMonths = 12 | 24 | 48 | 72;
 
@@ -13,6 +13,7 @@ export interface WhoCurvePoint {
 export interface GrowthPlotPoint {
   readonly id: string;
   readonly ageMonths: number;
+  readonly ageLabelMx: string;
   readonly dateLabel: string;
   readonly weightKg?: number;
   readonly heightCm?: number;
@@ -130,6 +131,19 @@ export function computeAgeMonthsAtTimestamp(
   return Math.max(0, Math.min(72, Number(months.toFixed(2))));
 }
 
+export function formatGrowthAgeMx(ageDays: number): string {
+  const safeDays = Math.max(0, Math.round(ageDays));
+  if (safeDays < 28) {
+    return `${safeDays} ${safeDays === 1 ? 'día' : 'días'}`;
+  }
+  if (safeDays < 90) {
+    const weeks = Math.max(4, Math.round(safeDays / 7));
+    return `${weeks} sem`;
+  }
+  const approxMonths = Math.max(3, Math.min(72, Math.round(safeDays / 30.4375)));
+  return formatChildAgeMx(approxMonths);
+}
+
 export function buildGrowthPlotPoints(
   entries: readonly GrowthLogEntry[],
   birthDateIso: string | undefined,
@@ -140,15 +154,27 @@ export function buildGrowthPlotPoints(
       (a, b) =>
         new Date(a.timestampIso).getTime() - new Date(b.timestampIso).getTime(),
     )
-    .map((entry) => ({
-      id: entry.id,
-      ageMonths: computeAgeMonthsAtTimestamp(
-        birthDateIso,
-        entry.timestampIso,
-        fallbackAgeMonths,
-      ),
-      dateLabel: entry.timestampIso.slice(0, 10),
-      weightKg: entry.weightKg,
-      heightCm: entry.heightCm,
-    }));
+    .map((entry) => {
+      const ageMonths =
+        entry.ageAtEntryDays !== undefined &&
+        Number.isFinite(entry.ageAtEntryDays)
+          ? Math.max(
+              0,
+              Math.min(72, Number((entry.ageAtEntryDays / 30.4375).toFixed(2))),
+            )
+          : computeAgeMonthsAtTimestamp(
+              birthDateIso,
+              entry.timestampIso,
+              fallbackAgeMonths,
+            );
+      return {
+        id: entry.id,
+        ageMonths,
+        ageLabelMx:
+          entry.ageLabelMx ?? formatGrowthAgeMx(ageMonths * 30.4375),
+        dateLabel: entry.timestampIso.slice(0, 10),
+        weightKg: entry.weightKg,
+        heightCm: entry.heightCm,
+      };
+    });
 }

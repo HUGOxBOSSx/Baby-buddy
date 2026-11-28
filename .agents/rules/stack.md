@@ -40,11 +40,11 @@ Nunca al revés, y core no importa React ni Next.
 
 ## 3. Estructura de carpetas
 apps/web/src/
-  app/            rutas App Router: layout.tsx, page.tsx, guias/, ropa-y-clima/, salud/
+  app/            rutas App Router: layout.tsx, page.tsx, guias/, ropa-y-clima/, salud/, configuracion/
   components/     vistas y UI ('use client' cuando usa estado, efectos o APIs del navegador)
   lib/            localAdapter.ts (store + persistencia web)
 apps/mobile/
-  app/            rutas expo-router: _layout.tsx, (tabs)/{index,guias,ropa-y-clima,salud}.tsx
+  app/            rutas expo-router: _layout.tsx, (tabs)/{index,guias,ropa-y-clima,salud,configuracion}.tsx
   components/     ThemeProvider, OnboardingGate, StageSelector, StatusBadge, ...
   lib/            localAdapter.ts (storage móvil)
 packages/core/src/
@@ -130,6 +130,11 @@ Alternativa con los binarios ya instalados en la raíz:
 El CI invoca typecheck, lint, test, build:web y export:mobile; los cinco scripts existen
 en el package.json raíz y no deben renombrarse.
 E2E: node e2e/run.mjs --tier=1|2|3|4|all (con E2E_CORE_ONLY=1 cubre solo packages).
+
+Servidores de desarrollo local (obligatorio tras terminar actualizaciones de código):
+- Al concluir cambios y validaciones, cerrar primero cualquier servidor de desarrollo anterior en ejecución (`manage_task` `list` -> `kill`) y volver a lanzar ambos servidores en segundo plano **fuera del sandbox** (`BypassSandbox: true`, `IsDaemon: true`) para que sean accesibles desde el navegador y Expo Go:
+  - Web: `npm run dev --workspace=@baby-buddy/web` (`http://localhost:3000`)
+  - Móvil: `$env:EXPO_NO_TELEMETRY="1"; npm run start --workspace=@baby-buddy/mobile`
 
 ## 11. Prohibido (el E2E lo verifica)
 - Tailwind v4, React 18, newArchEnabled en app.json, eas build, eas-cli y builds en la nube.

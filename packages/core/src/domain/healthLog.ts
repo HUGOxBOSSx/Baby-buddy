@@ -1,5 +1,9 @@
-import type { DailyLogSummary } from './dailyLog';
-import type { ChildProfileSummary } from './profile';
+import {
+  BABY_EVENT_OPTIONS_MX,
+  type DailyLogSummary,
+  type EventLogEntry,
+} from './dailyLog';
+import { formatChildAgeCompactMx, type ChildProfileSummary } from './profile';
 
 export interface TemperatureLogEntry {
   readonly id: string;
@@ -21,6 +25,8 @@ export interface GrowthLogEntry {
   readonly weightKg?: number;
   readonly heightCm?: number;
   readonly headCircumferenceCm?: number;
+  readonly ageAtEntryDays?: number;
+  readonly ageLabelMx?: string;
 }
 
 export interface VaccineChecklistItem {
@@ -122,6 +128,15 @@ export function parseHealthLogState(raw: string | null): HealthLogState {
   }
 }
 
+function formatMinutesReadable(totalMin: number): string {
+  if (totalMin < 60) {
+    return `${totalMin} min`;
+  }
+  const hours = Math.floor(totalMin / 60);
+  const mins = totalMin % 60;
+  return `${totalMin} min (${hours} h ${mins} min)`;
+}
+
 function formatSummaryBlock(title: string, summary: DailyLogSummary): readonly string[] {
   return [
     title,
@@ -129,37 +144,73 @@ function formatSummaryBlock(title: string, summary: DailyLogSummary): readonly s
     `Pecho: ${summary.totalBreastMin} min (promedio ${summary.avgBreastMinPerDay} min/día) · Biberón: ${summary.totalBottleMl} ml (promedio ${summary.avgBottleMlPerDay} ml/día)`,
     ...(summary.totalPumpingMl > 0 || summary.solidsCount > 0
       ? [
-          `Extracción: ${summary.totalPumpingMl} ml · Sólidos: ${summary.solidsCount}`,
+          `Extracción: ${summary.totalPumpingMl} ml (promedio ${summary.avgPumpingMlPerDay} ml/día) · Sólidos: ${summary.solidsCount} (promedio ${summary.avgSolidsPerDay}/día)`,
         ]
       : []),
     `Pañales mojados (pipí): ${summary.wetDiapers} (promedio ${summary.avgWetDiapersPerDay}/día)`,
     `Evacuaciones (popó): ${summary.dirtyDiapers} (promedio ${summary.avgDirtyDiapersPerDay}/día)`,
-    `Sueño: ${summary.totalSleepMin} min (promedio ${summary.avgSleepMinPerDay} min/día)`,
+    `Sueño: ${formatMinutesReadable(summary.totalSleepMin)} (promedio ${formatMinutesReadable(summary.avgSleepMinPerDay)}/día)`,
   ];
 }
 
 export function buildPediatricianReportText(input: {
   readonly profile: ChildProfileSummary | null;
+  readonly dailySummaryToday?: DailyLogSummary;
   readonly dailySummary3d: DailyLogSummary;
   readonly dailySummary7d?: DailyLogSummary;
   readonly dailySummary30d?: DailyLogSummary;
+  readonly recentEvents?: readonly EventLogEntry[];
+  readonly stageMilestonesSummary?: {
+    readonly done: number;
+    readonly total: number;
+    readonly stageLabelMx?: string;
+  };
   readonly health: HealthLogState;
   readonly generatedAtIso: string;
 }): string {
   const {
     profile,
+    dailySummaryToday,
     dailySummary3d,
     dailySummary7d,
     dailySummary30d,
+    recentEvents,
+    stageMilestonesSummary,
     health,
     generatedAtIso,
   } = input;
+
+  const activeAlerts: string[] = [];
+  const hydrationAlert =
+    dailySummaryToday?.hydrationAlertMx ?? dailySummary3d.hydrationAlertMx;
+  const stoolAlert = dailySummaryToday?.stoolAlertMx ?? dailySummary3d.stoolAlertMx;
+  if (hydrationAlert) activeAlerts.push(hydrationAlert);
+  if (stoolAlert) activeAlerts.push(stoolAlert);
+
+  const eventLabelMap = new Map<string, string>(
+    BABY_EVENT_OPTIONS_MX.map((option) => [option.id, option.labelMx]),
+  );
+  const eventsList = recentEvents ?? [];
+  const eventCounts = new Map<string, number>();
+  for (const ev of eventsList) {
+    const label = eventLabelMap.get(ev.eventType) ?? ev.eventType;
+    eventCounts.set(label, (eventCounts.get(label) ?? 0) + 1);
+  }
+  const eventSummaryLine = Array.from(eventCounts.entries())
+    .map(([label, count]) => `${label} (${count})`)
+    .join(' · ');
+
+  const completedMilestonesCount = (health.completedMilestoneIds ?? []).length;
+
   const lines: string[] = [
     '=== REPORTE PARA PEDIATRA — BABY BUDDY MX ===',
     `Fecha de corte: ${generatedAtIso.slice(0, 10)}`,
     profile
-      ? `Bebé: ${profile.nicknameMx} · Edad: ${profile.ageMonths} meses (${profile.stageId})`
+      ? `Bebé: ${profile.nicknameMx} · Edad: ${formatChildAgeCompactMx(profile)} (${profile.stageId})`
       : 'Bebé: Sin perfil guardado',
+    ...(dailySummaryToday
+      ? ['', ...formatSummaryBlock('--- Hoy (Registro diario) ---', dailySummaryToday)]
+      : []),
     '',
     ...formatSummaryBlock(
       '--- Últimos 3 días (Registro diario) ---',
@@ -177,6 +228,24 @@ export function buildPediatricianReportText(input: {
           ),
         ]
       : []),
+    ...(activeAlerts.length > 0
+      ? [
+          '',
+          '--- Alertas activas del registro diario ---',
+          ...activeAlerts.map((alert) => `• ${alert}`),
+        ]
+      : []),
+    '',
+    '--- Eventos recientes (reflujo, vómito, cólico, etc.) ---',
+    ...(eventsList.length > 0
+      ? [
+          `Resumen: ${eventSummaryLine}`,
+          ...eventsList.slice(0, 10).map((ev) => {
+            const label = eventLabelMap.get(ev.eventType) ?? ev.eventType;
+            return `• ${ev.timestampIso.slice(0, 16).replace('T', ' ')}: ${label}${ev.noteMx ? ` (${ev.noteMx})` : ''}`;
+          }),
+        ]
+      : ['• Sin eventos registrados']),
     '',
     '--- Temperaturas recientes (°C) ---',
     ...(health.temperatures.length > 0
@@ -204,11 +273,14 @@ export function buildPediatricianReportText(input: {
           .slice(0, 5)
           .map(
             (g) =>
-              `• ${g.timestampIso.slice(0, 10)}: ${g.weightKg !== undefined ? `${g.weightKg} kg` : '—'} · ${g.heightCm !== undefined ? `${g.heightCm} cm` : '—'}${g.headCircumferenceCm !== undefined ? ` · PC ${g.headCircumferenceCm} cm` : ''}`,
+              `• ${g.timestampIso.slice(0, 10)}${g.ageLabelMx ? ` (${g.ageLabelMx})` : ''}: ${g.weightKg !== undefined ? `${g.weightKg} kg` : '—'} · ${g.heightCm !== undefined ? `${g.heightCm} cm` : '—'}${g.headCircumferenceCm !== undefined ? ` · Cabeza / PC ${g.headCircumferenceCm} cm` : ''}`,
           )
       : ['• Sin registros de peso/talla']),
     '',
     `Vacunas Cartilla MX marcadas: ${health.completedVaccineIds.length} de ${MX_VACCINE_CHECKLIST.length}`,
+    stageMilestonesSummary
+      ? `Hitos del desarrollo marcados: ${stageMilestonesSummary.done} de ${stageMilestonesSummary.total}${stageMilestonesSummary.stageLabelMx ? ` en etapa ${stageMilestonesSummary.stageLabelMx}` : ''} (total acumulado: ${completedMilestonesCount})`
+      : `Hitos del desarrollo marcados: ${completedMilestonesCount}`,
     '',
     'Nota: Registro informativo llevado por cuidadores; no sustituye valoración médica.',
   ];

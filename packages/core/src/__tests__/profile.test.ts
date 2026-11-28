@@ -3,6 +3,7 @@ import {
   DEFAULT_THEME_SCHEDULE,
   calculateAgeMonthsFromBirthDate,
   createChildProfileSummary,
+  formatChildAgeCompactMx,
   formatChildAgeMx,
   resolveEffectiveThemeMode,
   resolveLiveChildProfile,
@@ -89,5 +90,23 @@ describe('profile & theme schedule helpers', () => {
       birthDateIso: '2026-07-25',
     });
     expect(decodeFamilyBabyCode('INVALIDO')).toBeNull();
+  });
+
+  it('formatea edad compacta en meses y días (ej. 0m 20d)', () => {
+    expect(
+      formatChildAgeCompactMx(
+        { ageMonths: 0, birthDateIso: '2026-11-07' },
+        new Date(2026, 10, 27),
+      ),
+    ).toBe('0m 20d');
+
+    expect(
+      formatChildAgeCompactMx(
+        { ageMonths: 1, birthDateIso: '2026-10-15' },
+        new Date(2026, 10, 5),
+      ),
+    ).toBe('0m 21d');
+
+    expect(formatChildAgeCompactMx({ ageMonths: 3 })).toBe('3m 0d');
   });
 });

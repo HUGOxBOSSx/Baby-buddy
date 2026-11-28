@@ -168,7 +168,7 @@ describe('recommendClothing (-5 °C a 50 °C)', () => {
     expect(polarEnvuelta.comfortZone).toBe('optimal');
 
     const poliesterAfelpado = recommendClothing({
-      tempC: 16,
+      tempC: 18,
       environment: 'cuarto',
       stageId: '0-3m',
       selectedLayers: {
@@ -178,7 +178,7 @@ describe('recommendClothing (-5 °C a 50 °C)', () => {
       },
     });
     expect(poliesterAfelpado.looseBlanketAlert).toBe(false);
-    expect(poliesterAfelpado.currentTog).toBe(3.15);
+    expect(poliesterAfelpado.currentTog).toBe(2.65);
     expect(poliesterAfelpado.comfortZone).toBe('optimal');
   });
 
